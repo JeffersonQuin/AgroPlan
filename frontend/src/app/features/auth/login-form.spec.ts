@@ -1,18 +1,47 @@
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import { vi } from 'vitest';
-import { AuthStore } from './auth.store';
+import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
+import { TokenResponse } from './auth.model';
 import { LoginForm } from './login-form';
 
+const TOKEN_RESPONSE: TokenResponse = {
+  access_token: 'jwt-token',
+  token_type: 'bearer',
+  usuario: {
+    id: 7,
+    email: 'agronomo@agroplan.com',
+    nombre: null,
+    foto_url: null,
+    rol: 'cliente',
+    activo: true,
+    ultimo_acceso: null,
+  },
+};
+
 describe('LoginForm', () => {
-  let store: AuthStore;
+  let http: HttpTestingController;
 
   beforeEach(async () => {
-    await TestBed.configureTestingModule({ imports: [LoginForm] }).compileComponents();
-    store = TestBed.inject(AuthStore);
+    localStorage.clear();
+    await TestBed.configureTestingModule({
+      imports: [LoginForm],
+      providers: [
+        { provide: Router, useValue: { navigateByUrl: () => Promise.resolve(true) } },
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        {
+          provide: ActivatedRoute,
+          useValue: { snapshot: { queryParamMap: convertToParamMap({ returnUrl: '/terreno' }) } },
+        },
+      ],
+    }).compileComponents();
+    http = TestBed.inject(HttpTestingController);
   });
 
   afterEach(() => {
-    vi.useRealTimers();
+    http.verify();
+    localStorage.clear();
   });
 
   async function render() {
@@ -21,94 +50,49 @@ describe('LoginForm', () => {
     return fixture;
   }
 
-  function query<T extends Element>(fixture: Awaited<ReturnType<typeof render>>, selector: string) {
-    return fixture.nativeElement.querySelector(selector) as T | null;
-  }
-
-  it('shows the required error for an empty email on submit', async () => {
+  it('keeps the credential fields disabled while the backend has no passwords', async () => {
     const fixture = await render();
 
-    query<HTMLFormElement>(fixture, 'form')!.dispatchEvent(new Event('submit'));
-    await fixture.whenStable();
-
-    expect(fixture.nativeElement.textContent).toContain('Ingresá tu correo electrónico.');
-  });
-
-  it('shows the invalid-format error for a malformed email', async () => {
-    const fixture = await render();
-    const emailInput = query<HTMLInputElement>(fixture, '#input-email')!;
-
-    emailInput.value = 'no-es-un-correo';
-    emailInput.dispatchEvent(new Event('input'));
-    await fixture.whenStable();
-
-    query<HTMLFormElement>(fixture, 'form')!.dispatchEvent(new Event('submit'));
-    await fixture.whenStable();
-
-    expect(fixture.nativeElement.textContent).toContain('Ingresá un correo electrónico válido.');
-  });
-
-  it('toggles the password visibility', async () => {
-    const fixture = await render();
-    const passwordInput = query<HTMLInputElement>(fixture, '#input-password')!;
-    const toggle = fixture.nativeElement.querySelector(
-      'app-login-password-field button[type="button"]',
-    ) as HTMLButtonElement;
-
-    expect(passwordInput.type).toBe('password');
-
-    toggle.click();
-    await fixture.whenStable();
-    expect(passwordInput.type).toBe('text');
-
-    toggle.click();
-    await fixture.whenStable();
-    expect(passwordInput.type).toBe('password');
-  });
-
-  it('fills the demo credentials and reveals the notice', async () => {
-    const fixture = await render();
-    const demoButton = Array.from(
-      fixture.nativeElement.querySelectorAll('button') as NodeListOf<HTMLButtonElement>,
-    ).find((button) => button.textContent?.includes('Demo Jurado'))!;
-
-    demoButton.click();
-    await fixture.whenStable();
-
-    expect(query<HTMLInputElement>(fixture, '#input-email')!.value).toBe(
-      'jurado.evaluador@agroplan.io',
+    expect(
+      (fixture.nativeElement.querySelector('#input-email') as HTMLInputElement).disabled,
+    ).toBe(true);
+    expect(
+      (fixture.nativeElement.querySelector('#input-password') as HTMLInputElement).disabled,
+    ).toBe(true);
+    expect(fixture.nativeElement.textContent).toContain(
+      'El backend todavía no acepta correo y contraseña.',
     );
-    expect(query<HTMLInputElement>(fixture, '#input-password')!.value).toBe('JuradoPrecision2025!');
-    expect(store.demoLoaded()).toBe(true);
   });
 
-  it('authenticates with valid credentials', async () => {
+  it('warns about the missing Google client id instead of a broken button', async () => {
     const fixture = await render();
 
-    const emailInput = query<HTMLInputElement>(fixture, '#input-email')!;
-    emailInput.value = 'agronomo@agroplan.com';
-    emailInput.dispatchEvent(new Event('input'));
-    const passwordInput = query<HTMLInputElement>(fixture, '#input-password')!;
-    passwordInput.value = 'Secreta123';
-    passwordInput.dispatchEvent(new Event('input'));
-    await fixture.whenStable();
-
-    // Fake timers go in only after rendering: `whenStable()` needs real ones.
-    vi.useFakeTimers();
-    query<HTMLFormElement>(fixture, 'form')!.dispatchEvent(new Event('submit'));
-    expect(store.isSubmitting()).toBe(true);
-
-    await vi.advanceTimersByTimeAsync(1000);
-
-    expect(store.status()).toBe('success');
+    expect(fixture.nativeElement.textContent).toContain('Falta');
+    expect(fixture.nativeElement.textContent).toContain('googleClientId');
   });
 
-  it('does not authenticate when a field is empty', async () => {
+  it('exchanges the Google credential and stores the session', async () => {
     const fixture = await render();
 
-    query<HTMLFormElement>(fixture, 'form')!.dispatchEvent(new Event('submit'));
+    fixture.componentInstance['onCredential']('google-id-token');
+
+    const request = http.expectOne('http://localhost:8000/auth/google');
+    expect(request.request.body).toEqual({ id_token: 'google-id-token' });
+    request.flush(TOKEN_RESPONSE);
     await fixture.whenStable();
 
-    expect(store.status()).toBe('idle');
+    expect(localStorage.getItem('agroplan.session')).toContain('jwt-token');
+  });
+
+  it('shows the backend error when the exchange fails', async () => {
+    const fixture = await render();
+
+    fixture.componentInstance['onCredential']('bad-token');
+    http
+      .expectOne('http://localhost:8000/auth/google')
+      .flush({ detail: 'Token de Google inválido' }, { status: 401, statusText: 'Unauthorized' });
+    await fixture.whenStable();
+
+    expect(fixture.nativeElement.textContent).toContain('Token de Google inválido');
   });
 });
