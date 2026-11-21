@@ -11,6 +11,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
+from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 from app.agente import PROMPT_VERSION, ContextoAgente
@@ -59,6 +60,7 @@ __all__ = [
     "InicioCorrida",
     "actualizar_recomendacion",
     "aplicar_corrida",
+    "aplicar_corrida_del_usuario",
     "ejecutar_corrida",
     "iniciar_corrida",
     "listar_corridas",
@@ -398,55 +400,61 @@ def aplicar_corrida(
 
     terreno = _terreno_requerido(db, proyecto)
 
+    # Todo lo que puede fallar por validación se arma antes de tocar el proyecto: si
+    # el payload no valida, no se borró ni un bloque.
+    porcentajes = repartir_porcentajes(
+        [cultivo.area_m2 for cultivo in propuesta.cultivos],
+        float(terreno.area_m2),
+    )
+    try:
+        altas = [
+            BloqueCultivoCreate(
+                cultivo_codigo=cultivo.cultivo_codigo,
+                etiqueta=cultivo.nombre,
+                siembra=cultivo.siembra_sugerida,
+                cosecha=cultivo.cosecha_sugerida,
+                demanda_l_m2_dia=cultivo.demanda_l_m2_dia,
+                modo=ModoReparto.PORCENTAJE,
+                porcentaje=porcentaje,
+            )
+            for cultivo, porcentaje in zip(
+                propuesta.cultivos, porcentajes, strict=True
+            )
+            if porcentaje > 0
+        ]
+        sistema = propuesta.sistema
+        configuracion = SistemaRiegoIn(
+            tipo=sistema.tipo,
+            fuente_agua=FuenteAgua(terreno.fuente_agua),
+            tanque_l=sistema.tanque_l,
+            bomba_hp=sistema.bomba_hp,
+            emisor=EmisorIn(
+                tipo=sistema.emisor.tipo,
+                caudal_lh=sistema.emisor.caudal_lh,
+                separacion_m=sistema.emisor.separacion_m,
+            ),
+            separacion_laterales_m=sistema.separacion_laterales_m,
+            punto_conexion=_punto_conexion(terreno),
+            num_sectores=sistema.num_sectores,
+        )
+    except ValidationError as exc:
+        raise AgenteServiceError(
+            422, f"La propuesta congelada no se puede aplicar: {exc.errors()[0]['msg']}"
+        ) from exc
+
     # La propuesta reemplaza el reparto anterior: los bloques se recrean desde el
     # snapshot congelado, no se parchean sobre la geometría que dibujó el usuario.
     for bloque in bloque_repo.list_by_proyecto(db, proyecto.id):
         cultivo_service.eliminar_bloque(db, proyecto, bloque.id)
 
-    porcentajes = repartir_porcentajes(
-        [cultivo.area_m2 for cultivo in propuesta.cultivos],
-        float(terreno.area_m2),
-    )
-    for cultivo, porcentaje in zip(propuesta.cultivos, porcentajes, strict=True):
-        if porcentaje <= 0:
-            continue
+    for alta in altas:
         try:
-            cultivo_service.crear_bloque(
-                db,
-                proyecto,
-                BloqueCultivoCreate(
-                    cultivo_codigo=cultivo.cultivo_codigo,
-                    etiqueta=cultivo.nombre,
-                    siembra=cultivo.siembra_sugerida,
-                    cosecha=cultivo.cosecha_sugerida,
-                    demanda_l_m2_dia=cultivo.demanda_l_m2_dia,
-                    modo=ModoReparto.PORCENTAJE,
-                    porcentaje=porcentaje,
-                ),
-            )
+            cultivo_service.crear_bloque(db, proyecto, alta)
         except cultivo_service.CultivoServiceError as exc:
             raise AgenteServiceError(exc.status_code, exc.detail) from exc
 
-    sistema = propuesta.sistema
     try:
-        riego_service.upsert_config(
-            db,
-            proyecto,
-            SistemaRiegoIn(
-                tipo=sistema.tipo,
-                fuente_agua=FuenteAgua(terreno.fuente_agua),
-                tanque_l=sistema.tanque_l,
-                bomba_hp=sistema.bomba_hp,
-                emisor=EmisorIn(
-                    tipo=sistema.emisor.tipo,
-                    caudal_lh=sistema.emisor.caudal_lh,
-                    separacion_m=sistema.emisor.separacion_m,
-                ),
-                separacion_laterales_m=sistema.separacion_laterales_m,
-                punto_conexion=_punto_conexion(terreno),
-                num_sectores=sistema.num_sectores,
-            ),
-        )
+        riego_service.upsert_config(db, proyecto, configuracion)
         riego_service.generar(db, proyecto)
     except riego_service.RiegoServiceError as exc:
         # El sistema de riego es válido aunque el motor no pueda cerrar la red: la
@@ -553,11 +561,7 @@ def _corrida_requerida(
     return corrida
 
 
-def obtener_corrida_del_usuario(
-    db: Session, usuario, corrida_id: uuid.UUID
-) -> CorridaDetalleOut:
-    """Polling sin conocer el proyecto: ``GET /agente/corridas/{corrida_id}``."""
-
+def _proyecto_de_corrida(db: Session, usuario, corrida_id: uuid.UUID) -> tuple:
     corrida = agente_corrida_repo.get_by_id(db, corrida_id)
     if corrida is None:
         raise AgenteServiceError(404, "Corrida del agente no encontrada")
@@ -565,7 +569,25 @@ def obtener_corrida_del_usuario(
         proyecto = proyecto_service.get_proyecto(db, corrida.proyecto_id, usuario)
     except proyecto_service.ProyectoServiceError as exc:
         raise AgenteServiceError(exc.status_code, exc.detail) from exc
+    return corrida, proyecto
+
+
+def obtener_corrida_del_usuario(
+    db: Session, usuario, corrida_id: uuid.UUID
+) -> CorridaDetalleOut:
+    """Polling sin conocer el proyecto: ``GET /agente/corridas/{corrida_id}``."""
+
+    corrida, proyecto = _proyecto_de_corrida(db, usuario, corrida_id)
     return obtener_corrida(db, proyecto, corrida.id)
+
+
+def aplicar_corrida_del_usuario(
+    db: Session, usuario, corrida_id: uuid.UUID
+) -> ResultadoProyectoOut:
+    """``POST /agente/corridas/{corrida_id}/aplicar``, la ruta del contrato."""
+
+    _, proyecto = _proyecto_de_corrida(db, usuario, corrida_id)
+    return aplicar_corrida(db, proyecto, corrida_id)
 
 
 def listar_fuentes(

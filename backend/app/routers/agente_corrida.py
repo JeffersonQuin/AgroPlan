@@ -122,6 +122,18 @@ def obtener_corrida_global(
         raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
 
 
+@router.post("/agente/corridas/{corrida_id}/aplicar", response_model=ResultadoProyectoOut)
+def aplicar_corrida_global(
+    corrida_id: uuid.UUID,
+    current_user: Usuario = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> ResultadoProyectoOut:
+    try:
+        return agente_service.aplicar_corrida_del_usuario(db, current_user, corrida_id)
+    except AgenteServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+
+
 @router.post(
     "/proyectos/{proyecto_id}/agente/corridas/{corrida_id}/aplicar",
     response_model=ResultadoProyectoOut,

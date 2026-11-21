@@ -32,6 +32,7 @@ TIPOS_SISTEMA = ("goteo", "aspersion", "inundacion")
 SEPARACION_MIN, SEPARACION_MAX = 0.2, 1.0
 LATERALES_MIN, LATERALES_MAX = 0.5, 10.0
 SECTORES_MIN, SECTORES_MAX = 1, 8
+TANQUE_MAX_L = 1_000_000
 
 # Si la demanda propuesta se aparta más de 25% de la del catálogo, manda el catálogo.
 DESVIACION_DEMANDA = 0.25
@@ -99,9 +100,17 @@ def repartir_porcentajes(areas: list[float], area_total: float) -> list[float]:
     if not areas:
         return []
 
+    solicitado = sum(areas)
+    if solicitado > area_total:
+        # Precondición incumplida: se normaliza para no devolver más del 100%.
+        areas = [area * area_total / solicitado for area in areas]
+
     crudos = [_dec(area) / _dec(area_total) * 100 for area in areas]
     centesimos = Decimal("0.01")
-    objetivo = (sum(crudos) / centesimos).to_integral_value(rounding=ROUND_DOWN)
+    objetivo = min(
+        (sum(crudos) / centesimos).to_integral_value(rounding=ROUND_DOWN),
+        Decimal(10000),
+    )
     base = [int((crudo / centesimos).to_integral_value(rounding=ROUND_DOWN)) for crudo in crudos]
 
     sobrante = int(objetivo) - sum(base)
@@ -232,6 +241,11 @@ def _corregir_sistema(
     if sectores != sistema.num_sectores:
         cambios.append(f"num_sectores {sistema.num_sectores} → {sectores}")
 
+    tanque = sistema.tanque_l
+    if tanque is not None and tanque > TANQUE_MAX_L:
+        cambios.append(f"tanque_l {tanque:g} → {TANQUE_MAX_L}")
+        tanque = float(TANQUE_MAX_L)
+
     if cambios:
         advertencias.append(
             _advertencia(
@@ -249,7 +263,7 @@ def _corregir_sistema(
             tipo="gotero", caudal_lh=caudal, separacion_m=separacion
         ),
         separacion_laterales_m=laterales,
-        tanque_l=sistema.tanque_l,
+        tanque_l=tanque,
         bomba_hp=bomba,
         num_sectores=sectores,
     )
