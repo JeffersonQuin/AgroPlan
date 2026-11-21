@@ -3,15 +3,12 @@
     <span class="material-symbols-outlined text-[26px]" aria-hidden="true">agriculture</span>
     <span class="text-headline-md">AgroPlan</span>
   </span>
-  <span class="text-label-sm text-outline px-space-sm py-1 rounded bg-surface-container-low">
-    Acceso Profesional
-  </span>
 </div>
 
 <div class="mb-space-lg">
-  <h1 class="text-headline-xl text-on-surface">Crea tu cuenta técnica</h1>
+  <h1 class="text-headline-xl text-on-surface">Crea tu cuenta</h1>
   <p class="text-body-md text-on-surface-variant mt-1">
-    Comienza a diseñar y dimensionar proyectos agrícolas con precisión milimétrica.
+    Comienza a diseñar y dimensionar proyectos agrícolas con precisión.
   </p>
 </div>
 
@@ -40,7 +37,7 @@
         fill="#EA4335"
       />
     </svg>
-    Registrarse con Google Workspace institucional
+    Registrarse con Google
   </button>
 
   <div class="relative flex items-center justify-center my-space-md">
@@ -54,16 +51,16 @@
 <form class="space-y-space-md" (submit)="onSubmit($event)" novalidate>
   <app-register-field
     inputId="fullName"
-    label="Nombre completo y título"
+    label="Nombre completo"
     icon="badge"
-    placeholder="ej. Ing. Lucas Ferrero"
+    placeholder="ej. Lucas Ferrero"
     autocomplete="name"
     [field]="registerForm.fullName"
   />
 
   <app-register-field
     inputId="workEmail"
-    label="Correo corporativo o profesional"
+    label="Correo electrónico"
     icon="mail"
     type="email"
     placeholder="lucas.ferrero@agronomia-consulting.com"
