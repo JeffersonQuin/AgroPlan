@@ -52,6 +52,12 @@ class FichaCultivo:
     meses_siembra: list[int] | None
     notas: str
     fuentes: list[FuenteRecuperada]
+    # Datos agronómicos del paso 2. Opcionales: una ficha vieja sigue siendo válida.
+    kc: float | None = None
+    densidad_plantas_m2: float | None = None
+    profundidad_raiz_cm: int | None = None
+    # {"franco": {"veredicto": "apto", "motivo": "...", "fuente": "..."}}
+    aptitud_suelo: dict[str, dict] | None = None
 
 
 def _texto(valor: Any) -> str | None:
@@ -67,6 +73,36 @@ def _numero(valor: Any) -> float | None:
     if isinstance(valor, (int, float)):
         return float(valor)
     return None
+
+
+VEREDICTOS_SUELO = ("apto", "condicionado", "no_apto")
+KC_MAXIMO = 2.0
+DENSIDAD_MAXIMA = 500.0
+PROFUNDIDAD_MAXIMA = 300
+
+
+def _aptitud_suelo(valor: Any) -> dict[str, dict] | None | bool:
+    """Normaliza el mapa de aptitud por suelo. ``False`` = ficha mal formada."""
+
+    if valor is None:
+        return None
+    if not isinstance(valor, dict):
+        return False
+    normalizado: dict[str, dict] = {}
+    for suelo, datos in valor.items():
+        if not isinstance(suelo, str) or not PATRON_CODIGO.match(suelo):
+            return False
+        if not isinstance(datos, dict):
+            return False
+        veredicto = datos.get("veredicto")
+        if veredicto not in VEREDICTOS_SUELO:
+            return False
+        normalizado[suelo] = {
+            "veredicto": veredicto,
+            "motivo": _texto(datos.get("motivo")),
+            "fuente": _texto(datos.get("fuente")),
+        }
+    return normalizado
 
 
 def _meses(valor: Any) -> list[int] | None | bool:
@@ -150,9 +186,32 @@ def _ficha_desde_datos(datos: Any, codigo_archivo: str) -> FichaCultivo | str:
     if fuentes is None:
         return "fuentes ausente o con un tipo no permitido"
 
+    kc = _numero(datos.get("kc"))
+    if kc is not None and not 0 < kc <= KC_MAXIMO:
+        return f"kc fuera del dominio (0, {KC_MAXIMO:g}]"
+
+    densidad = _numero(datos.get("densidad_plantas_m2"))
+    if densidad is not None and not 0 < densidad <= DENSIDAD_MAXIMA:
+        return f"densidad_plantas_m2 fuera del dominio (0, {DENSIDAD_MAXIMA:g}]"
+
+    profundidad = _numero(datos.get("profundidad_raiz_cm"))
+    if profundidad is not None and not 1 <= profundidad <= PROFUNDIDAD_MAXIMA:
+        return f"profundidad_raiz_cm fuera del dominio [1, {PROFUNDIDAD_MAXIMA}]"
+
+    aptitud = _aptitud_suelo(datos.get("aptitud_suelo"))
+    if aptitud is False:
+        return (
+            "aptitud_suelo debe ser un objeto código_de_suelo → "
+            f"{{veredicto ∈ {VEREDICTOS_SUELO}, motivo}}"
+        )
+
     notas = _texto(datos.get("notas")) or ""
 
     return FichaCultivo(
+        kc=kc,
+        densidad_plantas_m2=densidad,
+        profundidad_raiz_cm=int(profundidad) if profundidad is not None else None,
+        aptitud_suelo=aptitud or None,
         codigo=codigo,
         nombre=nombre,
         icono=icono,

@@ -81,6 +81,10 @@ class Investigacion:
     fuentes: list[FuenteRecuperada]
     origen: Literal["ficha", "web"]
     busquedas: int
+    kc: float | None = None
+    densidad_plantas_m2: float | None = None
+    profundidad_raiz_cm: int | None = None
+    aptitud_suelo: dict[str, dict] | None = None
 
 
 # --------------------------------------------------------------------------- #
@@ -133,6 +137,52 @@ def _meses(valor: Any) -> list[int] | None:
         if str(item).strip().isdigit() and 1 <= int(item) <= 12
     }
     return sorted(meses) or None
+
+
+KC_MAXIMO = 2.0
+DENSIDAD_MAXIMA = 500.0
+PROFUNDIDAD_MAXIMA = 300
+VEREDICTOS_SUELO = ("apto", "condicionado", "no_apto")
+
+
+def _kc(valor: Any) -> float | None:
+    numero = _numero(valor)
+    if numero is None or not 0 < numero <= KC_MAXIMO:
+        return None
+    return round(numero, 2)
+
+
+def _opcional_positivo(valor: Any, maximo: float) -> float | None:
+    numero = _numero(valor)
+    if numero is None or not 0 < numero <= maximo:
+        return None
+    return round(numero, 2)
+
+
+def _entero_positivo(valor: Any, maximo: int) -> int | None:
+    numero = _numero(valor)
+    if numero is None or not 1 <= numero <= maximo:
+        return None
+    return int(numero)
+
+
+def _aptitud(valor: Any) -> dict[str, dict] | None:
+    """Saneo del mapa suelo → veredicto. Lo que no encaja se descarta, no se inventa."""
+
+    if not isinstance(valor, dict):
+        return None
+    normalizado: dict[str, dict] = {}
+    for suelo, datos in valor.items():
+        if not isinstance(suelo, str) or not isinstance(datos, dict):
+            continue
+        if datos.get("veredicto") not in VEREDICTOS_SUELO:
+            continue
+        normalizado[suelo[:20]] = {
+            "veredicto": datos["veredicto"],
+            "motivo": (_texto(datos.get("motivo")) or "")[:200] or None,
+            "fuente": (_texto(datos.get("fuente")) or "")[:120] or None,
+        }
+    return normalizado or None
 
 
 def _color(valor: Any) -> str:
@@ -298,6 +348,10 @@ def _desde_ficha(ficha: FichaCultivo) -> Investigacion:
         fuentes=list(ficha.fuentes),
         origen="ficha",
         busquedas=0,
+        kc=ficha.kc,
+        densidad_plantas_m2=ficha.densidad_plantas_m2,
+        profundidad_raiz_cm=ficha.profundidad_raiz_cm,
+        aptitud_suelo=dict(ficha.aptitud_suelo) if ficha.aptitud_suelo else None,
     )
 
 
@@ -342,6 +396,18 @@ def _desde_catalogo(
         fuentes=fuentes,
         origen="web",
         busquedas=busquedas,
+        kc=_kc(fila.get("kc")) or _kc(acumulado.get("kc")),
+        densidad_plantas_m2=(
+            _opcional_positivo(fila.get("densidad_plantas_m2"), DENSIDAD_MAXIMA)
+            or _opcional_positivo(acumulado.get("densidad"), DENSIDAD_MAXIMA)
+        ),
+        profundidad_raiz_cm=(
+            _entero_positivo(fila.get("profundidad_raiz_cm"), PROFUNDIDAD_MAXIMA)
+            or _entero_positivo(acumulado.get("profundidad"), PROFUNDIDAD_MAXIMA)
+        ),
+        aptitud_suelo=(
+            _aptitud(fila.get("aptitud_suelo")) or _aptitud(acumulado.get("aptitud_suelo"))
+        ),
     )
 
 
@@ -425,6 +491,14 @@ def _investigar_web(
         fuentes=fuentes,
         origen="web",
         busquedas=busquedas,
+        kc=_kc(acumulado.get("kc")),
+        densidad_plantas_m2=_opcional_positivo(
+            acumulado.get("densidad"), DENSIDAD_MAXIMA
+        ),
+        profundidad_raiz_cm=_entero_positivo(
+            acumulado.get("profundidad"), PROFUNDIDAD_MAXIMA
+        ),
+        aptitud_suelo=_aptitud(acumulado.get("aptitud_suelo")),
     )
 
 

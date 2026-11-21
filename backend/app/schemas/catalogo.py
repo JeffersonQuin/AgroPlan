@@ -22,6 +22,8 @@ class CultivoOut(BaseModel):
     densidad_plantas_m2: float | None = None
     profundidad_raiz_cm: int | None = None
     meses_siembra: list[int] | None = None
+    kc: float | None = None
+    aptitud_suelo: dict | None = None
     activo: bool = True
     # ``agente``: la ficha la creó el agente al investigar un producto nuevo y queda
     # pendiente de revisión, con las fuentes que usó.

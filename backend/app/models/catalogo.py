@@ -7,6 +7,7 @@ y sin ``suelos`` el motor no puede decidir la separación entre goteros.
 
 from datetime import datetime
 from decimal import Decimal
+from typing import Any
 
 from sqlalchemy import (
     Boolean,
@@ -38,6 +39,11 @@ class Cultivo(Base):
     densidad_plantas_m2: Mapped[Decimal | None] = mapped_column(Numeric(6, 2), nullable=True)
     profundidad_raiz_cm: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
     meses_siembra: Mapped[list[int] | None] = mapped_column(JSONB_TIPO, nullable=True)
+    # Coeficiente de cultivo (Kc pico) del paso 2. Sale de la ficha curada o de la
+    # investigación; nunca lo inventa el motor.
+    kc: Mapped[Decimal | None] = mapped_column(Numeric(4, 2), nullable=True)
+    # {"franco": {"veredicto": "apto", "motivo": "drenaje y retención equilibrados"}}
+    aptitud_suelo: Mapped[dict[str, Any] | None] = mapped_column(JSONB_TIPO, nullable=True)
     activo: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     # ``agente`` cuando la ficha la creó el agente investigando un producto que no
     # existía: se usa en el acto y queda pendiente de revisión con sus fuentes.

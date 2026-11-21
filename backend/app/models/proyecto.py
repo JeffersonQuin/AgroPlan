@@ -117,6 +117,11 @@ class Terreno(Base):
     # Caudal que usa todo el sistema (paso 3, agente, cómputo y PDF). Nunca es nulo:
     # por eso ningún consumidor necesita preguntarse si hay caudal.
     caudal_efectivo_m3h: Mapped[Decimal] = mapped_column(Numeric(6, 2), nullable=False)
+    # Profundidad del nivel dinámico del pozo (paso 1). Opcional: no cambia ningún
+    # cálculo hidráulico, se informa para el cómputo de la bomba.
+    profundidad_nivel_dinamico_m: Mapped[Decimal | None] = mapped_column(
+        Numeric(5, 2), nullable=True
+    )
     caudal_origen: Mapped[str] = mapped_column(
         String(10), nullable=False, default=OrigenCaudal.ASUMIDO.value
     )

@@ -5,7 +5,12 @@
   "color": "#EF6C00",
   "demanda_agua_l_m2_dia": 4.5,
   "ciclo_dias": 130,
-  "meses_siembra": [3, 4, 9, 10],
+  "meses_siembra": [
+    3,
+    4,
+    9,
+    10
+  ],
   "notas": "Rastrero de cobertura rápida; demanda alta en fructificación. Ficha curada de un cultivo que no está en el catálogo sembrado.",
   "fuentes": [
     {
@@ -14,5 +19,30 @@
       "url": null,
       "fragmento": "Ficha de referencia para el camino híbrido de investigación"
     }
-  ]
+  ],
+  "kc": 1.05,
+  "densidad_plantas_m2": 1.2,
+  "profundidad_raiz_cm": 60,
+  "aptitud_suelo": {
+    "franco": {
+      "veredicto": "apto",
+      "motivo": "Suelo profundo y fértil, ideal para el porte rastrero.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "arenoso": {
+      "veredicto": "condicionado",
+      "motivo": "Requiere materia orgánica y riegos frecuentes.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "arcilloso": {
+      "veredicto": "condicionado",
+      "motivo": "Buen vigor pero riesgo de encharcamiento.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "limoso": {
+      "veredicto": "apto",
+      "motivo": "Buena retención de agua para el ciclo largo.",
+      "fuente": "Ficha curada AgroPlan"
+    }
+  }
 }

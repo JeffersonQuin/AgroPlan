@@ -115,6 +115,8 @@ class TerrenoIn(BaseModel):
     suelo_codigo: str = Field(min_length=2, max_length=20)
     pendiente_pct: float = Field(default=0, ge=0, le=30)
     fuente_agua: FuenteAgua
+    # Paso 1 del prototipo: profundidad del nivel dinámico del pozo.
+    profundidad_nivel_dinamico_m: float | None = Field(default=None, gt=0, le=200)
     caudal_disponible_m3h: float | None = Field(default=None, gt=0, le=50)
 
 
@@ -134,6 +136,7 @@ class TerrenoUpdate(BaseModel):
     suelo_codigo: str | None = Field(default=None, min_length=2, max_length=20)
     pendiente_pct: float | None = Field(default=None, ge=0, le=30)
     fuente_agua: FuenteAgua | None = None
+    profundidad_nivel_dinamico_m: float | None = Field(default=None, gt=0, le=200)
     caudal_disponible_m3h: float | None = Field(default=None, gt=0, le=50)
 
     @property
@@ -182,6 +185,7 @@ class TerrenoOut(BaseModel):
     caudal_disponible_m3h: float | None = None
     caudal_efectivo_m3h: float
     caudal_origen: OrigenCaudal
+    profundidad_nivel_dinamico_m: float | None = None
     # Se completan en el servicio, no viven en la tabla.
     caudal_sugerido_m3h: float | None = None
     caudal_rango_sugerido_m3h: RangoCaudal | None = None

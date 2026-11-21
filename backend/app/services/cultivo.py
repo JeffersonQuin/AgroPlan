@@ -23,6 +23,7 @@ from app.repository import sector_bloque as sector_bloque_repo
 from app.repository import terreno as terreno_repo
 from app.schemas.comun import Advertencia
 from app.schemas.cultivo import (
+    AptitudSuelo,
     BalanceArea,
     BloqueCultivoCreate,
     BloqueCultivoOut,
@@ -119,9 +120,79 @@ def _terreno_requerido(db: Session, proyecto: Proyecto) -> Terreno:
     return terreno
 
 
+VEREDICTOS_SUELO = ("apto", "condicionado", "no_apto")
+ADVERTENCIAS_SUELO = {
+    "condicionado": ("SUELO_CONDICIONADO", "El suelo no es el ideal para ese cultivo"),
+    "no_apto": ("SUELO_NO_APTO", "El suelo no es apto para ese cultivo"),
+}
+
+
+def _datos_cultivo(
+    cultivo: Cultivo | None, suelo_codigo: str
+) -> tuple[int | None, float | None, AptitudSuelo | None]:
+    """Ciclo, Kc y veredicto de suelo del cultivo para el suelo de este terreno."""
+
+    if cultivo is None:
+        return None, None, None
+    kc = float(cultivo.kc) if cultivo.kc is not None else None
+    datos = (cultivo.aptitud_suelo or {}).get(suelo_codigo)
+    aptitud = None
+    if isinstance(datos, dict) and datos.get("veredicto") in VEREDICTOS_SUELO:
+        aptitud = AptitudSuelo(
+            veredicto=datos["veredicto"],
+            motivo=datos.get("motivo"),
+            fuente=datos.get("fuente"),
+        )
+    return cultivo.ciclo_dias, kc, aptitud
+
+
+def _bloque_out(
+    db: Session,
+    bloque: ProyectoCultivo,
+    terreno: Terreno,
+) -> BloqueCultivoOut:
+    """Bloque con los derivados que pinta el paso 2 (porcentaje, L/d, Kc, aptitud)."""
+
+    cultivo = cultivo_repo.get_by_codigo(db, bloque.cultivo_codigo)
+    ciclo, kc, aptitud = _datos_cultivo(cultivo, terreno.suelo_codigo)
+    area = float(bloque.area_m2)
+    area_terreno = float(terreno.area_m2) or 1.0
+    demanda = float(bloque.demanda_l_m2_dia)
+
+    advertencias: list[Advertencia] = []
+    if aptitud is not None and aptitud.veredicto != "apto":
+        codigo, base = ADVERTENCIAS_SUELO[aptitud.veredicto]
+        advertencias.append(
+            Advertencia(
+                codigo=codigo,
+                mensaje=(
+                    f"{base}: {aptitud.motivo}" if aptitud.motivo else base
+                )[:300],
+                campo="suelo_codigo",
+            )
+        )
+
+    return BloqueCultivoOut.model_validate(bloque).model_copy(
+        update={
+            "porcentaje": round(area / area_terreno * 100, 2),
+            "demanda_total_l_dia": round(area * demanda, 1),
+            "ciclo_dias": ciclo,
+            "kc": kc,
+            "dias_a_cosecha": (
+                (bloque.cosecha - date.today()).days if bloque.cosecha else None
+            ),
+            "aptitud_suelo": aptitud,
+            "advertencias": advertencias,
+        }
+    )
+
+
 def listar_bloques(db: Session, proyecto: Proyecto) -> list[BloqueCultivoOut]:
-    bloques = bloque_repo.list_by_proyecto(db, proyecto.id)
-    return [BloqueCultivoOut.model_validate(bloque) for bloque in bloques]
+    terreno = _terreno_requerido(db, proyecto)
+    return [
+        _bloque_out(db, bloque, terreno)
+        for bloque in bloque_repo.list_by_proyecto(db, proyecto.id)
+    ]
 
 
 def obtener_bloque(
@@ -130,7 +201,7 @@ def obtener_bloque(
     bloque = bloque_repo.get_by_id(db, bloque_id, proyecto.id)
     if bloque is None:
         raise CultivoServiceError(404, "Bloque de cultivo no encontrado")
-    return BloqueCultivoOut.model_validate(bloque)
+    return _bloque_out(db, _terreno_requerido(db, proyecto), bloque)
 
 
 def _resolver_producto(
@@ -197,6 +268,14 @@ def _resolver_producto(
         ciclo_dias=investigacion.ciclo_dias,
         meses_siembra=investigacion.meses_siembra,
         activo=True,
+        kc=_dec(investigacion.kc, 2) if investigacion.kc is not None else None,
+        densidad_plantas_m2=(
+            _dec(investigacion.densidad_plantas_m2, 2)
+            if investigacion.densidad_plantas_m2 is not None
+            else None
+        ),
+        profundidad_raiz_cm=investigacion.profundidad_raiz_cm,
+        aptitud_suelo=investigacion.aptitud_suelo,
         origen=OrigenCultivo.AGENTE.value if desde_web else OrigenCultivo.HUMANO.value,
         revisado_en=None if desde_web else ahora,
         fuentes=[
@@ -299,7 +378,7 @@ def crear_bloque(
     riego_service.invalidar_diseno(db, proyecto.id)
 
     return CultivoRespuesta(
-        bloque=BloqueCultivoOut.model_validate(bloque),
+        bloque=_bloque_out(db, bloque, terreno),
         balance=balance(db, proyecto, terreno),
         advertencias=advertencias,
     )
@@ -311,11 +390,12 @@ def actualizar_bloque(
     bloque_id: uuid.UUID,
     data: BloqueCultivoUpdate,
 ) -> CultivoRespuesta:
+    terreno = _terreno_requerido(db, proyecto)
+    advertencias: list[Advertencia] = []
     bloque = bloque_repo.get_by_id(db, bloque_id, proyecto.id)
     if bloque is None:
         raise CultivoServiceError(404, "Bloque de cultivo no encontrado")
 
-    terreno = _terreno_requerido(db, proyecto)
     campos = data.model_fields_set
 
     if "poligono" in campos and data.poligono is not None and "porcentaje" in campos:
@@ -351,7 +431,11 @@ def actualizar_bloque(
     bloque = bloque_repo.update(db, bloque)
     riego_service.invalidar_diseno(db, proyecto.id)
 
-    return CultivoRespuesta(bloque=BloqueCultivoOut.model_validate(bloque), balance=balance(db, proyecto, terreno))
+    return CultivoRespuesta(
+        bloque=_bloque_out(db, bloque, terreno),
+        balance=balance(db, proyecto, terreno),
+        advertencias=advertencias,
+    )
 
 
 def eliminar_bloque(db: Session, proyecto: Proyecto, bloque_id: uuid.UUID) -> None:
