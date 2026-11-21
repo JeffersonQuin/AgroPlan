@@ -1,4 +1,4 @@
-import { Component, computed, inject } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AuthStore } from './auth.store';
 import { GoogleSignIn } from './components/google-sign-in/google-sign-in';
@@ -21,12 +21,8 @@ export class LoginForm {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
 
-  protected readonly isRegister = this.store.isRegister;
   protected readonly isSubmitting = this.store.isSubmitting;
   protected readonly error = this.store.error;
-  protected readonly emailHint = computed(() =>
-    this.isRegister() ? 'Se usará el correo de tu cuenta de Google.' : '',
-  );
 
   protected onCredential(idToken: string): void {
     this.store.loginWithGoogle(idToken).subscribe((ok) => {

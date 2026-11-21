@@ -8,5 +8,5 @@
  */
 export const environment = {
   apiUrl: 'http://localhost:8000',
-  googleClientId: '',
+  googleClientId: '657234574040-p8hiuhbkpgnsjosel3kljm31p18aq6sr.apps.googleusercontent.com',
 } as const;

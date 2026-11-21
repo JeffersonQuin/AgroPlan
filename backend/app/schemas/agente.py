@@ -12,7 +12,13 @@ from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.models.enums import EstadoProyecto, FuenteAgua, OrigenCaudal, TipoFuenteAgente
+from app.models.enums import (
+    EstadoProyecto,
+    FuenteAgua,
+    OrigenCaudal,
+    TipoFuenteAgente,
+    TipoRecomendacion,
+)
 from app.schemas.comun import Advertencia, Poligono, Punto
 from app.schemas.riego import ComputoOut, RedOut, SectorOut, SistemaRiegoOut
 
@@ -172,6 +178,29 @@ class FuenteOut(BaseModel):
     url: str | None = None
     fragmento: str | None = None
     recuperado_en: datetime
+
+
+class RecomendacionOut(BaseModel):
+    """Recomendación emitida por el agente para una corrida."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    corrida_id: uuid.UUID
+    tipo: TipoRecomendacion
+    payload: dict
+    justificacion: str | None = None
+    confianza: float | None = None
+    aplicada: bool
+    aplicada_en: datetime | None = None
+
+
+class RecomendacionUpdate(BaseModel):
+    """Marca una recomendación como aplicada o pendiente."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    aplicada: bool
 
 
 class CorridaOut(BaseModel):

@@ -60,12 +60,15 @@ describe('AuthStore', () => {
     expect(localStorage.getItem(SESSION_STORAGE_KEY)).toContain('jwt-token');
   });
 
-  it('uses the register endpoint in register mode', () => {
-    store.setMode('register');
-    store.loginWithGoogle('google-id-token').subscribe();
+  it('hits the register endpoint when creating the account', () => {
+    let result: boolean | undefined;
+    store.registerWithGoogle('google-id-token').subscribe((ok) => (result = ok));
 
     const request = http.expectOne('http://localhost:8000/auth/google/register');
     request.flush(TOKEN_RESPONSE);
+
+    expect(result).toBe(true);
+    expect(store.isAuthenticated()).toBe(true);
   });
 
   it('surfaces the backend detail when the exchange fails', () => {
@@ -110,13 +113,8 @@ describe('AuthStore', () => {
     expect(localStorage.getItem(SESSION_STORAGE_KEY)).toBeNull();
   });
 
-  it('swaps the copy between login and register', () => {
-    expect(store.copy().title).toBe('Bienvenido de nuevo');
+  it('exposes the login copy', () => {
+    expect(store.copy.title).toBe('Bienvenido de nuevo');
     expect(store.submitLabel()).toBe('Iniciar Sesión con Google');
-
-    store.setMode('register');
-
-    expect(store.copy().title).toBe('Crea tu cuenta técnica');
-    expect(store.submitLabel()).toBe('Registrarse con Google');
   });
 });
