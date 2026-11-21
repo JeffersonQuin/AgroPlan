@@ -260,6 +260,67 @@ def test_lo_investigado_no_toca_los_parametros_del_motor(
     assert sistema["bomba_hp"] in (0.5, 1, 1.5, 2)
 
 
+def test_lo_investigado_respeta_los_anchos_de_la_tabla(
+    cliente_autenticado: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Un nombre de 200 caracteres no puede romper en PostgreSQL ni entrar crudo."""
+
+    cliente = cliente_autenticado
+    proyecto_id = _proyecto(cliente)
+    nombre_largo = "Moringa peregrina variedad altísima de los Andes " * 4
+
+    def investigacion_falsa(nombre, *, catalogo, busqueda_web=None, max_busquedas=None):
+        return Investigacion(
+            codigo="moringa",
+            nombre=nombre_largo,
+            icono="M",
+            color="#2E7D32",
+            demanda_agua_l_m2_dia=1.8,
+            ciclo_dias=180,
+            meses_siembra=None,
+            notas="x" * 900,
+            fuentes=[
+                FuenteRecuperada(tipo="web", titulo="t", url="https://e.org/m", fragmento="f")
+            ],
+            origen="web",
+            busquedas=1,
+        )
+
+    monkeypatch.setattr("app.agente.investigacion.investigar", investigacion_falsa)
+
+    # El sanear de la investigación no participa acá (el fake la saltea), así que el
+    # límite tiene que caer en la escritura: es lo que se verifica.
+    alta = _alta(
+        cliente, proyecto_id, producto_texto="moringa", modo="porcentaje", porcentaje=20
+    )
+    assert alta["status"] == 201, alta
+    moringa = db_session.query(Cultivo).filter_by(codigo="moringa").one()
+    assert len(moringa.nombre) <= 60
+
+
+def test_lo_investigado_se_recorta_antes_de_salir_del_agente() -> None:
+    """El saneo real de la investigación recorta el nombre al ancho de la tabla."""
+
+    from app.agente.investigacion import investigar
+
+    def busqueda_web(_consulta: str) -> list[dict]:
+        return [
+            {
+                "titulo": "Ficha",
+                "url": "https://e.org/moringa",
+                "demanda_agua_l_m2_dia": 1.8,
+                "ciclo_dias": 180,
+                "nombre": "Moringa " * 40,
+            }
+        ]
+
+    investigacion = investigar(
+        "moringa", catalogo=[], busqueda_web=busqueda_web, max_busquedas=1
+    )
+    assert investigacion.origen == "web"
+    assert len(investigacion.nombre) <= 60
+
+
 # --------------------------------------------------------------------------- #
 # Sin verificación no hay cultivo
 # --------------------------------------------------------------------------- #

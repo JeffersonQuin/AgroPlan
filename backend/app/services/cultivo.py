@@ -186,11 +186,13 @@ def _resolver_producto(
     desde_web = investigacion.origen == "web"
     ahora = datetime.now(timezone.utc)
 
+    # Anchos reales de las columnas: SQLite no los valida y PostgreSQL sí, así que el
+    # límite se aplica acá, en la frontera que escribe, venga la ficha de donde venga.
     cultivo = Cultivo(
-        codigo=investigacion.codigo,
-        nombre=investigacion.nombre,
-        icono=investigacion.icono,
-        color=investigacion.color,
+        codigo=investigacion.codigo[:30],
+        nombre=investigacion.nombre[:60],
+        icono=investigacion.icono[:8],
+        color=investigacion.color[:7],
         demanda_agua_l_m2_dia=_dec(investigacion.demanda_agua_l_m2_dia, 3),
         ciclo_dias=investigacion.ciclo_dias,
         meses_siembra=investigacion.meses_siembra,

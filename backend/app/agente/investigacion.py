@@ -36,6 +36,8 @@ CICLO_MINIMO, CICLO_MAXIMO = 1, 730
 COLOR_POR_DEFECTO = "#4CAF50"
 FRAGMENTO_MAX = 500
 NOTAS_MAX = 500
+# Anchos reales de la tabla `cultivos`: lo investigado no puede excederlos.
+NOMBRE_MAX = 60
 PATRON_CODIGO = re.compile(r"^[a-z0-9_]{2,30}$")
 PATRON_COLOR = re.compile(r"^#[0-9A-Fa-f]{6}$")
 
@@ -327,7 +329,7 @@ def _desde_catalogo(
             f"El catálogo ya tiene {codigo!r} pero su ficha está incompleta: completala "
             "antes de usarlo."
         )
-    nombre_fila = _texto(fila.get("nombre")) or nombre
+    nombre_fila = (_texto(fila.get("nombre")) or nombre)[:NOMBRE_MAX]
     return Investigacion(
         codigo=codigo,
         nombre=nombre_fila,
@@ -391,7 +393,7 @@ def _investigar_web(
             f"para {nombre!r} en {busquedas} búsqueda(s) web."
         )
 
-    nombre_resuelto = acumulado.get("nombre") or nombre
+    nombre_resuelto = (_texto(acumulado.get("nombre")) or nombre)[:NOMBRE_MAX]
     codigo = _slug(nombre_resuelto)
     if codigo is None:
         raise ProductoNoReconocido(
