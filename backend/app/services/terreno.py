@@ -128,6 +128,11 @@ def crear_terreno(db: Session, proyecto: Proyecto, data: TerrenoIn) -> TerrenoOu
         caudal_efectivo_m3h=efectivo,
         caudal_origen=origen,
         caudal_base_fuente=base_fuente,
+        profundidad_nivel_dinamico_m=(
+            _dec(data.profundidad_nivel_dinamico_m, 2)
+            if data.profundidad_nivel_dinamico_m is not None
+            else None
+        ),
     )
     terreno = terreno_repo.create(db, terreno)
     riego_service.invalidar_diseno(db, proyecto.id)
@@ -173,6 +178,13 @@ def actualizar_terreno(
 
     if "pendiente_pct" in campos and data.pendiente_pct is not None:
         terreno.pendiente_pct = _dec(data.pendiente_pct, 2)
+
+    if "profundidad_nivel_dinamico_m" in campos:
+        terreno.profundidad_nivel_dinamico_m = (
+            _dec(data.profundidad_nivel_dinamico_m, 2)
+            if data.profundidad_nivel_dinamico_m is not None
+            else None
+        )
 
     caudal_cambio = False
     if "fuente_agua" in campos and data.fuente_agua is not None:

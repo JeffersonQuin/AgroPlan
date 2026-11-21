@@ -8,11 +8,13 @@ del payload.
 from __future__ import annotations
 
 import uuid
-from datetime import date
+from datetime import date, datetime, timezone
 from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
+from app.models.catalogo import Cultivo
+from app.models.enums import OrigenCultivo
 from app.models.proyecto import Proyecto, Terreno
 from app.models.proyecto_cultivo import ProyectoCultivo
 from app.repository import cultivo as cultivo_repo
@@ -21,6 +23,7 @@ from app.repository import sector_bloque as sector_bloque_repo
 from app.repository import terreno as terreno_repo
 from app.schemas.comun import Advertencia
 from app.schemas.cultivo import (
+    AptitudSuelo,
     BalanceArea,
     BloqueCultivoCreate,
     BloqueCultivoOut,
@@ -117,9 +120,85 @@ def _terreno_requerido(db: Session, proyecto: Proyecto) -> Terreno:
     return terreno
 
 
+VEREDICTOS_SUELO = ("apto", "condicionado", "no_apto")
+ADVERTENCIAS_SUELO = {
+    "condicionado": ("SUELO_CONDICIONADO", "El suelo no es el ideal para ese cultivo"),
+    "no_apto": ("SUELO_NO_APTO", "El suelo no es apto para ese cultivo"),
+}
+
+
+def _datos_cultivo(
+    cultivo: Cultivo | None, suelo_codigo: str
+) -> tuple[int | None, float | None, AptitudSuelo | None]:
+    """Ciclo, Kc y veredicto de suelo del cultivo para el suelo de este terreno."""
+
+    if cultivo is None:
+        return None, None, None
+    kc = float(cultivo.kc) if cultivo.kc is not None else None
+    datos = (cultivo.aptitud_suelo or {}).get(suelo_codigo)
+    aptitud = None
+    if isinstance(datos, dict) and datos.get("veredicto") in VEREDICTOS_SUELO:
+        aptitud = AptitudSuelo(
+            veredicto=datos["veredicto"],
+            motivo=datos.get("motivo"),
+            fuente=datos.get("fuente"),
+        )
+    return cultivo.ciclo_dias, kc, aptitud
+
+
+def _bloque_out(
+    db: Session,
+    bloque: ProyectoCultivo,
+    terreno: Terreno,
+) -> BloqueCultivoOut:
+    """Bloque con los derivados que pinta el paso 2 (porcentaje, L/d, Kc, aptitud)."""
+
+    cultivo = cultivo_repo.get_by_codigo(db, bloque.cultivo_codigo)
+    ciclo, kc, aptitud = _datos_cultivo(cultivo, terreno.suelo_codigo)
+    area = float(bloque.area_m2)
+    area_terreno = float(terreno.area_m2)
+    demanda = float(bloque.demanda_l_m2_dia)
+
+    advertencias: list[Advertencia] = []
+    if aptitud is not None and aptitud.veredicto != "apto":
+        codigo, base = ADVERTENCIAS_SUELO[aptitud.veredicto]
+        advertencias.append(
+            Advertencia(
+                codigo=codigo,
+                mensaje=(
+                    f"{base}: {aptitud.motivo}" if aptitud.motivo else base
+                )[:300],
+                campo="suelo_codigo",
+            )
+        )
+
+    return BloqueCultivoOut.model_validate(bloque).model_copy(
+        update={
+            # Un terreno con área 0 no debería existir (el paso 1 rechaza polígonos
+            # sin superficie); si igual llegara, el porcentaje es 0 y no un absurdo.
+            "porcentaje": (
+                round(area / area_terreno * 100, 2) if area_terreno > 0 else 0.0
+            ),
+            "demanda_total_l_dia": round(area * demanda, 1),
+            "ciclo_dias": ciclo,
+            "kc": kc,
+            "dias_a_cosecha": (
+                (bloque.cosecha - date.today()).days if bloque.cosecha else None
+            ),
+            "aptitud_suelo": aptitud,
+            "advertencias": advertencias,
+        }
+    )
+
+
 def listar_bloques(db: Session, proyecto: Proyecto) -> list[BloqueCultivoOut]:
     bloques = bloque_repo.list_by_proyecto(db, proyecto.id)
-    return [BloqueCultivoOut.model_validate(bloque) for bloque in bloques]
+    if not bloques:
+        # Sin bloques no hay nada que derivar: no se exige terreno para responder [],
+        # así el front puede llamar al paso 2 antes del paso 1.
+        return []
+    terreno = _terreno_requerido(db, proyecto)
+    return [_bloque_out(db, bloque, terreno) for bloque in bloques]
 
 
 def obtener_bloque(
@@ -128,7 +207,121 @@ def obtener_bloque(
     bloque = bloque_repo.get_by_id(db, bloque_id, proyecto.id)
     if bloque is None:
         raise CultivoServiceError(404, "Bloque de cultivo no encontrado")
-    return BloqueCultivoOut.model_validate(bloque)
+    return _bloque_out(db, _terreno_requerido(db, proyecto), bloque)
+
+
+def _resolver_producto(
+    db: Session, texto: str
+) -> tuple[Cultivo | None, list[Advertencia]]:
+    """Resuelve un producto escrito por el usuario que no está en el catálogo.
+
+    Camino híbrido: ficha curada del repo primero; búsqueda web sólo como respaldo y
+    con presupuesto. Si el agente tiene que crear la ficha, se guarda con
+    ``origen='agente'``, sin revisar y con sus fuentes, y la respuesta lo advierte.
+    Nunca inventa: si no hay con qué verificar, no hay cultivo.
+    """
+
+    from app.agente.investigacion import (
+        InvestigacionError,
+        ProductoNoReconocido,
+        investigar,
+    )
+
+    catalogo = cultivo_repo.list_all(db, solo_activos=True)
+    filas = [{"codigo": cultivo.codigo, "nombre": cultivo.nombre} for cultivo in catalogo]
+
+    try:
+        investigacion = investigar(texto, catalogo=filas)
+    except ProductoNoReconocido:
+        return None, [
+            Advertencia(
+                codigo="PRODUCTO_NO_RECONOCIDO",
+                mensaje=(
+                    f"No se pudo verificar '{texto}': no hay ficha curada y la búsqueda "
+                    "web no está disponible. Cargá la ficha o configurá el agente."
+                )[:300],
+                bloqueante=True,
+                campo="producto_texto",
+            )
+        ]
+    except InvestigacionError as exc:
+        return None, [
+            Advertencia(
+                codigo="INVESTIGACION_FALLIDA",
+                mensaje=f"La búsqueda de '{texto}' falló: {exc}"[:300],
+                bloqueante=True,
+                campo="producto_texto",
+            )
+        ]
+
+    existente = cultivo_repo.get_by_codigo(db, investigacion.codigo)
+    if existente is not None:
+        return existente, []
+
+    # Una ficha curada del repo ya la verificó una persona: entra revisada. Lo que
+    # viene de la web se usa en el acto pero queda pendiente y con aviso bloqueante.
+    desde_web = investigacion.origen == "web"
+    ahora = datetime.now(timezone.utc)
+
+    # Anchos reales de las columnas: SQLite no los valida y PostgreSQL sí, así que el
+    # límite se aplica acá, en la frontera que escribe, venga la ficha de donde venga.
+    cultivo = Cultivo(
+        codigo=investigacion.codigo[:30],
+        nombre=investigacion.nombre[:60],
+        icono=investigacion.icono[:8],
+        color=investigacion.color[:7],
+        demanda_agua_l_m2_dia=_dec(investigacion.demanda_agua_l_m2_dia, 3),
+        ciclo_dias=investigacion.ciclo_dias,
+        meses_siembra=investigacion.meses_siembra,
+        activo=True,
+        kc=_dec(investigacion.kc, 2) if investigacion.kc is not None else None,
+        densidad_plantas_m2=(
+            _dec(investigacion.densidad_plantas_m2, 2)
+            if investigacion.densidad_plantas_m2 is not None
+            else None
+        ),
+        profundidad_raiz_cm=investigacion.profundidad_raiz_cm,
+        aptitud_suelo=investigacion.aptitud_suelo,
+        origen=OrigenCultivo.AGENTE.value if desde_web else OrigenCultivo.HUMANO.value,
+        revisado_en=None if desde_web else ahora,
+        fuentes=[
+            {
+                "tipo": fuente.tipo,
+                "titulo": fuente.titulo,
+                "url": fuente.url,
+                "fragmento": fuente.fragmento,
+            }
+            for fuente in investigacion.fuentes
+        ],
+    )
+    db.add(cultivo)
+    db.commit()
+    db.refresh(cultivo)
+
+    if desde_web:
+        return cultivo, [
+            Advertencia(
+                codigo="CULTIVO_INVESTIGADO",
+                mensaje=(
+                    f"'{cultivo.nombre}' no estaba en el catálogo: el agente creó la ficha "
+                    f"con {len(investigacion.fuentes)} fuente(s) de web y queda pendiente "
+                    "de revisión."
+                )[:300],
+                bloqueante=True,
+                campo="cultivo_codigo",
+            )
+        ]
+
+    return cultivo, [
+        Advertencia(
+            codigo="CULTIVO_DESDE_FICHA",
+            mensaje=(
+                f"'{cultivo.nombre}' se dio de alta con la ficha curada de AgroPlan "
+                f"({investigacion.busquedas} búsqueda(s) web)."
+            )[:300],
+            campo="cultivo_codigo",
+        )
+    ]
 
 
 def crear_bloque(
@@ -136,10 +329,24 @@ def crear_bloque(
 ) -> CultivoRespuesta:
     terreno = _terreno_requerido(db, proyecto)
 
-    cultivo_catalogo = cultivo_repo.get_by_codigo(db, data.cultivo_codigo)
-    if cultivo_catalogo is None or not cultivo_catalogo.activo:
+    advertencias: list[Advertencia] = []
+    if data.producto_texto is not None:
+        cultivo_catalogo, advertencias = _resolver_producto(db, data.producto_texto)
+        if cultivo_catalogo is not None and not cultivo_catalogo.activo:
+            cultivo_catalogo = None
+    else:
+        cultivo_catalogo = cultivo_repo.get_by_codigo(db, data.cultivo_codigo or "")
+        if cultivo_catalogo is not None and not cultivo_catalogo.activo:
+            cultivo_catalogo = None
+
+    if cultivo_catalogo is None:
+        if advertencias:
+            # El producto no se pudo verificar: el motivo real es más útil que decir
+            # que "no existe".
+            raise CultivoServiceError(422, advertencias[0].mensaje)
         raise CultivoServiceError(
-            422, f"El cultivo '{data.cultivo_codigo}' no existe o está inactivo"
+            422,
+            f"El cultivo '{data.cultivo_codigo}' no existe o está inactivo",
         )
 
     _validar_fechas(data.siembra, data.cosecha)
@@ -164,7 +371,7 @@ def crear_bloque(
 
     bloque = ProyectoCultivo(
         proyecto_id=proyecto.id,
-        cultivo_codigo=data.cultivo_codigo,
+        cultivo_codigo=cultivo_catalogo.codigo,
         etiqueta=data.etiqueta,
         area_m2=_dec(area),
         poligono=poligono,
@@ -176,7 +383,11 @@ def crear_bloque(
     bloque = bloque_repo.create(db, bloque)
     riego_service.invalidar_diseno(db, proyecto.id)
 
-    return CultivoRespuesta(bloque=BloqueCultivoOut.model_validate(bloque), balance=balance(db, proyecto, terreno))
+    return CultivoRespuesta(
+        bloque=_bloque_out(db, bloque, terreno),
+        balance=balance(db, proyecto, terreno),
+        advertencias=advertencias,
+    )
 
 
 def actualizar_bloque(
@@ -190,6 +401,7 @@ def actualizar_bloque(
         raise CultivoServiceError(404, "Bloque de cultivo no encontrado")
 
     terreno = _terreno_requerido(db, proyecto)
+    advertencias: list[Advertencia] = []
     campos = data.model_fields_set
 
     if "poligono" in campos and data.poligono is not None and "porcentaje" in campos:
@@ -225,7 +437,11 @@ def actualizar_bloque(
     bloque = bloque_repo.update(db, bloque)
     riego_service.invalidar_diseno(db, proyecto.id)
 
-    return CultivoRespuesta(bloque=BloqueCultivoOut.model_validate(bloque), balance=balance(db, proyecto, terreno))
+    return CultivoRespuesta(
+        bloque=_bloque_out(db, bloque, terreno),
+        balance=balance(db, proyecto, terreno),
+        advertencias=advertencias,
+    )
 
 
 def eliminar_bloque(db: Session, proyecto: Proyecto, bloque_id: uuid.UUID) -> None:

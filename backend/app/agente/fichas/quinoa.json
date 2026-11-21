@@ -1,0 +1,48 @@
+{
+  "codigo": "quinoa",
+  "nombre": "Quinoa",
+  "icono": "Q",
+  "color": "#B8860B",
+  "demanda_agua_l_m2_dia": 2.5,
+  "ciclo_dias": 150,
+  "meses_siembra": [
+    3,
+    4,
+    9,
+    10
+  ],
+  "notas": "Cultivo andino tolerante a la salinidad y a la sequía; no soporta anegamiento. Ficha curada de un cultivo que no está en el catálogo sembrado.",
+  "fuentes": [
+    {
+      "tipo": "manual",
+      "titulo": "Ficha técnica curada AgroPlan",
+      "url": null,
+      "fragmento": "Ficha de referencia para el camino híbrido de investigación"
+    }
+  ],
+  "kc": 0.9,
+  "densidad_plantas_m2": 12.0,
+  "profundidad_raiz_cm": 50,
+  "aptitud_suelo": {
+    "franco": {
+      "veredicto": "apto",
+      "motivo": "Se adapta bien; tolera suelos moderadamente salinos.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "arenoso": {
+      "veredicto": "apto",
+      "motivo": "Tolera suelos pobres y drenaje rápido.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "arcilloso": {
+      "veredicto": "condicionado",
+      "motivo": "Sensible al exceso de humedad en floración.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "limoso": {
+      "veredicto": "condicionado",
+      "motivo": "Puede volcar con exceso de vigor: manejar densidad.",
+      "fuente": "Ficha curada AgroPlan"
+    }
+  }
+}
