@@ -26,6 +26,9 @@ pip-wheel-metadata/
 service-account*.json
 credentials*.json
 
+# Configuracion local del backend: se copia de config.example.py y guarda secretos
+backend/app/core/config.py
+
 # Bases de datos locales
 *.db
 *.sqlite
