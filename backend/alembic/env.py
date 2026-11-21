@@ -5,10 +5,7 @@ from sqlalchemy import engine_from_config, pool
 from alembic import context
 from app.core.config import settings
 from app.database import Base
-
-# Importar el paquete completo garantiza que ``Base.metadata`` tenga todas las tablas
-# (usuarios + dominio agrícola) y que la autogeneración vea el esquema entero.
-import app.models  # noqa: F401  isort:skip
+from app.models import Usuario  # noqa: F401
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)

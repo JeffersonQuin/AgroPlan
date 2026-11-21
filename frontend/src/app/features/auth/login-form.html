@@ -21,7 +21,9 @@
   }
 
   <div class="flex flex-col gap-space-xs">
-    <label class="text-label-md text-on-surface" for="input-email"> Correo electrónico </label>
+    <label class="text-label-md text-on-surface" for="input-email">
+      Correo electrónico profesional
+    </label>
     <div class="relative flex items-center">
       <span
         class="material-symbols-outlined absolute left-3 text-on-surface-variant text-[18px]"
@@ -65,6 +67,7 @@
       <span class="material-symbols-outlined text-[14px] text-secondary" aria-hidden="true"
         >cloud_done</span
       >
+      <span class="text-label-sm">Servidor CL-LATAM</span>
     </div>
   </div>
 
@@ -83,6 +86,17 @@
   </button>
 
   <p class="sr-only" role="status" aria-live="polite">{{ statusAnnouncement() }}</p>
+
+  <div class="relative my-space-xs text-center">
+    <div class="absolute inset-0 flex items-center">
+      <div class="w-full bg-surface-container h-0.5"></div>
+    </div>
+    <span
+      class="relative px-space-md bg-surface-container-lowest text-label-sm text-on-surface-variant uppercase tracking-wider"
+    >
+      Evaluación &amp; Pruebas
+    </span>
+  </div>
 
   <button
     class="w-full py-2 px-space-md rounded-lg bg-surface-container-low hover:bg-surface-container text-primary text-label-sm flex items-center justify-center gap-space-xs transition-colors"

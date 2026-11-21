@@ -3,10 +3,10 @@ import { UnitSystem } from '../models/project.model';
 const M2_PER_ACRE = 4046.8564224;
 const M2_PER_SQFT = 0.09290304;
 
-/** Thousands separator with a comma, as written in the reference mockups. */
+/** Thousands separator with a dot, matching the Spanish (es-AR) convention. */
 export function formatThousands(value: number): string {
   const rounded = Math.round(value);
-  return rounded.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return rounded.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 }
 
 /** '2026-11-21T11:06:00' -> '21/11 11:06'. Locale-independent on purpose. */
@@ -18,16 +18,22 @@ export function formatModifiedAt(iso: string): string {
   return `${day}/${month} ${hour}:${minute}`;
 }
 
-/** '0.32 ha (3,200 m²)' or, in imperial units, '0.79 ac (34,445 ft²)'. */
+/** '0,32 ha (3.200 m²)' or, in imperial units, '0,79 ac (34.444 ft²)'. */
 export function formatArea(areaM2: number, unitSystem: UnitSystem = 'metric'): string {
   if (unitSystem === 'imperial') {
-    const acres = (areaM2 / M2_PER_ACRE).toFixed(2);
+    const acres = (areaM2 / M2_PER_ACRE).toFixed(2).replace('.', ',');
     const squareFeet = formatThousands(areaM2 / M2_PER_SQFT);
     return `${acres} ac (${squareFeet} ft²)`;
   }
 
-  const hectares = (areaM2 / 10000).toFixed(2);
+  const hectares = (areaM2 / 10000).toFixed(2).replace('.', ',');
   return `${hectares} ha (${formatThousands(areaM2)} m²)`;
+}
+
+/** Percentage of the parcel a crop occupies, rounded to a whole number. */
+export function cropPercent(areaM2: number, parcelAreaM2: number): number {
+  if (parcelAreaM2 <= 0) return 0;
+  return Math.round((areaM2 / parcelAreaM2) * 100);
 }
 
 /** Local 'YYYY-MM-DDTHH:mm:00' stamp, matching `formatModifiedAt`'s input. */
