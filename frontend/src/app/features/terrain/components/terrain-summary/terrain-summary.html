@@ -108,6 +108,13 @@
               />
 <span class="absolute right-2 top-2 text-[10px] font-bold text-slate-400">m³/hora</span>
 </div>
+<div class="mt-2 flex items-center justify-between text-[11px] text-slate-500">
+  <span>Caudal efectivo:</span>
+  <span class="font-bold text-slate-700 bg-white px-2 py-0.5 border border-slate-200 rounded">
+    {{ store.caudalLabel() }}
+  </span>
+</div>
+<p class="text-[10px] text-slate-400 mt-0.5">{{ store.caudalOrigenLabel() }}</p>
 </div>
 <!-- Depth input -->
 <div>
@@ -122,6 +129,23 @@
 </div>
 </div>
 </section>
+@if (store.alertas().length > 0) {
+  <section class="bg-slate-50 rounded-xl border border-slate-200 p-3.5 shadow-sm">
+    <div class="flex items-center gap-2 text-slate-700 font-bold text-xs mb-1.5">
+      <span class="material-symbols-outlined text-[16px]" aria-hidden="true">info</span>
+      Validaciones del backend
+    </div>
+    <ul class="space-y-1">
+      @for (alerta of store.alertas(); track alerta.codigo) {
+        <li class="text-[11px] text-slate-600">
+          <span class="font-semibold text-slate-800">{{ alerta.codigo }}:</span>
+          {{ alerta.mensaje }}
+        </li>
+      }
+    </ul>
+  </section>
+}
+
 <!-- Card 4: Topographic Recommendation (Styled like snapshot notice) -->
 <section class="bg-amber-50 rounded-xl border border-amber-200/80 p-3.5 shadow-sm">
 <div class="flex items-center gap-2 text-amber-800 font-bold text-xs mb-1.5">

@@ -1,4 +1,9 @@
-import { calculateDesnivel, calculateMetrics } from '../utils/terrain-geometry';
+import {
+  calculateDesnivel,
+  calculateMetrics,
+  fromVertices,
+  toVertices,
+} from '../utils/terrain-geometry';
 
 describe('terrain geometry', () => {
   it('measures the reference parcel from its cotas', () => {
@@ -28,5 +33,29 @@ describe('terrain geometry', () => {
     expect(calculateDesnivel(60, 1)).toBe(0.6);
     expect(calculateDesnivel(60, 2.5)).toBe(1.5);
     expect(calculateDesnivel(60, 0)).toBe(0);
+  });
+});
+
+describe('toVertices / fromVertices', () => {
+  it('builds the same five-vertex figure the preview measures', () => {
+    const vertices = toVertices({ topM: 60, bottomM: 30, leftM: 40, rightM: 20 });
+
+    expect(vertices).toEqual([
+      { x: 0, y: 40 },
+      { x: 60, y: 40 },
+      { x: 60, y: 20 },
+      { x: 30, y: 0 },
+      { x: 0, y: 0 },
+    ]);
+  });
+
+  it('rebuilds the cotas from a saved polygon', () => {
+    const cotas = fromVertices(toVertices({ topM: 60, bottomM: 30, leftM: 40, rightM: 20 }));
+
+    expect(cotas).toEqual({ topM: 60, bottomM: 30, leftM: 40, rightM: 20 });
+  });
+
+  it('refuses a polygon it cannot map back to four cotas', () => {
+    expect(fromVertices([{ x: 0, y: 0 }, { x: 1, y: 1 }, { x: 2, y: 0 }])).toBeNull();
   });
 });

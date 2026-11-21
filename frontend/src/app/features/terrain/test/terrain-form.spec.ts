@@ -1,4 +1,7 @@
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { TerrainForm } from '../components/terrain-form/terrain-form';
 import { TerrainStore } from '../state/terrain.store';
 
@@ -6,7 +9,10 @@ describe('TerrainForm', () => {
   let store: TerrainStore;
 
   beforeEach(async () => {
-    await TestBed.configureTestingModule({ imports: [TerrainForm] }).compileComponents();
+    await TestBed.configureTestingModule({
+      imports: [TerrainForm],
+      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
+    }).compileComponents();
     store = TestBed.inject(TerrainStore);
   });
 

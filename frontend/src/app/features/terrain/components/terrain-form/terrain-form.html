@@ -119,14 +119,22 @@
 </div>
 <!-- Form Navigation Actions -->
 <div class="pt-3 border-t border-slate-100 flex flex-col gap-2">
-<button class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-agro-500 hover:bg-agro-600 active:bg-agro-700 text-white rounded-lg text-xs font-bold shadow-md shadow-emerald-800/10 transition-colors" type="button">
-              Continuar a Cultivos
+<button
+              class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-agro-500 hover:bg-agro-600 active:bg-agro-700 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-lg text-xs font-bold shadow-md shadow-emerald-800/10 transition-colors"
+              type="button"
+              [disabled]="store.guardando()"
+              (click)="guardar()"
+            >
+              {{ store.guardando() ? 'Guardando…' : 'Guardar y continuar a Cultivos' }}
               <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
 <path d="M5 12h14"></path>
 <path d="m12 5 7 7-7 7"></path>
 </svg>
 </button>
-<a class="w-full text-center py-2 text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors" href="#">
+<a
+              class="w-full text-center py-2 text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors"
+              routerLink="/projects"
+            >
               ← Volver a Proyectos
             </a>
 </div>

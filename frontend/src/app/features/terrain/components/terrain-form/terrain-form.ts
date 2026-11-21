@@ -1,4 +1,5 @@
 import { Component, inject } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import {
   ParcelShape,
   SHAPE_OPTIONS,
@@ -11,6 +12,7 @@ import { TerrainStore } from '../../state/terrain.store';
 /** Left rail of the terrain step: identity, cotas, soil and slope. */
 @Component({
   selector: 'app-terrain-form',
+  imports: [RouterLink],
   templateUrl: './terrain-form.html',
 })
 export class TerrainForm {
@@ -48,5 +50,9 @@ export class TerrainForm {
 
   protected onSlope(event: Event): void {
     this.store.setSlope(Number.parseFloat((event.target as HTMLInputElement).value));
+  }
+
+  protected guardar(): void {
+    this.store.guardar();
   }
 }

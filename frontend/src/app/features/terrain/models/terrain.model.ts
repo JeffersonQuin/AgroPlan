@@ -96,3 +96,74 @@ export const INITIAL_TERRAIN: TerrainState = {
   flowM3h: 1.8,
   staticLevelM: 18,
 };
+
+/* -------------------------------------------------------------------------- */
+/* Backend contract (FastAPI)                                                  */
+/* -------------------------------------------------------------------------- */
+
+export type FormaTerrenoApi = 'rectangulo' | 'trapecio' | 'poligono';
+
+export type FuenteAguaApi = 'pila' | 'pozo' | 'red' | 'cisterna' | 'tanque';
+
+export type OrigenCaudalApi = 'cliente' | 'asumido';
+
+export interface VerticeApi {
+  x: number;
+  y: number;
+}
+
+export interface AdvertenciaApi {
+  codigo: string;
+  mensaje: string;
+  bloqueante: boolean;
+  campo: string | null;
+}
+
+/** `GET`/`PUT`/`PATCH /proyectos/{id}/terreno`. */
+export interface TerrenoApi {
+  id: string;
+  nombre_parcela: string;
+  forma: FormaTerrenoApi;
+  geometria: { vertices: VerticeApi[]; cerrado: boolean; unidad: string; eje_y: string };
+  area_m2: number;
+  perimetro_m: number;
+  lados: number;
+  lados_m: { desde: number; hasta: number; longitud_m: number }[];
+  suelo_codigo: string;
+  pendiente_pct: number;
+  fuente_agua: FuenteAguaApi;
+  caudal_disponible_m3h: number | null;
+  caudal_efectivo_m3h: number;
+  caudal_origen: OrigenCaudalApi;
+  caudal_sugerido_m3h: number | null;
+  profundidad_nivel_dinamico_m: number | null;
+  alertas: AdvertenciaApi[];
+}
+
+/** Payload accepted by `PUT` (all) and `PATCH` (all optional). */
+export interface GuardarTerrenoApi {
+  nombre_parcela: string;
+  forma: FormaTerrenoApi;
+  vertices: VerticeApi[];
+  suelo_codigo: string;
+  pendiente_pct: number;
+  fuente_agua: FuenteAguaApi;
+  caudal_disponible_m3h: number;
+  profundidad_nivel_dinamico_m: number | null;
+}
+
+export interface SueloApi {
+  codigo: string;
+  nombre: string;
+  infiltracion_mm_h: number;
+  retencion_agua_mm_m: number | null;
+}
+
+/** The two shape vocabularies: the mockup says "libre", the backend "poligono". */
+export const FORMA_API: Record<ParcelShape, FormaTerrenoApi> = {
+  rectangulo: 'rectangulo',
+  trapecio: 'trapecio',
+  libre: 'poligono',
+};
+
+export type EstadoTerreno = 'inicial' | 'cargando' | 'listo' | 'guardando' | 'guardado' | 'error';

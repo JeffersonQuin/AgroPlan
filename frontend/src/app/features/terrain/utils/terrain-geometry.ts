@@ -25,6 +25,45 @@ export const REFERENCE_DIMENSIONS: TerrainDimensions = {
  * Closes the parcel as top → right side → diagonal → bottom → left side and
  * measures it with the shoelace formula.
  */
+/**
+ * Vertices the backend receives: the same figure `calculateMetrics` measures, so
+ * the area the API returns matches what the wizard previewed.
+ */
+export function toVertices({ topM, bottomM, leftM, rightM }: TerrainDimensions) {
+  const left = Math.max(leftM, 0);
+  const right = Math.min(Math.max(rightM, 0), left);
+  const top = Math.max(topM, 0);
+  const bottom = Math.max(bottomM, 0);
+
+  return [
+    { x: 0, y: left },
+    { x: top, y: left },
+    { x: top, y: left - right },
+    { x: bottom, y: 0 },
+    { x: 0, y: 0 },
+  ];
+}
+
+/**
+ * Rebuilds the four cotas from a saved polygon, so re-entering step 1 shows the
+ * parcel the user defined instead of the mockup reference.
+ */
+export function fromVertices(vertices: ReadonlyArray<{ x: number; y: number }>): TerrainDimensions | null {
+  if (vertices.length !== 5) return null;
+
+  const ys = vertices.map((vertex) => vertex.y);
+  const xs = vertices.map((vertex) => vertex.x);
+  const arribaIzquierda = Math.max(...ys);
+  const derechaArriba = vertices[2]?.y;
+
+  return {
+    topM: Math.max(...xs),
+    bottomM: vertices[3]?.x ?? 0,
+    leftM: arribaIzquierda,
+    rightM: Number.isFinite(derechaArriba) ? arribaIzquierda - derechaArriba : 0,
+  };
+}
+
 export function calculateMetrics({ topM, bottomM, leftM, rightM }: TerrainDimensions) {
   const left = Math.max(leftM, 0);
   const right = Math.max(rightM, 0);
