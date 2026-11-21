@@ -3,9 +3,7 @@
     <span class="material-symbols-outlined text-[26px]" aria-hidden="true">agriculture</span>
     <span class="text-headline-md">AgroPlan</span>
   </span>
-  <span class="text-label-sm text-outline px-space-sm py-1 rounded bg-surface-container-low">
-    Acceso Profesional
-  </span>
+  <app-auth-nav active="register" />
 </div>
 
 <div class="mb-space-lg">
@@ -16,32 +14,10 @@
 </div>
 
 <div class="mb-space-lg">
-  <button
-    class="w-full flex items-center justify-center gap-space-sm py-2.5 px-space-md rounded-lg bg-surface-container-low hover:bg-surface-container text-on-surface text-label-md transition-colors shadow-sm disabled:opacity-70 disabled:cursor-not-allowed"
-    type="button"
-    disabled
-    title="Disponible próximamente"
-  >
-    <svg class="w-5 h-5" viewBox="0 0 24 24" aria-hidden="true">
-      <path
-        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-        fill="#4285F4"
-      />
-      <path
-        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-        fill="#34A853"
-      />
-      <path
-        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-        fill="#FBBC05"
-      />
-      <path
-        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-        fill="#EA4335"
-      />
-    </svg>
-    Registrarse con Google Workspace institucional
-  </button>
+  <app-google-sign-in (credential)="onCredential($event)" />
+  @if (error()) {
+    <p class="text-label-sm text-error mt-2" role="alert">{{ error() }}</p>
+  }
 
   <div class="relative flex items-center justify-center my-space-md">
     <div class="w-full h-px bg-surface-variant"></div>
@@ -51,15 +27,14 @@
   </div>
 </div>
 
-<form class="space-y-space-md" (submit)="onSubmit($event)" novalidate>
+<div class="space-y-space-md">
   <app-register-field
     inputId="fullName"
     label="Nombre completo y título"
     icon="badge"
     placeholder="ej. Ing. Lucas Ferrero"
     autocomplete="name"
-    [field]="registerForm.fullName"
-  />
+      />
 
   <app-register-field
     inputId="workEmail"
@@ -68,8 +43,7 @@
     type="email"
     placeholder="lucas.ferrero@agronomia-consulting.com"
     autocomplete="email"
-    [field]="registerForm.workEmail"
-  />
+      />
 
   <div class="space-y-1">
     <label class="block text-label-md text-on-surface" for="userRole">
@@ -85,9 +59,7 @@
       >
       <select
         id="userRole"
-        [formField]="registerForm.userRole"
-        [attr.aria-invalid]="roleError().length > 0"
-        [attr.aria-describedby]="roleError() ? 'userRole-error' : null"
+        disabled
         class="w-full bg-transparent py-2.5 pl-10 pr-10 text-on-surface text-body-md focus:outline-none appearance-none cursor-pointer"
       >
         <option class="text-outline" disabled value="">Selecciona tu perfil principal...</option>
@@ -101,9 +73,6 @@
         >expand_more</span
       >
     </div>
-    @if (roleError()) {
-      <p id="userRole-error" class="text-label-sm text-error" role="alert">{{ roleError() }}</p>
-    }
   </div>
 
   <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
@@ -114,8 +83,7 @@
       type="password"
       placeholder="••••••••"
       autocomplete="new-password"
-      [field]="registerForm.password"
-    />
+          />
 
     <app-register-field
       inputId="confirmPassword"
@@ -124,26 +92,19 @@
       type="password"
       placeholder="••••••••"
       autocomplete="new-password"
-      [field]="registerForm.confirmPassword"
-    />
+          />
   </div>
 
-  @if (passwordMismatch()) {
-    <p class="text-label-sm text-error" role="alert">Las contraseñas no coinciden.</p>
-  }
 
-  <app-password-strength-meter [value]="password()" />
+  <app-password-strength-meter [value]="''" />
 
   <div class="flex items-start gap-space-sm pt-space-xs">
     <div class="flex items-center h-5">
       <input
         id="termsCheckbox"
         type="checkbox"
-        [formField]="registerForm.termsAccepted"
-        [attr.aria-invalid]="termsError()"
-        [attr.aria-describedby]="termsError() ? 'termsCheckbox-error' : null"
-        class="w-4 h-4 rounded text-primary-container focus:ring-primary cursor-pointer accent-primary"
-        (change)="termsError.set(false)"
+        class="w-4 h-4 rounded text-primary-container accent-primary cursor-not-allowed"
+        disabled
       />
     </div>
     <label
@@ -159,30 +120,12 @@
       de AgroPlan.
     </label>
   </div>
-  @if (termsError()) {
-    <p id="termsCheckbox-error" class="text-label-sm text-error" role="alert">
-      Tenés que aceptar los términos para crear tu cuenta.
-    </p>
-  }
 
-  <div class="pt-space-xs">
-    <button
-      class="w-full py-3 px-space-lg rounded-lg bg-primary-container hover:bg-primary text-on-primary text-headline-sm flex items-center justify-center gap-space-xs transition-all shadow-md active:scale-[0.99] disabled:opacity-70 disabled:cursor-not-allowed"
-      type="submit"
-      [disabled]="isBusy()"
-    >
-      <span
-        class="material-symbols-outlined text-[20px]"
-        [class.animate-spin]="isSubmitting()"
-        aria-hidden="true"
-        >{{ submitIcon() }}</span
-      >
-      {{ submitLabel() }}
-    </button>
+  <div class="rounded-lg bg-surface-container-low px-3 py-2 text-label-sm text-on-surface-variant">
+    El backend todavía no acepta correo y contraseña. Creá tu cuenta con Google.
   </div>
 
-  <p class="sr-only" role="status" aria-live="polite">{{ statusAnnouncement() }}</p>
-</form>
+</div>
 
 <div class="mt-space-lg pt-space-md text-center bg-surface-bright/50 rounded-lg py-space-sm">
   <p class="text-body-md text-on-surface-variant">
