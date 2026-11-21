@@ -101,6 +101,18 @@ class TipoRecomendacion(StrEnum):
     ADVERTENCIA = "advertencia"
 
 
+class OrigenCultivo(StrEnum):
+    """Procedencia de la ficha de un cultivo del catálogo.
+
+    ``humano``: la sembró la migración o la cargó una persona.
+    ``agente``: la creó el agente al investigar un producto que no existía; queda
+    pendiente de revisión (``revisado_en`` nulo) hasta que alguien la apruebe.
+    """
+
+    HUMANO = "humano"
+    AGENTE = "agente"
+
+
 class TipoFuenteAgente(StrEnum):
     """Tipo de procedencia de una fuente citada por el agente."""
 
@@ -124,3 +136,4 @@ VALORES_TIPO_NODO = tuple(item.value for item in TipoNodo)
 VALORES_ESTADO_CORRIDA = tuple(item.value for item in EstadoCorrida)
 VALORES_TIPO_RECOMENDACION = tuple(item.value for item in TipoRecomendacion)
 VALORES_TIPO_FUENTE_AGENTE = tuple(item.value for item in TipoFuenteAgente)
+VALORES_ORIGEN_CULTIVO = tuple(item.value for item in OrigenCultivo)
