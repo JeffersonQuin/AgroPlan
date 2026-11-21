@@ -157,6 +157,8 @@ def test_corrida_termina_ok_y_congela_el_snapshot(cliente_autenticado: TestClien
 
     propuesta = PropuestaAgente.model_validate(detalle["salida"])
     assert propuesta.cultivos
+    # El fallback no inventa cultivos que el usuario no pidió.
+    assert len(propuesta.cultivos) <= 2
     assert sum(cultivo.area_m2 for cultivo in propuesta.cultivos) <= AREA_TERRENO
     for cultivo in propuesta.cultivos:
         assert cultivo.cultivo_codigo in CATALOGO
@@ -301,6 +303,23 @@ def test_aplicar_materializa_bloques_y_riego(cliente_autenticado: TestClient) ->
 
     proyecto = cliente.get(f"/proyectos/{proyecto_id}").json()
     assert proyecto["corrida_actual_id"] == inicio["corrida_id"]
+
+
+def test_aplicar_no_cambia_el_intake(cliente_autenticado: TestClient) -> None:
+    """Aplicar y volver a pedir el análisis no debe gastar otra corrida."""
+
+    cliente = cliente_autenticado
+    proyecto_id = _proyecto_con_cultivos(cliente)
+    primera = _iniciar(cliente, proyecto_id)
+    aplicar = cliente.post(
+        f"/proyectos/{proyecto_id}/agente/corridas/{primera['corrida_id']}/aplicar"
+    )
+    assert aplicar.status_code == 200, aplicar.text
+
+    segunda = cliente.post(f"/proyectos/{proyecto_id}/agente")
+    assert segunda.status_code == 200, segunda.text
+    assert segunda.json()["corrida_id"] == primera["corrida_id"]
+    assert segunda.json()["intake_hash"] == primera["intake_hash"]
 
 
 def test_aplicar_dos_veces_responde_409(cliente_autenticado: TestClient) -> None:

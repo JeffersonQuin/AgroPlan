@@ -132,6 +132,9 @@ def _elegir_cultivos(
         usados.add(str(cultivo["codigo"]))
         elegidos.append((cultivo, producto.area_deseada_m2))
 
+    # Solo se completan los productos que el usuario pidió y no matchearon el
+    # catálogo: proponer cultivos que nadie pidió sería inventar, no recomendar.
+    cupo = min(8, len(catalogo), max(len(entrada.productos), 1))
     ordenados = sorted(
         catalogo,
         key=lambda cultivo: (
@@ -140,7 +143,7 @@ def _elegir_cultivos(
         ),
     )
     for cultivo in ordenados:
-        if len(elegidos) >= min(8, len(catalogo)):
+        if len(elegidos) >= cupo:
             break
         codigo = str(cultivo["codigo"])
         if codigo in usados:

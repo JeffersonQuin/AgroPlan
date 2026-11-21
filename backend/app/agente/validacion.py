@@ -71,6 +71,21 @@ def _dec(valor: float) -> Decimal:
     return Decimal(str(valor))
 
 
+def cuantizar_area(area: float, area_total: float) -> Decimal:
+    """Baja el área a la grilla que el motor puede reproducir: 0,01% del terreno.
+
+    ``aplicar`` escribe bloques con un porcentaje de dos decimales; si el área de la
+    propuesta no cae en esa grilla, la geometría devuelve un área distinta, el intake
+    cambia y volver a pedir el análisis gasta una corrida nueva. Cuantizar mantiene el
+    ciclo estable sin tocar el motor.
+    """
+
+    if area_total <= 0:
+        return _dec(area).quantize(Decimal("0.01"), rounding=ROUND_DOWN)
+    quantum = _dec(area_total) / 10000
+    return (_dec(area) / quantum).to_integral_value(rounding=ROUND_DOWN) * quantum
+
+
 def repartir_porcentajes(areas: list[float], area_total: float) -> list[float]:
     """Porcentajes con dos decimales que nunca superan el 100% del terreno.
 
@@ -320,9 +335,7 @@ def corregir(
 
     corregidos: list[CultivoRecomendado] = []
     for cultivo, area in zip(cultivos.values(), areas, strict=True):
-        ajustada = (_dec(area) * _dec(escala)).quantize(
-            Decimal("0.01"), rounding=ROUND_DOWN
-        )
+        ajustada = cuantizar_area(float(_dec(area) * _dec(escala)), area_m2)
         if ajustada < _dec(AREA_MINIMA_M2):
             advertencias.append(
                 _advertencia(
