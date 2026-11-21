@@ -1,0 +1,134 @@
+@import 'tailwindcss';
+
+/*
+ * Design tokens for AgroPlan.
+ * Ported from the reference login mockup (Tailwind CDN inline config) to the
+ * CSS-first Tailwind v4 `@theme` layer, so utilities are generated at build time.
+ */
+@theme {
+  /* Brand + Material 3 color scheme */
+  --color-primary: #004c22;
+  --color-on-primary: #ffffff;
+  --color-primary-container: #166534;
+  --color-on-primary-container: #93e0a2;
+  --color-primary-fixed: #a6f4b5;
+  --color-primary-fixed-dim: #8bd79b;
+  --color-on-primary-fixed: #00210b;
+  --color-on-primary-fixed-variant: #005226;
+
+  --color-secondary: #1b6d24;
+  --color-on-secondary: #ffffff;
+  --color-secondary-container: #a0f399;
+  --color-on-secondary-container: #217128;
+  --color-secondary-fixed: #a3f69c;
+  --color-secondary-fixed-dim: #88d982;
+  --color-on-secondary-fixed: #002204;
+  --color-on-secondary-fixed-variant: #005312;
+
+  --color-tertiary: #653400;
+  --color-on-tertiary: #ffffff;
+  --color-tertiary-container: #874700;
+  --color-on-tertiary-container: #ffc292;
+  --color-tertiary-fixed: #ffdcc3;
+  --color-tertiary-fixed-dim: #ffb77d;
+  --color-on-tertiary-fixed: #2f1500;
+  --color-on-tertiary-fixed-variant: #6e3900;
+
+  --color-error: #ba1a1a;
+  --color-on-error: #ffffff;
+  --color-error-container: #ffdad6;
+  --color-on-error-container: #93000a;
+
+  --color-background: #eaffea;
+  --color-on-background: #00210d;
+  --color-surface: #eaffea;
+  --color-on-surface: #00210d;
+  --color-surface-dim: #a9e9b6;
+  --color-surface-bright: #eaffea;
+  --color-surface-variant: #b1f2be;
+  --color-on-surface-variant: #404940;
+  --color-surface-tint: #1f6c3a;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #d1ffd8;
+  --color-surface-container: #bcfdc9;
+  --color-surface-container-high: #b7f7c3;
+  --color-surface-container-highest: #b1f2be;
+
+  --color-outline: #707a6f;
+  --color-outline-variant: #bfc9bd;
+
+  --color-inverse-surface: #00391a;
+  --color-inverse-on-surface: #c3ffce;
+  --color-inverse-primary: #8bd79b;
+
+  /* Layout spacing scale used by the mockup */
+  --spacing-space-xs: 0.25rem;
+  --spacing-space-sm: 0.5rem;
+  --spacing-space-md: 0.75rem;
+  --spacing-space-lg: 1rem;
+  --spacing-space-xl: 1.5rem;
+  --spacing-margin: 1rem;
+  --spacing-margin-desktop: 1.5rem;
+  --spacing-gutter: 0.75rem;
+  --spacing-gutter-desktop: 1rem;
+
+  /* Typographic scale */
+  --text-body-sm: 12px;
+  --text-body-sm--line-height: 16px;
+  --text-body-sm--font-weight: 400;
+  --text-body-md: 13px;
+  --text-body-md--line-height: 18px;
+  --text-body-md--font-weight: 400;
+  --text-body-lg: 14px;
+  --text-body-lg--line-height: 20px;
+  --text-body-lg--font-weight: 500;
+  --text-label-sm: 11px;
+  --text-label-sm--line-height: 14px;
+  --text-label-sm--font-weight: 600;
+  --text-label-sm--letter-spacing: 0.02em;
+  --text-label-md: 13px;
+  --text-label-md--line-height: 18px;
+  --text-label-md--font-weight: 600;
+  --text-headline-sm: 15px;
+  --text-headline-sm--line-height: 20px;
+  --text-headline-sm--font-weight: 600;
+  --text-headline-sm--letter-spacing: -0.005em;
+  --text-headline-md: 16px;
+  --text-headline-md--line-height: 24px;
+  --text-headline-md--font-weight: 600;
+  --text-headline-md--letter-spacing: -0.01em;
+  --text-headline-lg: 20px;
+  --text-headline-lg--line-height: 28px;
+  --text-headline-lg--font-weight: 700;
+  --text-headline-lg--letter-spacing: -0.015em;
+  --text-headline-xl: 24px;
+  --text-headline-xl--line-height: 32px;
+  --text-headline-xl--font-weight: 700;
+  --text-headline-xl--letter-spacing: -0.02em;
+
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+    overscroll-behavior: none;
+  }
+
+  /* The mockup hides scrollbars for a cleaner full-screen canvas. */
+  ::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Material Symbols helper, matching the icon set used by the mockup. */
+.material-symbols-outlined {
+  font-variation-settings:
+    'FILL' 0,
+    'wght' 400,
+    'GRAD' 0,
+    'opsz' 24;
+  user-select: none;
+}

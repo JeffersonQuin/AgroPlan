@@ -1,0 +1,143 @@
+<div
+  class="absolute inset-0 bg-on-surface/40 backdrop-blur-xs"
+  (click)="close.emit()"
+  aria-hidden="true"
+></div>
+
+<div
+  class="relative w-full max-w-lg bg-surface-container-lowest rounded-xl shadow-xl overflow-hidden"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="new-project-title"
+>
+  <div class="flex items-center justify-between px-space-lg py-space-md border-b border-outline-variant/40">
+    <div class="flex items-center gap-2">
+      <span class="material-symbols-outlined text-[20px] text-primary" aria-hidden="true"
+        >add_location_alt</span
+      >
+      <h2 id="new-project-title" class="text-headline-md text-on-surface">
+        Nuevo proyecto agrícola
+      </h2>
+    </div>
+    <button
+      class="p-1 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors"
+      type="button"
+      aria-label="Cerrar ventana"
+      (click)="close.emit()"
+    >
+      <span class="material-symbols-outlined text-[20px]" aria-hidden="true">close</span>
+    </button>
+  </div>
+
+  <form class="p-space-lg flex flex-col gap-space-md" (submit)="onSubmit($event)" novalidate>
+    <div class="space-y-1">
+      <div class="flex items-center justify-between">
+        <label class="text-label-md text-on-surface" for="projectName">
+          Nombre del proyecto / parcela
+        </label>
+        <span class="text-label-sm text-outline">
+          {{ nameLength() }} / {{ nameMaxLength }}
+        </span>
+      </div>
+      <input
+        id="projectName"
+        type="text"
+        [formField]="form.name"
+        [attr.aria-invalid]="nameError().length > 0"
+        [attr.aria-describedby]="nameError() ? 'projectName-error' : null"
+        class="w-full px-space-md py-2.5 rounded-lg bg-surface-container-low text-body-md text-on-surface placeholder:text-outline focus:bg-surface-bright focus:outline-none focus:ring-2 focus:ring-primary transition-all"
+        placeholder="ej. Parcela Los Olivos"
+        autocomplete="off"
+      />
+      <p class="text-body-sm text-on-surface-variant">
+        Identificador único visible en planos y cómputo de materiales.
+      </p>
+      @if (nameError()) {
+        <p id="projectName-error" class="text-label-sm text-error" role="alert">
+          {{ nameError() }}
+        </p>
+      }
+    </div>
+
+    <div class="space-y-1">
+      <label class="text-label-md text-on-surface" for="projectLocation">Ubicación / Zona</label>
+      <div class="relative">
+        <span
+          class="material-symbols-outlined absolute left-3 top-2.5 text-outline text-[20px]"
+          aria-hidden="true"
+          >location_on</span
+        >
+        <input
+          id="projectLocation"
+          type="text"
+          [formField]="form.location"
+          class="w-full pl-10 pr-space-md py-2.5 rounded-lg bg-surface-container-low text-body-md text-on-surface placeholder:text-outline focus:bg-surface-bright focus:outline-none focus:ring-2 focus:ring-primary transition-all"
+          placeholder="ej. Valle Central"
+          autocomplete="off"
+        />
+      </div>
+    </div>
+
+    <div class="space-y-1">
+      <span class="text-label-md text-on-surface">Unidad de medida predeterminada</span>
+      <div class="grid grid-cols-2 gap-space-sm">
+        <button
+          class="flex flex-col items-start px-space-md py-2 rounded-lg border text-left transition-colors"
+          [class]="
+            unitSystem() === 'metric'
+              ? 'border-primary bg-surface-container-low text-on-surface'
+              : 'border-outline-variant/60 text-on-surface-variant hover:bg-surface-container-low'
+          "
+          type="button"
+          [attr.aria-pressed]="unitSystem() === 'metric'"
+          (click)="setUnitSystem('metric')"
+        >
+          <span class="text-label-md">Metros / Hectáreas</span>
+          <span class="text-label-sm text-on-surface-variant">m², ha, mm</span>
+        </button>
+        <button
+          class="flex flex-col items-start px-space-md py-2 rounded-lg border text-left transition-colors"
+          [class]="
+            unitSystem() === 'imperial'
+              ? 'border-primary bg-surface-container-low text-on-surface'
+              : 'border-outline-variant/60 text-on-surface-variant hover:bg-surface-container-low'
+          "
+          type="button"
+          [attr.aria-pressed]="unitSystem() === 'imperial'"
+          (click)="setUnitSystem('imperial')"
+        >
+          <span class="text-label-md">Acre / Pies</span>
+          <span class="text-label-sm text-on-surface-variant">ac, ft, in</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="flex items-start gap-space-xs bg-surface-container-low rounded-lg p-space-sm">
+      <span class="material-symbols-outlined text-[18px] text-tertiary-container" aria-hidden="true"
+        >lightbulb</span
+      >
+      <p class="text-body-sm text-on-surface-variant">
+        Después del alta vas al
+        <strong class="text-on-surface">Paso 1 (Terreno)</strong> para ingresar las coordenadas,
+        dimensiones perimetrales o dibujar el polígono.
+      </p>
+    </div>
+
+    <div class="flex items-center justify-end gap-space-sm pt-space-xs">
+      <button
+        class="px-space-lg py-2.5 rounded-lg text-label-md text-on-surface-variant hover:bg-surface-container-low transition-colors"
+        type="button"
+        (click)="close.emit()"
+      >
+        Cancelar
+      </button>
+      <button
+        class="inline-flex items-center gap-space-xs bg-primary-container hover:bg-primary text-on-primary text-label-md px-space-lg py-2.5 rounded-lg transition-all shadow-sm"
+        type="submit"
+      >
+        Crear proyecto
+        <span class="material-symbols-outlined text-[18px]" aria-hidden="true">arrow_forward</span>
+      </button>
+    </div>
+  </form>
+</div>

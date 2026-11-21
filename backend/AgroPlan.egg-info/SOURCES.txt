@@ -1,6 +1,0 @@
-pyproject.toml
-AgroPlan.egg-info/PKG-INFO
-AgroPlan.egg-info/SOURCES.txt
-AgroPlan.egg-info/dependency_links.txt
-AgroPlan.egg-info/requires.txt
-AgroPlan.egg-info/top_level.txt

@@ -1,0 +1,78 @@
+<div class="absolute inset-0 opacity-10 pointer-events-none">
+  <svg class="w-full h-full" fill="none" viewBox="0 0 500 800" aria-hidden="true">
+    <path
+      d="M-50 150C120 180 250 80 400 130C520 170 560 260 600 320"
+      stroke="currentColor"
+      stroke-dasharray="6 6"
+      stroke-width="2"
+    />
+    <path
+      d="M-80 320C90 350 200 240 370 290C500 330 540 440 620 480"
+      stroke="currentColor"
+      stroke-width="2"
+    />
+    <path
+      d="M-40 490C140 520 220 430 420 470C540 500 580 620 650 670"
+      stroke="currentColor"
+      stroke-dasharray="4 4"
+      stroke-width="1.5"
+    />
+    <path
+      d="M-60 650C100 680 240 580 430 630C560 670 600 750 680 810"
+      stroke="currentColor"
+      stroke-width="2"
+    />
+  </svg>
+</div>
+
+<div class="relative z-10 space-y-space-md">
+  <div
+    class="inline-flex items-center gap-space-xs px-space-sm py-space-xs rounded-full bg-primary-container text-on-primary-container text-label-sm uppercase tracking-wide"
+  >
+    <span class="material-symbols-outlined text-[16px]" aria-hidden="true"
+      >precision_manufacturing</span
+    >
+    Plataforma CAD/GIS Agronómica
+  </div>
+  <div>
+    <h2 class="text-headline-xl text-on-primary">
+      Planificación técnica de cultivos y riego por goteo
+    </h2>
+    <p class="text-body-md text-primary-fixed-dim mt-space-xs">
+      Ingeniería hidráulica de precisión y balance biológico para productores, agrónomos e
+      instaladores profesionales.
+    </p>
+  </div>
+</div>
+
+<div class="relative z-10 my-space-lg space-y-space-md">
+  @for (feature of features; track feature.title) {
+    <div
+      class="flex items-start gap-space-md p-space-sm rounded-lg bg-surface-container-highest/10 hover:bg-surface-container-highest/20 transition-colors"
+    >
+      <div
+        class="w-9 h-9 rounded-lg bg-secondary flex items-center justify-center text-on-secondary shrink-0 mt-0.5"
+      >
+        <span class="material-symbols-outlined text-[20px]" aria-hidden="true">{{
+          feature.icon
+        }}</span>
+      </div>
+      <div>
+        <h3 class="text-headline-sm text-on-primary">{{ feature.title }}</h3>
+        <p class="text-body-sm text-surface-container-high">{{ feature.description }}</p>
+      </div>
+    </div>
+  }
+</div>
+
+<div
+  class="relative z-10 pt-space-md bg-primary-container/40 -mx-space-lg -mb-space-lg lg:-mx-space-xl lg:-mb-space-xl p-space-lg flex items-center justify-between"
+>
+  <div class="flex items-center gap-space-xs">
+    <span class="material-symbols-outlined text-secondary-fixed text-[20px]" aria-hidden="true"
+      >verified</span
+    >
+    <span class="text-label-sm text-surface-bright">Normas hidráulicas ISO 9261</span>
+  </div>
+  <span class="text-label-sm text-primary-fixed-dim">v2.4 Pro Edition</span>
+</div>
