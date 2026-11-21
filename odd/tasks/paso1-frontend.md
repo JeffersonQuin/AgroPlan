@@ -56,3 +56,22 @@ proyecto, pero en esta parte solo pondremos funcionalidad a los botones de "Nuev
 donde ese boton entrara al primer paso que es
 frontend/src/app/features/terrain/terrain.page.html, asi que completaremos esta slice primero
 que todo este bien y vamos por el paso 2 pero primero el paso 1"*
+
+**L2** — Implementado en `feat/paso1-frontend` (PR #19, sin mergear): `ProjectsApi` y
+`ProjectsStore` contra la API, modal que crea y navega con el id real, `TerrainApi` con
+`PUT`/`PATCH`, `TerrainStore` que carga proyecto + terreno + suelos y guarda las cotas como
+vértices, resumen y encabezado con los derivados del backend, y la ruta
+`proyectos/:proyectoId/terreno`.
+
+**L3** — 86 tests del frontend verdes y build de desarrollo OK. Los tests corren con el Node 24
+de `npx` porque el CLI de Angular 22 rechaza el Node 22.22.2 del sistema.
+
+**L4** — Contrato cruzado verificado contra uvicorn: el payload exacto del front
+(`toVertices(60, 30, 40, 20)`, 5 vértices, trapecio) da `PUT` 200 con área 2100,0 m² y
+perímetro 186,06 m; el cálculo local del front da 2100 m². Coinciden. `GET /proyectos` refleja
+el área en la grilla.
+
+**L5** — Decisiones para el próximo slice: (a) el mockup muestra 3.200 m² mientras sus cotas
+dan 2.100 — se mantiene el número del diseño en la primera pintura y el real al guardar;
+(b) la figura del prototipo tiene 5 vértices (cierra con diagonal), así que el backend informa
+"5 lados" y no "4 lados (trapecio)".
