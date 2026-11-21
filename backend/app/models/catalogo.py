@@ -42,7 +42,10 @@ class Cultivo(Base):
     # ``agente`` cuando la ficha la creó el agente investigando un producto que no
     # existía: se usa en el acto y queda pendiente de revisión con sus fuentes.
     origen: Mapped[str] = mapped_column(
-        String(10), nullable=False, default=OrigenCultivo.HUMANO.value
+        String(10),
+        nullable=False,
+        default=OrigenCultivo.HUMANO.value,
+        server_default=OrigenCultivo.HUMANO.value,
     )
     revisado_en: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True

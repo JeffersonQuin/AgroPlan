@@ -8,6 +8,12 @@ dónde salió la información y saber si alguien ya la revisó.
 `origen` arranca en 'humano' para todas las filas existentes: nada de lo que ya está
 sembrado cambia de significado.
 
+Ojo con revertirla en producción: el `downgrade` borra `origen`, `revisado_en` y
+`fuentes`. Las filas no se pierden, pero las fichas que había creado el agente
+vuelven como `humano` y sin revisión pendiente, o sea indistinguibles de una ficha
+curada. Es el precio normal de revertir una migración aditiva, pero hay que saberlo
+antes de correrlo sobre datos reales.
+
 Revision ID: c4e9a1b73f21
 Revises: 736aa2b57e30
 Create Date: 2026-11-21 22:41:03.118472
