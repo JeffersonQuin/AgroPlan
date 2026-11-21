@@ -62,6 +62,18 @@
   --color-inverse-on-surface: #f6f8f6;
   --color-inverse-primary: #86efac;
 
+  /* Agro scale used by the wizard screens */
+  --color-agro-50: #f4fbf4;
+  --color-agro-100: #e6f7e6;
+  --color-agro-200: #c8ecc9;
+  --color-agro-500: #2e7d32;
+  --color-agro-600: #27682b;
+  --color-agro-700: #1e5222;
+  --color-agro-800: #143c17;
+  --color-agro-surface: #f6f8f6;
+  --color-agro-border: #e2e8e2;
+  --color-agro-accent: #38a169;
+
   /* Hydraulic / water indicators */
   --color-water: #0284c7;
   --color-water-deep: #0369a1;
@@ -147,4 +159,28 @@
     'GRAD' 0,
     'opsz' 24;
   user-select: none;
+}
+
+/* Technical CAD grid used by the wizard canvas. */
+.cad-grid {
+  background-color: #fcfdfc;
+  background-image:
+    radial-gradient(circle, #cbd5e1 1.1px, transparent 1.1px),
+    linear-gradient(to right, #f1f5f9 1px, transparent 1px),
+    linear-gradient(to bottom, #f1f5f9 1px, transparent 1px);
+  background-size: 20px 20px, 100px 100px, 100px 100px;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
 }
