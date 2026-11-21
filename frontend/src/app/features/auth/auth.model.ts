@@ -1,6 +1,3 @@
-/** Which panel of the authentication screen is active. */
-export type AuthMode = 'login' | 'register';
-
 /** Lifecycle of a sign-in attempt. */
 export type AuthStatus = 'idle' | 'submitting' | 'success' | 'error';
 
@@ -37,23 +34,13 @@ export interface AuthCopy {
   success: string;
 }
 
-export const AUTH_COPY: Record<AuthMode, AuthCopy> = {
-  login: {
-    title: 'Bienvenido de nuevo',
-    subtitle:
-      'Ingresa con tu cuenta de Google para acceder a tus parcelas y proyectos agronómicos.',
-    submit: 'Iniciar Sesión con Google',
-    submitting: 'Verificando cuenta…',
-    success: 'Acceso Autorizado',
-  },
-  register: {
-    title: 'Crea tu cuenta técnica',
-    subtitle:
-      'Configura tu estación y comienza a proyectar sistemas de riego y topografía.',
-    submit: 'Registrarse con Google',
-    submitting: 'Creando espacio de trabajo…',
-    success: 'Espacio Creado',
-  },
+export const LOGIN_COPY: AuthCopy = {
+  title: 'Bienvenido de nuevo',
+  subtitle:
+    'Ingresa con tu cuenta de Google para acceder a tus parcelas y proyectos agronómicos.',
+  submit: 'Iniciar Sesión con Google',
+  submitting: 'Verificando cuenta…',
+  success: 'Acceso Autorizado',
 };
 
 export const EMPTY_AUTH_FORM: AuthFormModel = {

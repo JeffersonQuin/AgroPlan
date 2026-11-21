@@ -41,9 +41,6 @@
 
   <div class="rounded-lg bg-surface-container-low px-3 py-2 text-label-sm text-on-surface-variant">
     El backend todavía no acepta correo y contraseña. Ingresá con tu cuenta de Google.
-    @if (emailHint()) {
-      <span class="block mt-1">{{ emailHint() }}</span>
-    }
   </div>
 
   @if (error()) {

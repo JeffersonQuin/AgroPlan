@@ -2,10 +2,9 @@ import { Service, computed, inject, signal } from '@angular/core';
 import { Observable, catchError, map, of, tap } from 'rxjs';
 import { AuthApi } from './auth.api';
 import {
-  AUTH_COPY,
-  AuthMode,
   AuthStatus,
   BackendUser,
+  LOGIN_COPY,
   SESSION_STORAGE_KEY,
   TokenResponse,
 } from './auth.model';
@@ -24,12 +23,10 @@ interface PersistedSession {
 @Service()
 export class AuthStore {
   private readonly api = inject(AuthApi);
-  private readonly _mode = signal<AuthMode>('login');
   private readonly _status = signal<AuthStatus>('idle');
   private readonly _error = signal('');
   private readonly session = signal<PersistedSession | null>(readSession());
 
-  readonly mode = this._mode.asReadonly();
   readonly status = this._status.asReadonly();
   readonly error = this._error.asReadonly();
 
@@ -37,32 +34,32 @@ export class AuthStore {
   readonly token = computed(() => this.session()?.token ?? null);
   readonly isAuthenticated = computed(() => this.session() !== null);
 
-  readonly isRegister = computed(() => this._mode() === 'register');
   readonly isSubmitting = computed(() => this._status() === 'submitting');
   readonly isSuccess = computed(() => this._status() === 'success');
-  readonly copy = computed(() => AUTH_COPY[this._mode()]);
+  readonly copy = LOGIN_COPY;
   readonly submitLabel = computed(() => {
     const status = this._status();
-    if (status === 'submitting') return this.copy().submitting;
-    return this.copy().submit;
+    if (status === 'submitting') return this.copy.submitting;
+    return this.copy.submit;
   });
-
-  setMode(mode: AuthMode): void {
-    if (this._mode() === mode) return;
-    this._mode.set(mode);
-    this._status.set('idle');
-    this._error.set('');
-  }
 
   /** Exchanges the Google ID token and stores the session on success. */
   loginWithGoogle(idToken: string): Observable<boolean> {
     this._status.set('submitting');
     this._error.set('');
 
-    const request = this.isRegister()
-      ? this.api.registerWithGoogle(idToken)
-      : this.api.loginWithGoogle(idToken);
+    return this.exchange(this.api.loginWithGoogle(idToken));
+  }
 
+  /** Creates the account on first sign-in (POST /auth/google/register). */
+  registerWithGoogle(idToken: string): Observable<boolean> {
+    this._status.set('submitting');
+    this._error.set('');
+
+    return this.exchange(this.api.registerWithGoogle(idToken));
+  }
+
+  private exchange(request: Observable<TokenResponse>): Observable<boolean> {
     return request.pipe(
       tap((response) => this.persist(response)),
       map(() => true),

@@ -24,21 +24,17 @@ describe('LoginPanel', () => {
     const heading = fixture.nativeElement.querySelector('h1') as HTMLElement;
 
     expect(heading.textContent).toContain('Bienvenido de nuevo');
-    expect(fixture.nativeElement.querySelector('#tab-login')!.getAttribute('aria-selected')).toBe(
-      'true',
+    expect(fixture.nativeElement.querySelector('[aria-current="page"]')!.textContent).toContain(
+      'Iniciar Sesión',
     );
   });
 
-  it('switches to the register view when the second tab is clicked', async () => {
+  it('navigates to the register screen instead of switching a mode', async () => {
     const fixture = await render();
-    const registerTab = fixture.nativeElement.querySelector('#tab-register') as HTMLButtonElement;
+    const registerLink = fixture.nativeElement.querySelector('a[href="/register"]');
 
-    registerTab.click();
-    await fixture.whenStable();
-
-    const heading = fixture.nativeElement.querySelector('h1') as HTMLElement;
-    expect(heading.textContent).toContain('Crea tu cuenta técnica');
-    expect(registerTab.getAttribute('aria-selected')).toBe('true');
+    expect(registerLink).not.toBeNull();
+    expect(registerLink.textContent).toContain('Crear Cuenta');
   });
 
 
