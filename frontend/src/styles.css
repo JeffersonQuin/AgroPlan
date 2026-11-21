@@ -6,62 +6,67 @@
  * CSS-first Tailwind v4 `@theme` layer, so utilities are generated at build time.
  */
 @theme {
-  /* Brand + Material 3 color scheme */
-  --color-primary: #004c22;
+  /* Brand scale (DESIGN.md: verde-900 / verde-700 / verde-600 / verde-100) */
+  --color-primary: #14532d;
   --color-on-primary: #ffffff;
   --color-primary-container: #166534;
-  --color-on-primary-container: #93e0a2;
-  --color-primary-fixed: #a6f4b5;
-  --color-primary-fixed-dim: #8bd79b;
-  --color-on-primary-fixed: #00210b;
-  --color-on-primary-fixed-variant: #005226;
+  --color-on-primary-container: #dcfce7;
+  --color-primary-fixed: #bbf7d0;
+  --color-primary-fixed-dim: #86efac;
+  --color-on-primary-fixed: #052e16;
+  --color-on-primary-fixed-variant: #166534;
 
-  --color-secondary: #1b6d24;
+  --color-secondary: #2e7d32;
   --color-on-secondary: #ffffff;
-  --color-secondary-container: #a0f399;
-  --color-on-secondary-container: #217128;
-  --color-secondary-fixed: #a3f69c;
-  --color-secondary-fixed-dim: #88d982;
-  --color-on-secondary-fixed: #002204;
-  --color-on-secondary-fixed-variant: #005312;
+  --color-secondary-container: #e8f5e9;
+  --color-on-secondary-container: #14532d;
+  --color-secondary-fixed: #a7f3d0;
+  --color-secondary-fixed-dim: #6ee7b7;
+  --color-on-secondary-fixed: #052e16;
+  --color-on-secondary-fixed-variant: #166534;
 
-  --color-tertiary: #653400;
+  --color-tertiary: #b45309;
   --color-on-tertiary: #ffffff;
-  --color-tertiary-container: #874700;
-  --color-on-tertiary-container: #ffc292;
-  --color-tertiary-fixed: #ffdcc3;
-  --color-tertiary-fixed-dim: #ffb77d;
-  --color-on-tertiary-fixed: #2f1500;
-  --color-on-tertiary-fixed-variant: #6e3900;
+  --color-tertiary-container: #d97706;
+  --color-on-tertiary-container: #fff8e1;
+  --color-tertiary-fixed: #fde68a;
+  --color-tertiary-fixed-dim: #f59e0b;
+  --color-on-tertiary-fixed: #451a03;
+  --color-on-tertiary-fixed-variant: #92400e;
 
-  --color-error: #ba1a1a;
+  --color-error: #dc2626;
   --color-on-error: #ffffff;
-  --color-error-container: #ffdad6;
-  --color-on-error-container: #93000a;
+  --color-error-container: #fee2e2;
+  --color-on-error-container: #991b1b;
 
-  --color-background: #eaffea;
-  --color-on-background: #00210d;
-  --color-surface: #eaffea;
-  --color-on-surface: #00210d;
-  --color-surface-dim: #a9e9b6;
-  --color-surface-bright: #eaffea;
-  --color-surface-variant: #b1f2be;
-  --color-on-surface-variant: #404940;
-  --color-surface-tint: #1f6c3a;
+  /* Neutral surface hierarchy (canvas #F6F8F6, cards #FFFFFF, hairline #E2E8E2) */
+  --color-background: #f6f8f6;
+  --color-on-background: #111827;
+  --color-surface: #f6f8f6;
+  --color-on-surface: #111827;
+  --color-surface-dim: #eaefea;
+  --color-surface-bright: #f1f6f2;
+  --color-surface-variant: #e8f5e9;
+  --color-on-surface-variant: #4b5563;
+  --color-surface-tint: #166534;
   --color-surface-container-lowest: #ffffff;
-  --color-surface-container-low: #d1ffd8;
-  --color-surface-container: #bcfdc9;
-  --color-surface-container-high: #b7f7c3;
-  --color-surface-container-highest: #b1f2be;
+  --color-surface-container-low: #f3f7f4;
+  --color-surface-container: #e8f5e9;
+  --color-surface-container-high: #e3ede5;
+  --color-surface-container-highest: #dce8de;
 
-  --color-outline: #707a6f;
-  --color-outline-variant: #bfc9bd;
+  --color-outline: #6b7280;
+  --color-outline-variant: #e2e8e2;
 
-  --color-inverse-surface: #00391a;
-  --color-inverse-on-surface: #c3ffce;
-  --color-inverse-primary: #8bd79b;
+  --color-inverse-surface: #111827;
+  --color-inverse-on-surface: #f6f8f6;
+  --color-inverse-primary: #86efac;
 
-  /* Layout spacing scale used by the mockup */
+  /* Hydraulic / water indicators */
+  --color-water: #0284c7;
+  --color-water-deep: #0369a1;
+
+  /* Layout spacing scale used by the mockups */
   --spacing-space-xs: 0.25rem;
   --spacing-space-sm: 0.5rem;
   --spacing-space-md: 0.75rem;
@@ -97,6 +102,9 @@
   --text-headline-md--line-height: 24px;
   --text-headline-md--font-weight: 600;
   --text-headline-md--letter-spacing: -0.01em;
+  --text-tabular-data: 13px;
+  --text-tabular-data--line-height: 18px;
+  --text-tabular-data--font-weight: 500;
   --text-headline-lg: 20px;
   --text-headline-lg--line-height: 28px;
   --text-headline-lg--font-weight: 700;
@@ -115,6 +123,14 @@
     margin: 0;
     padding: 0;
     overscroll-behavior: none;
+  }
+
+  /* Mirrors the <body> classes of every mockup: bg-surface text-on-surface antialiased */
+  body {
+    background-color: var(--color-surface);
+    color: var(--color-on-surface);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   /* The mockup hides scrollbars for a cleaner full-screen canvas. */
