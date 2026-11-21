@@ -19,6 +19,9 @@ COLUMNAS_NUEVAS = ("origen", "revisado_en", "fuentes")
 # La suite se puede correr desde `backend/` o desde la raíz del repo: las rutas de
 # alembic se resuelven contra el paquete, no contra el directorio actual.
 RAIZ_BACKEND = Path(__file__).resolve().parents[1]
+# Revisión previa a la migración que agrega las columnas: sirve para probar el
+# downgrade sin que un `-1` dependa de cuántas migraciones haya encima.
+REVISION_SIN_COLUMNAS = "736aa2b57e30"
 
 
 @pytest.fixture()
@@ -72,7 +75,7 @@ def test_upgrade_marca_lo_sembrado_como_humano(migracion) -> None:
 def test_downgrade_y_upgrade_conservan_las_filas(migracion) -> None:
     configuracion, ruta = migracion
     command.upgrade(configuracion, "head")
-    command.downgrade(configuracion, "-1")
+    command.downgrade(configuracion, REVISION_SIN_COLUMNAS)
 
     columnas = _columnas(ruta)
     assert all(nueva not in columnas for nueva in COLUMNAS_NUEVAS)
@@ -120,7 +123,7 @@ def test_el_downgrade_pierde_la_trazabilidad_pero_no_las_filas(migracion) -> Non
     finally:
         conexion.close()
 
-    command.downgrade(configuracion, "-1")
+    command.downgrade(configuracion, REVISION_SIN_COLUMNAS)
     command.upgrade(configuracion, "head")
 
     filas = {fila[0]: fila for fila in _filas(ruta)}
