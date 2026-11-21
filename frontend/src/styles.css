@@ -6,79 +6,62 @@
  * CSS-first Tailwind v4 `@theme` layer, so utilities are generated at build time.
  */
 @theme {
-  /* Brand scale (DESIGN.md: verde-900 / verde-700 / verde-600 / verde-100) */
-  --color-primary: #14532d;
+  /* Brand + Material 3 color scheme */
+  --color-primary: #004c22;
   --color-on-primary: #ffffff;
   --color-primary-container: #166534;
-  --color-on-primary-container: #dcfce7;
-  --color-primary-fixed: #bbf7d0;
-  --color-primary-fixed-dim: #86efac;
-  --color-on-primary-fixed: #052e16;
-  --color-on-primary-fixed-variant: #166534;
+  --color-on-primary-container: #93e0a2;
+  --color-primary-fixed: #a6f4b5;
+  --color-primary-fixed-dim: #8bd79b;
+  --color-on-primary-fixed: #00210b;
+  --color-on-primary-fixed-variant: #005226;
 
-  --color-secondary: #2e7d32;
+  --color-secondary: #1b6d24;
   --color-on-secondary: #ffffff;
-  --color-secondary-container: #e8f5e9;
-  --color-on-secondary-container: #14532d;
-  --color-secondary-fixed: #a7f3d0;
-  --color-secondary-fixed-dim: #6ee7b7;
-  --color-on-secondary-fixed: #052e16;
-  --color-on-secondary-fixed-variant: #166534;
+  --color-secondary-container: #a0f399;
+  --color-on-secondary-container: #217128;
+  --color-secondary-fixed: #a3f69c;
+  --color-secondary-fixed-dim: #88d982;
+  --color-on-secondary-fixed: #002204;
+  --color-on-secondary-fixed-variant: #005312;
 
-  --color-tertiary: #b45309;
+  --color-tertiary: #653400;
   --color-on-tertiary: #ffffff;
-  --color-tertiary-container: #d97706;
-  --color-on-tertiary-container: #fff8e1;
-  --color-tertiary-fixed: #fde68a;
-  --color-tertiary-fixed-dim: #f59e0b;
-  --color-on-tertiary-fixed: #451a03;
-  --color-on-tertiary-fixed-variant: #92400e;
+  --color-tertiary-container: #874700;
+  --color-on-tertiary-container: #ffc292;
+  --color-tertiary-fixed: #ffdcc3;
+  --color-tertiary-fixed-dim: #ffb77d;
+  --color-on-tertiary-fixed: #2f1500;
+  --color-on-tertiary-fixed-variant: #6e3900;
 
-  --color-error: #dc2626;
+  --color-error: #ba1a1a;
   --color-on-error: #ffffff;
-  --color-error-container: #fee2e2;
-  --color-on-error-container: #991b1b;
+  --color-error-container: #ffdad6;
+  --color-on-error-container: #93000a;
 
-  /* Neutral surface hierarchy (canvas #F6F8F6, cards #FFFFFF, hairline #E2E8E2) */
-  --color-background: #f6f8f6;
-  --color-on-background: #111827;
-  --color-surface: #f6f8f6;
-  --color-on-surface: #111827;
-  --color-surface-dim: #eaefea;
-  --color-surface-bright: #f1f6f2;
-  --color-surface-variant: #e8f5e9;
-  --color-on-surface-variant: #4b5563;
-  --color-surface-tint: #166534;
+  --color-background: #eaffea;
+  --color-on-background: #00210d;
+  --color-surface: #eaffea;
+  --color-on-surface: #00210d;
+  --color-surface-dim: #a9e9b6;
+  --color-surface-bright: #eaffea;
+  --color-surface-variant: #b1f2be;
+  --color-on-surface-variant: #404940;
+  --color-surface-tint: #1f6c3a;
   --color-surface-container-lowest: #ffffff;
-  --color-surface-container-low: #f3f7f4;
-  --color-surface-container: #e8f5e9;
-  --color-surface-container-high: #e3ede5;
-  --color-surface-container-highest: #dce8de;
+  --color-surface-container-low: #d1ffd8;
+  --color-surface-container: #bcfdc9;
+  --color-surface-container-high: #b7f7c3;
+  --color-surface-container-highest: #b1f2be;
 
-  --color-outline: #6b7280;
-  --color-outline-variant: #e2e8e2;
+  --color-outline: #707a6f;
+  --color-outline-variant: #bfc9bd;
 
-  --color-inverse-surface: #111827;
-  --color-inverse-on-surface: #f6f8f6;
-  --color-inverse-primary: #86efac;
+  --color-inverse-surface: #00391a;
+  --color-inverse-on-surface: #c3ffce;
+  --color-inverse-primary: #8bd79b;
 
-  /* Agro scale used by the wizard screens */
-  --color-agro-50: #f4fbf4;
-  --color-agro-100: #e6f7e6;
-  --color-agro-200: #c8ecc9;
-  --color-agro-500: #2e7d32;
-  --color-agro-600: #27682b;
-  --color-agro-700: #1e5222;
-  --color-agro-800: #143c17;
-  --color-agro-surface: #f6f8f6;
-  --color-agro-border: #e2e8e2;
-  --color-agro-accent: #38a169;
-
-  /* Hydraulic / water indicators */
-  --color-water: #0284c7;
-  --color-water-deep: #0369a1;
-
-  /* Layout spacing scale used by the mockups */
+  /* Layout spacing scale used by the mockup */
   --spacing-space-xs: 0.25rem;
   --spacing-space-sm: 0.5rem;
   --spacing-space-md: 0.75rem;
@@ -114,9 +97,6 @@
   --text-headline-md--line-height: 24px;
   --text-headline-md--font-weight: 600;
   --text-headline-md--letter-spacing: -0.01em;
-  --text-tabular-data: 13px;
-  --text-tabular-data--line-height: 18px;
-  --text-tabular-data--font-weight: 500;
   --text-headline-lg: 20px;
   --text-headline-lg--line-height: 28px;
   --text-headline-lg--font-weight: 700;
@@ -137,14 +117,6 @@
     overscroll-behavior: none;
   }
 
-  /* Mirrors the <body> classes of every mockup: bg-surface text-on-surface antialiased */
-  body {
-    background-color: var(--color-surface);
-    color: var(--color-on-surface);
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-  }
-
   /* The mockup hides scrollbars for a cleaner full-screen canvas. */
   ::-webkit-scrollbar {
     display: none;
@@ -159,28 +131,4 @@
     'GRAD' 0,
     'opsz' 24;
   user-select: none;
-}
-
-/* Technical CAD grid used by the wizard canvas. */
-.cad-grid {
-  background-color: #fcfdfc;
-  background-image:
-    radial-gradient(circle, #cbd5e1 1.1px, transparent 1.1px),
-    linear-gradient(to right, #f1f5f9 1px, transparent 1px),
-    linear-gradient(to bottom, #f1f5f9 1px, transparent 1px);
-  background-size: 20px 20px, 100px 100px, 100px 100px;
-}
-
-.custom-scrollbar::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: #f1f5f9;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 4px;
 }

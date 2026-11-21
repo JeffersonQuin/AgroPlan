@@ -6,13 +6,12 @@ export type ProjectFilter = 'all' | ProjectStatus;
 
 export type ProjectSort = 'recent' | 'area_desc' | 'name';
 
-/** Which reference schematic the card draws. */
-export type PreviewVariant = 'mi-parcela' | 'parcela-norte' | 'finca-el-paraiso' | 'empty';
-
-/** A crop block listed in the card. */
+/** A crop block drawn inside the parcel preview. */
 export interface CropSlice {
   name: string;
   areaM2: number;
+  /** SVG fill for the block; the design system green/tan palette. */
+  color: string;
 }
 
 /** Next action offered by a project card. */
@@ -32,27 +31,18 @@ export interface Project {
   status: ProjectStatus;
   statusLabel: string;
   statusIcon: string;
-  /** Colour token for the status icon, e.g. text-secondary. */
-  statusTone: string;
-  /** Icon shown next to the project name in the card header. */
-  headerIcon: string;
-  /** Colour token for the header icon. */
-  headerTone: string;
-  /** Tooltip of the header icon. */
-  headerTitle: string;
   unitSystem: UnitSystem;
   areaM2: number;
+  /** Number of irrigation sectors, or null when not designed yet. */
+  sectors: number | null;
   sectorsLabel: string;
   speciesLabel: string;
-  irrigationType: string;
   hydraulicSpecs: string;
   crops: CropSlice[];
-  preview: PreviewVariant;
-  /** Wizard step chip over the schematic, e.g. "Paso 4: Resultado". */
-  stepLabel?: string;
-  /** Dimension chip over the schematic, e.g. "60.00 × 40.00 m". */
-  dimensionsLabel?: string;
+  parcelShape: 'rectangle' | 'trapezoid';
   nextStep: ProjectNextStep;
+  /** True for the reference project that shows the "verified" badge. */
+  verified?: boolean;
 }
 
 export interface CreateProjectInput {
