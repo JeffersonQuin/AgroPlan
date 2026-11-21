@@ -8,5 +8,11 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./features/auth/login.page').then((m) => m.LoginPage),
   },
+  {
+    path: 'register',
+    title: 'Crear cuenta · AgroPlan',
+    loadComponent: () =>
+      import('./features/register/register.page').then((m) => m.RegisterPage),
+  },
   { path: '**', redirectTo: 'login' },
 ];
