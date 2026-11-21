@@ -1,0 +1,70 @@
+<header class="h-16 bg-white border-b border-agro-border px-5 flex items-center justify-between sticky top-0 z-50 shrink-0">
+<!-- Brand identity -->
+<div class="flex items-center gap-3 w-[290px]">
+<div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-agro-700 to-emerald-500 flex items-center justify-center text-white shadow-sm ring-2 ring-emerald-100">
+<svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+<path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"></path>
+<path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"></path>
+</svg>
+</div>
+<div>
+<h1 class="text-xl font-extrabold tracking-tight text-agro-800 leading-none">AgroPlan</h1>
+<p class="text-[11px] text-slate-500 font-medium tracking-tight mt-0.5">Diseño y planificación agrícola</p>
+</div>
+</div>
+<!-- Stepper Navigation -->
+<nav aria-label="Progreso del proyecto" class="flex items-center gap-2 md:gap-3">
+<!-- Step 1: Terreno (Active) -->
+<div class="flex items-center gap-2 group cursor-pointer">
+<span class="w-7 h-7 rounded-full bg-agro-500 text-white font-bold text-xs flex items-center justify-center shadow-md shadow-emerald-200">1</span>
+<span class="text-xs md:text-sm font-bold text-agro-700 border-b-2 border-agro-500 pb-0.5">Terreno</span>
+</div>
+<div class="w-6 h-[2px] bg-emerald-200"></div>
+<!-- Step 2: Cultivos -->
+<div class="flex items-center gap-2 text-slate-400 group cursor-not-allowed">
+<span class="w-7 h-7 rounded-full bg-slate-100 border border-slate-300 text-slate-500 font-medium text-xs flex items-center justify-center">2</span>
+<span class="text-xs md:text-sm font-medium text-slate-500">Cultivos</span>
+</div>
+<div class="w-6 h-[2px] bg-slate-200"></div>
+<!-- Step 3: Sistema -->
+<div class="flex items-center gap-2 text-slate-400 group cursor-not-allowed">
+<span class="w-7 h-7 rounded-full bg-slate-100 border border-slate-300 text-slate-500 font-medium text-xs flex items-center justify-center">3</span>
+<span class="text-xs md:text-sm font-medium text-slate-500">Sistema</span>
+</div>
+<div class="w-6 h-[2px] bg-slate-200"></div>
+<!-- Step 4: Resultado -->
+<div class="flex items-center gap-2 text-slate-400 group cursor-not-allowed">
+<span class="w-7 h-7 rounded-full bg-slate-100 border border-slate-300 text-slate-500 font-medium text-xs flex items-center justify-center">4</span>
+<span class="text-xs md:text-sm font-medium text-slate-500">Resultado</span>
+</div>
+</nav>
+<!-- Header actions -->
+<div class="flex items-center gap-3">
+<!-- Autosave pill -->
+<div class="hidden xl:flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-medium border border-emerald-200/80">
+<svg class="w-3.5 h-3.5 text-emerald-600" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+<path clip-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" fill-rule="evenodd"></path>
+</svg>
+<span>Guardado 11:06</span>
+</div>
+<!-- Export PDF button -->
+<button class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-sm transition-all duration-150">
+<svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+<path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path>
+<polyline points="14 2 14 8 20 8"></polyline>
+<path d="M10 12v6"></path>
+<path d="m13 15-3 3-3-3"></path>
+</svg>
+        Exportar PDF
+      </button>
+<!-- Primary Save button -->
+<button class="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-agro-500 hover:bg-agro-600 active:bg-agro-700 text-white text-xs font-semibold shadow-sm shadow-emerald-700/20 transition-all duration-150">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+<polyline points="17 21 17 13 7 13 7 21"></polyline>
+<polyline points="7 3 7 8 15 8"></polyline>
+</svg>
+        Guardar
+      </button>
+</div>
+</header>

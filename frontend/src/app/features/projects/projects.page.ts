@@ -38,9 +38,6 @@ export class ProjectsPage {
     () => this.emptySimulated() || this.store.projects().length === 0,
   );
 
-  protected readonly showNoResults = computed(
-    () => !this.showOnboarding() && this.store.visibleProjects().length === 0,
-  );
 
   protected openModal(): void {
     this.modalOpen.set(true);
