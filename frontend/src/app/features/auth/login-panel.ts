@@ -1,15 +1,19 @@
-import { Component, computed, inject } from '@angular/core';
-import { AuthMode } from './auth.model';
+import { Component, inject } from '@angular/core';
+import { AuthNav } from './components/auth-nav/auth-nav';
 import { AuthStore } from './auth.store';
 import { LoginForm } from './login-form';
 
 /**
- * Interaction panel: brand bar, login/register tabs, heading, form,
- * demo notice and the trust footer.
+ * Interaction panel: brand bar, entry navigation, heading, Google sign-in and
+ * the trust footer.
+ *
+ * "Crear Cuenta" navigates to the dedicated register screen instead of
+ * switching a local mode: the register screen is a different layout with its
+ * own hero, and it hits the register endpoint.
  */
 @Component({
   selector: 'app-login-panel',
-  imports: [LoginForm],
+  imports: [LoginForm, AuthNav],
   templateUrl: './login-panel.html',
   host: {
     class:
@@ -17,26 +21,6 @@ import { LoginForm } from './login-form';
   },
 })
 export class LoginPanel {
-  private readonly store = inject(AuthStore);
-
+  protected readonly store = inject(AuthStore);
   protected readonly copy = this.store.copy;
-  protected readonly mode = this.store.mode;
-
-  protected readonly loginTabClass = computed(() => this.tabClass('login'));
-  protected readonly registerTabClass = computed(() => this.tabClass('register'));
-
-  private tabClass(mode: AuthMode): Record<string, boolean> {
-    const active = this.mode() === mode;
-    return {
-      'bg-surface-container-lowest': active,
-      'text-primary': active,
-      'shadow-sm': active,
-      'text-on-surface-variant': !active,
-      'hover:text-on-surface': !active,
-    };
-  }
-
-  protected setMode(mode: AuthMode): void {
-    this.store.setMode(mode);
-  }
 }

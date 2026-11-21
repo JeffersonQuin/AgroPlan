@@ -1,22 +1,54 @@
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { ActivatedRoute, convertToParamMap, Router, provideRouter } from '@angular/router';
 import { vi } from 'vitest';
-import { RegisterStore } from '../state/register.store';
+import { SESSION_STORAGE_KEY, TokenResponse } from '../../auth/auth.model';
 import { RegisterForm } from '../components/register-form/register-form';
 
+const TOKEN_RESPONSE: TokenResponse = {
+  access_token: 'jwt-token',
+  token_type: 'bearer',
+  usuario: {
+    id: 9,
+    email: 'nuevo@agroplan.com',
+    nombre: 'Ing. Nueva',
+    foto_url: null,
+    rol: 'cliente',
+    activo: true,
+    ultimo_acceso: null,
+  },
+};
+
 describe('RegisterForm', () => {
-  let store: RegisterStore;
+  let http: HttpTestingController;
+  let navigations: string[];
 
   beforeEach(async () => {
+    localStorage.clear();
+    navigations = [];
     await TestBed.configureTestingModule({
       imports: [RegisterForm],
-      providers: [provideRouter([])],
+      providers: [
+        provideRouter([]),
+        {
+          provide: ActivatedRoute,
+          useValue: { snapshot: { queryParamMap: convertToParamMap({}) } },
+        },
+        provideHttpClient(),
+        provideHttpClientTesting(),
+      ],
     }).compileComponents();
-    store = TestBed.inject(RegisterStore);
+    http = TestBed.inject(HttpTestingController);
+    vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockImplementation((url) => {
+      navigations.push(url.toString());
+      return Promise.resolve(true);
+    });
   });
 
   afterEach(() => {
-    vi.useRealTimers();
+    http.verify();
+    localStorage.clear();
   });
 
   async function render() {
@@ -25,126 +57,77 @@ describe('RegisterForm', () => {
     return fixture;
   }
 
-  type Fixture = Awaited<ReturnType<typeof render>>;
-
-  function query<T extends Element>(fixture: Fixture, selector: string): T {
-    return fixture.nativeElement.querySelector(selector) as T;
-  }
-
-  async function type(fixture: Fixture, selector: string, value: string) {
-    const input = query<HTMLInputElement>(fixture, selector);
-    input.value = value;
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    await fixture.whenStable();
-  }
-
-  /** Browsers fire both `input` and `change` when a select option is picked. */
-  async function selectRole(fixture: Fixture, value: string) {
-    const select = query<HTMLSelectElement>(fixture, '#userRole');
-    select.value = value;
-    select.dispatchEvent(new Event('input', { bubbles: true }));
-    select.dispatchEvent(new Event('change', { bubbles: true }));
-    await fixture.whenStable();
-  }
-
-  async function acceptTerms(fixture: Fixture) {
-    const checkbox = query<HTMLInputElement>(fixture, '#termsCheckbox');
-    checkbox.checked = true;
-    checkbox.dispatchEvent(new Event('input', { bubbles: true }));
-    checkbox.dispatchEvent(new Event('change', { bubbles: true }));
-    await fixture.whenStable();
-  }
-
-  async function fillIdentity(fixture: Fixture) {
-    await type(fixture, '#fullName', 'Ing. Lucas Ferrero');
-    await type(fixture, '#workEmail', 'lucas@agronomia-consulting.com');
-    await selectRole(fixture, 'agronomo');
-    await type(fixture, '#password', 'Abcdefg1!');
-    await type(fixture, '#confirmPassword', 'Abcdefg1!');
-  }
-
-  async function submit(fixture: Fixture) {
-    query<HTMLFormElement>(fixture, 'form').dispatchEvent(new Event('submit'));
-    await fixture.whenStable();
-  }
-
-  it('renders every agronomic role option', async () => {
-    const fixture = await render();
-    const options = fixture.nativeElement.querySelectorAll(
-      '#userRole option',
-    ) as NodeListOf<HTMLOptionElement>;
-
-    expect(options.length).toBe(6);
-    expect(options[1].value).toBe('agronomo');
-  });
-
-  it('shows the required errors on an empty submit', async () => {
+  it('renders the credential fields disabled', async () => {
     const fixture = await render();
 
-    await submit(fixture);
+    for (const id of ['#fullName', '#workEmail', '#password', '#confirmPassword']) {
+      const input = fixture.nativeElement.querySelector(id) as HTMLInputElement;
+      expect(input).not.toBeNull();
+      expect(input.disabled).toBe(true);
+    }
 
-    const text = fixture.nativeElement.textContent as string;
-    expect(text).toContain('Ingresá tu nombre completo.');
-    expect(text).toContain('Ingresá tu correo profesional.');
-    expect(text).toContain('Elegí tu rol o especialidad agronómica.');
-    expect(store.status()).toBe('idle');
-  });
-
-  it('rejects a password shorter than eight characters', async () => {
-    const fixture = await render();
-
-    await type(fixture, '#password', 'Ab1!');
-    await submit(fixture);
-
-    expect(fixture.nativeElement.textContent).toContain(
-      'La contraseña debe tener al menos 8 caracteres.',
+    expect((fixture.nativeElement.querySelector('#userRole') as HTMLSelectElement).disabled).toBe(
+      true,
+    );
+    expect((fixture.nativeElement.querySelector('#termsCheckbox') as HTMLInputElement).disabled).toBe(
+      true,
     );
   });
 
-  it('reports mismatched passwords', async () => {
+  it('offers Google as the only way in and explains why', async () => {
     const fixture = await render();
 
-    await type(fixture, '#password', 'Abcdefg1!');
-    await type(fixture, '#confirmPassword', 'Distinta1!');
-
-    expect(fixture.nativeElement.textContent).toContain('Las contraseñas no coinciden.');
-  });
-
-  it('blocks the submit when the terms are not accepted', async () => {
-    const fixture = await render();
-    await fillIdentity(fixture);
-
-    await submit(fixture);
-
+    expect(fixture.nativeElement.querySelector('app-google-sign-in')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('form')).toBeNull();
     expect(fixture.nativeElement.textContent).toContain(
-      'Tenés que aceptar los términos para crear tu cuenta.',
+      'El backend todavía no acepta correo y contraseña.',
     );
-    expect(store.status()).toBe('idle');
   });
 
-  it('updates the strength meter as the password changes', async () => {
+  it('creates the account through the register endpoint', async () => {
     const fixture = await render();
 
-    expect(fixture.nativeElement.textContent).toContain('Mínimo 8 caracteres');
+    fixture.componentInstance['onCredential']('google-id-token');
 
-    await type(fixture, '#password', 'Abcdefg1!');
+    const request = http.expectOne('http://localhost:8000/auth/google/register');
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual({ id_token: 'google-id-token' });
+    request.flush(TOKEN_RESPONSE);
+    await fixture.whenStable();
 
-    expect(fixture.nativeElement.textContent).toContain('Excelente (Robusta)');
+    expect(localStorage.getItem(SESSION_STORAGE_KEY)).toContain('jwt-token');
+    expect(navigations).toEqual(['/projects']);
   });
 
-  it('registers with a complete and valid form', async () => {
+  it('shows the backend error and navigates nowhere when registration fails', async () => {
     const fixture = await render();
-    await fillIdentity(fixture);
-    await acceptTerms(fixture);
 
-    // Fake timers go in only after rendering: `whenStable()` needs real ones.
-    vi.useFakeTimers();
-    query<HTMLFormElement>(fixture, 'form').dispatchEvent(new Event('submit'));
+    fixture.componentInstance['onCredential']('bad-token');
+    http
+      .expectOne('http://localhost:8000/auth/google/register')
+      .flush({ detail: 'Token de Google inválido' }, { status: 401, statusText: 'Unauthorized' });
+    await fixture.whenStable();
 
-    expect(store.isSubmitting()).toBe(true);
+    expect(fixture.nativeElement.textContent).toContain('Token de Google inválido');
+    expect(navigations).toEqual([]);
+    expect(localStorage.getItem(SESSION_STORAGE_KEY)).toBeNull();
+  });
 
-    await vi.advanceTimersByTimeAsync(1000);
+  it('keeps the switch back to login visible in the header', async () => {
+    const fixture = await render();
+    const nav = fixture.nativeElement.querySelector('app-auth-nav');
 
-    expect(store.isSuccess()).toBe(true);
+    expect(nav).not.toBeNull();
+    expect(nav.textContent).toContain('Iniciar Sesión');
+    expect(nav.textContent).toContain('Crear Cuenta');
+    expect(nav.querySelector('a[href="/login"]')).not.toBeNull();
+    expect(nav.querySelector('[aria-current="page"]').textContent).toContain('Crear Cuenta');
+  });
+
+  it('still offers the login link in the footer', async () => {
+    const fixture = await render();
+
+    expect(fixture.nativeElement.textContent).toContain('¿Ya tienes una cuenta activa?');
+    expect(fixture.nativeElement.querySelector('a[href="/login"]')).not.toBeNull();
   });
 });
