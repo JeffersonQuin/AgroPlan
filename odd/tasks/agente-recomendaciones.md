@@ -232,3 +232,18 @@ sembrados exactos a las 4 opciones del prototipo).
 paso 2 con `producto_texto="Zapallo"` → 140 m² (70%), 4,5 L/m²/día, 630 L/d, ciclo 130,
 **Kc 1,05**, aptitud `apto` con motivo y fuente; cambiar el suelo a arcilloso → veredicto
 `condicionado` con su motivo y aviso no bloqueante. Panel: 200/140/60, `ajustado`.
+
+**L22** — Verificación independiente del slice (4 puntos, alcance acotado): **PASS** en
+aditividad de los tres contratos (sólo líneas agregadas, ningún campo eliminado, renombrado,
+vuelto obligatorio ni estrechado), **PASS** en derivados, **PASS** en el veredicto de suelo
+(nunca `bloqueante=True`, suelo sin dato sin veredicto, cambiar de suelo no toca los bloques),
+y **PASS** en la regresión del listado vacío. Un desvío real: mover `_terreno_requerido` antes
+de buscar el bloque convertía el `PATCH` de un bloque inexistente sin terreno en 422 donde
+antes era 404. Corregido, junto con el porcentaje absurdo si `area_m2` fuese 0.
+
+**L23** — Avisos que quedaron como están, a propósito: `dias_a_cosecha` usa `date.today()`, así
+que el payload cambia de un día para otro (es lo correcto: son días que faltan); y un polígono
+dibujado más grande que el terreno puede dar `porcentaje > 100`, que es el estado `excedido`
+que el balance ya modela — no se recorta.
+
+**L24** — Estado del slice: 92 tests verdes, ruff limpio salvo el N999 preexistente.
