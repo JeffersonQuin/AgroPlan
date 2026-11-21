@@ -26,6 +26,14 @@ declare global {
 const GSI_SOURCE = 'https://accounts.google.com/gsi/client';
 
 /**
+ * `initialize()` is global in the GIS script, so it must run once per client id.
+ * The callback is routed through this indirection so a remounted component
+ * keeps receiving credentials without re-initialising.
+ */
+let initializedClientId = '';
+let credentialHandler: (credential: string) => void = () => undefined;
+
+/**
  * Google Identity Services button.
  *
  * Loads the GIS script on the browser, renders Google's own button and emits
@@ -80,10 +88,15 @@ export class GoogleSignIn {
         return;
       }
 
-      accounts.initialize({
-        client_id: environment.googleClientId,
-        callback: (response) => this.credential.emit(response.credential),
-      });
+      credentialHandler = (credential) => this.credential.emit(credential);
+
+      if (initializedClientId !== environment.googleClientId) {
+        accounts.initialize({
+          client_id: environment.googleClientId,
+          callback: (response) => credentialHandler(response.credential),
+        });
+        initializedClientId = environment.googleClientId;
+      }
       accounts.renderButton(element, {
         type: 'standard',
         theme: 'outline',
