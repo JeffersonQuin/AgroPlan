@@ -7,6 +7,7 @@ migrada. Corre contra un SQLite temporal por test, no contra la base de desarrol
 
 import hashlib
 import sqlite3
+from pathlib import Path
 
 import pytest
 from alembic.config import Config
@@ -15,14 +16,17 @@ from alembic import command
 from app.core.config import settings
 
 COLUMNAS_NUEVAS = ("origen", "revisado_en", "fuentes")
+# La suite se puede correr desde `backend/` o desde la raíz del repo: las rutas de
+# alembic se resuelven contra el paquete, no contra el directorio actual.
+RAIZ_BACKEND = Path(__file__).resolve().parents[1]
 
 
 @pytest.fixture()
 def migracion(tmp_path, monkeypatch):
     ruta = tmp_path / "catalogo.db"
     monkeypatch.setattr(settings, "DATABASE_URL", f"sqlite:///{ruta}")
-    configuracion = Config("alembic.ini")
-    configuracion.set_main_option("script_location", "alembic")
+    configuracion = Config(str(RAIZ_BACKEND / "alembic.ini"))
+    configuracion.set_main_option("script_location", str(RAIZ_BACKEND / "alembic"))
     return configuracion, ruta
 
 
