@@ -51,18 +51,21 @@
   }
 
   <div class="pt-space-xs">
+    <!-- The button stays mounted: unmounting it re-runs google.accounts.id.initialize() -->
+    <div [class]="isSubmitting() ? 'pointer-events-none opacity-50' : ''">
+      <app-google-sign-in (credential)="onCredential($event)" />
+    </div>
+
     @if (isSubmitting()) {
-      <div
-        class="flex items-center justify-center gap-space-xs py-2.5 text-label-md text-on-surface-variant"
+      <p
+        class="mt-2 flex items-center justify-center gap-space-xs text-label-md text-on-surface-variant"
         role="status"
       >
         <span class="material-symbols-outlined text-[18px] animate-spin" aria-hidden="true"
           >progress_activity</span
         >
         {{ store.submitLabel() }}
-      </div>
-    } @else {
-      <app-google-sign-in (credential)="onCredential($event)" />
+      </p>
     }
   </div>
 </div>
