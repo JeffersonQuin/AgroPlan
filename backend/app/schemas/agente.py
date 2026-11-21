@@ -79,6 +79,8 @@ class CultivoRecomendado(BaseModel):
     cultivo_codigo: str = Field(min_length=2, max_length=30)
     nombre: str = Field(min_length=2, max_length=60)
     color: str | None = Field(default=None, max_length=7)
+    # Asignación propuesta, no geometría: el motor la convierte en polígonos y el área
+    # derivada de esa geometría es la autoritativa. Nunca es un resultado calculado.
     area_m2: float = Field(gt=0)
     demanda_l_m2_dia: float = Field(ge=0, le=20)
     ciclo_dias: int | None = Field(default=None, ge=1, le=730)

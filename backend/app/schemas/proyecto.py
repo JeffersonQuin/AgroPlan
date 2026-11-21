@@ -118,6 +118,34 @@ class TerrenoIn(BaseModel):
     caudal_disponible_m3h: float | None = Field(default=None, gt=0, le=50)
 
 
+class TerrenoUpdate(BaseModel):
+    """Edición parcial del paso 1, incluido el caudal que el sistema había asumido.
+
+    El caudal es tri-estado: campo ausente = no se toca; ``null`` explícito = se borra el
+    valor del cliente y el sistema vuelve a asignarlo desde la fuente de agua
+    (procedencia ``asumido``); un número = procedencia ``cliente``. Por eso un consumidor
+    debe mirar ``model_fields_set`` para distinguir "ausente" de "null".
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    nombre_parcela: str | None = Field(default=None, min_length=1, max_length=60)
+    vertices: list[Vertice] | None = None
+    suelo_codigo: str | None = Field(default=None, min_length=2, max_length=20)
+    pendiente_pct: float | None = Field(default=None, ge=0, le=30)
+    fuente_agua: FuenteAgua | None = None
+    caudal_disponible_m3h: float | None = Field(default=None, gt=0, le=50)
+
+    @property
+    def limpia_caudal(self) -> bool:
+        """True si el cliente pidió volver al caudal asumido por el sistema."""
+
+        return (
+            "caudal_disponible_m3h" in self.model_fields_set
+            and self.caudal_disponible_m3h is None
+        )
+
+
 class GeometriaTerreno(BaseModel):
     """Forma persistida del terreno."""
 
