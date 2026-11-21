@@ -5,7 +5,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     DATABASE_URL: str = "sqlite:///./dev.db"
-    GOOGLE_CLIENT_ID: str = "657234574040-p8hiuhbkpgnsjosel3kljm31p18aq6sr.apps.googleusercontent.com"
+    GOOGLE_CLIENT_ID: str = ""
     JWT_SECRET: str = "change-me-with-a-long-random-secret"
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRE_MINUTES: int = 60
