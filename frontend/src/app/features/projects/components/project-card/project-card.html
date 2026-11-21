@@ -1,138 +1,124 @@
 <article
-  class="project-card group bg-surface-container-lowest rounded-xl p-space-md shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
+  class="bg-surface-container-lowest rounded-xl shadow-sm hover:shadow-md transition-shadow overflow-hidden flex flex-col"
 >
-  <div>
-    <div class="flex items-start justify-between gap-space-sm mb-space-md">
-      <div class="flex flex-col min-w-0">
-        <div class="flex items-center gap-space-xs">
-          <h2 class="text-headline-md text-on-surface truncate">{{ project().name }}</h2>
-          <span
-            class="material-symbols-outlined text-[18px]"
-            [class]="project().headerTone"
-            [attr.title]="project().headerTitle"
-            aria-hidden="true"
-            >{{ project().headerIcon }}</span
-          >
-        </div>
-        <span class="text-body-sm text-on-surface-variant"
+  <div class="flex items-start justify-between gap-space-sm p-space-md pb-space-xs">
+    <div class="min-w-0">
+      <h2 class="text-headline-md text-on-surface truncate">{{ project().name }}</h2>
+      <div class="flex items-center gap-1 text-label-sm text-on-surface-variant">
+        <span class="material-symbols-outlined text-[14px]" aria-hidden="true">{{
+          project().statusIcon
+        }}</span>
+        <span class="truncate"
           >{{ project().location }} · Modificado {{ modifiedLabel() }}</span
         >
       </div>
-
-      <details class="relative shrink-0">
-        <summary
-          class="list-none p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-bright hover:text-on-surface transition-colors cursor-pointer"
-        >
-          <span class="material-symbols-outlined text-[20px]" aria-hidden="true">more_vert</span>
-          <span class="sr-only">Opciones de {{ project().name }}</span>
-        </summary>
-        <div
-          class="absolute right-0 z-30 mt-1 w-44 bg-surface-container-lowest rounded-xl shadow-xl py-1"
-        >
-          <button
-            class="w-full flex items-center gap-2 px-3 py-2 text-left text-label-sm text-on-surface hover:bg-surface-bright"
-            type="button"
-            (click)="open.emit(project())"
-          >
-            <span class="material-symbols-outlined text-[16px]" aria-hidden="true">edit</span>
-            {{ project().nextStep.step ? 'Continuar wizard' : 'Abrir wizard' }}
-          </button>
-          <button
-            class="w-full flex items-center gap-2 px-3 py-2 text-left text-label-sm text-on-surface hover:bg-surface-bright"
-            type="button"
-          >
-            <span class="material-symbols-outlined text-[16px]" aria-hidden="true"
-              >content_copy</span
-            >
-            Duplicar
-          </button>
-          <div class="h-px bg-surface-container-high my-1"></div>
-          <button
-            class="w-full flex items-center gap-2 px-3 py-2 text-left text-label-sm text-error hover:bg-error-container/30"
-            type="button"
-          >
-            <span class="material-symbols-outlined text-[16px]" aria-hidden="true">delete</span>
-            Eliminar
-          </button>
-        </div>
-      </details>
     </div>
 
-    <div
-      class="w-full h-44 rounded-lg bg-surface-bright relative overflow-hidden flex items-center justify-center p-3 mb-space-md"
-    >
-      <app-project-preview [project]="project()" />
-
-      @if (project().stepLabel) {
-        <span
-          class="absolute top-2 left-2 bg-surface-container-high/90 backdrop-blur-xs text-on-surface text-label-sm px-2 py-0.5 rounded-full flex items-center gap-1 shadow-xs"
+    <details class="relative shrink-0">
+      <summary
+        class="list-none p-1 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface cursor-pointer"
+      >
+        <span class="material-symbols-outlined text-[20px]" aria-hidden="true">more_vert</span>
+        <span class="sr-only">Acciones de {{ project().name }}</span>
+      </summary>
+      <div
+        class="absolute right-0 z-20 mt-1 w-48 bg-surface-container-lowest rounded-lg shadow-lg border border-outline-variant/40 py-1"
+      >
+        <button
+          class="w-full flex items-center gap-2 px-3 py-2 text-left text-label-sm text-on-surface hover:bg-surface-container-low"
+          type="button"
+          (click)="open.emit(project())"
         >
-          <span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
-          {{ project().stepLabel }}
-        </span>
-      }
-
-      @if (project().dimensionsLabel) {
-        <span
-          class="absolute bottom-2 right-2 bg-surface-container-lowest/90 backdrop-blur-xs text-on-surface text-label-sm px-2 py-0.5 rounded-md shadow-xs"
+          <span class="material-symbols-outlined text-[16px]" aria-hidden="true">edit</span>
+          {{ project().nextStep.step ? 'Continuar wizard' : 'Abrir wizard' }}
+        </button>
+        <button
+          class="w-full flex items-center gap-2 px-3 py-2 text-left text-label-sm text-on-surface hover:bg-surface-container-low"
+          type="button"
         >
-          {{ project().dimensionsLabel }}
-        </span>
-      }
-    </div>
-
-    <div class="grid grid-cols-2 gap-space-xs mb-space-sm">
-      <div class="flex items-center gap-1.5 p-2 rounded-lg bg-surface-bright">
-        <span class="material-symbols-outlined text-primary-container text-[18px]" aria-hidden="true"
-          >straighten</span
+          <span class="material-symbols-outlined text-[16px]" aria-hidden="true">content_copy</span>
+          Duplicar
+        </button>
+        <button
+          class="w-full flex items-center gap-2 px-3 py-2 text-left text-label-sm text-on-surface hover:bg-surface-container-low"
+          type="button"
         >
-        <div class="flex flex-col min-w-0">
-          <span class="text-label-sm text-on-surface-variant">Superficie</span>
-          <span class="text-tabular-data text-on-surface font-semibold">{{ areaLabel() }}</span>
-        </div>
+          <span class="material-symbols-outlined text-[16px]" aria-hidden="true"
+            >picture_as_pdf</span
+          >
+          Exportar PDF
+        </button>
+        <button
+          class="w-full flex items-center gap-2 px-3 py-2 text-left text-label-sm text-error hover:bg-error-container/40"
+          type="button"
+        >
+          <span class="material-symbols-outlined text-[16px]" aria-hidden="true">delete</span>
+          Eliminar
+        </button>
       </div>
-      <div class="flex items-center gap-1.5 p-2 rounded-lg bg-surface-bright">
-        <span class="material-symbols-outlined text-secondary text-[18px]" aria-hidden="true"
-          >eco</span
-        >
-        <div class="flex flex-col min-w-0">
-          <span class="text-label-sm text-on-surface-variant">Especies</span>
-          <span class="text-label-md text-on-surface">{{ project().speciesLabel }}</span>
-        </div>
-      </div>
-    </div>
-
-    <div
-      class="p-2.5 rounded-lg bg-surface-bright text-body-sm text-on-surface-variant flex flex-col gap-1 mb-space-md"
-    >
-      <div class="flex items-center justify-between">
-        <span class="inline-flex items-center gap-1 text-on-surface">
-          <span
-            class="material-symbols-outlined text-[16px] text-primary-container"
-            aria-hidden="true"
-            >water_drop</span
-          >
-          {{ project().irrigationType }}
-        </span>
-        <span class="text-label-sm text-primary font-semibold">{{ project().sectorsLabel }}</span>
-      </div>
-      <p class="truncate text-on-surface-variant text-[11px]">{{ project().hydraulicSpecs }}</p>
-    </div>
+    </details>
   </div>
 
-  <div class="pt-space-sm flex items-center justify-between gap-space-sm">
-    <div class="flex items-center gap-1.5 text-on-surface-variant">
-      <span class="material-symbols-outlined text-[16px]" [class]="project().statusTone" aria-hidden="true">{{
+  <div class="relative px-space-md">
+    <app-project-preview [project]="project()" />
+
+    <span
+      class="absolute top-2 right-4 px-space-sm py-0.5 rounded-full text-label-sm shadow-xs"
+      [class]="
+        project().status === 'completed'
+          ? 'bg-secondary-container text-on-secondary-container'
+          : 'bg-surface-container-high text-on-surface'
+      "
+    >
+      {{ project().statusLabel }}
+    </span>
+  </div>
+
+  <div class="p-space-md flex flex-col gap-space-sm flex-1">
+    <dl class="grid grid-cols-2 gap-space-xs">
+      <div class="bg-surface-container-low rounded-lg px-space-sm py-1.5">
+        <dt class="flex items-center gap-1 text-label-sm text-on-surface-variant">
+          <span class="material-symbols-outlined text-[14px]" aria-hidden="true">straighten</span>
+          Superficie
+        </dt>
+        <dd class="text-label-md text-on-surface">{{ areaLabel() }}</dd>
+      </div>
+      <div class="bg-surface-container-low rounded-lg px-space-sm py-1.5">
+        <dt class="flex items-center gap-1 text-label-sm text-on-surface-variant">
+          <span class="material-symbols-outlined text-[14px]" aria-hidden="true">eco</span>
+          Especies
+        </dt>
+        <dd class="text-label-md text-on-surface">{{ project().speciesLabel }}</dd>
+      </div>
+      <div class="bg-surface-container-low rounded-lg px-space-sm py-1.5 col-span-2">
+        <dt class="flex items-center gap-1 text-label-sm text-on-surface-variant">
+          <span class="material-symbols-outlined text-[14px]" aria-hidden="true">water_drop</span>
+          Sectores
+        </dt>
+        <dd class="text-label-md text-on-surface">{{ project().sectorsLabel }}</dd>
+      </div>
+    </dl>
+
+    <p class="text-label-sm text-on-surface-variant truncate" [title]="project().hydraulicSpecs">
+      {{ project().hydraulicSpecs }}
+    </p>
+  </div>
+
+  <div
+    class="border-t border-outline-variant/40 px-space-md py-space-sm flex items-center justify-between gap-space-sm"
+  >
+    <span class="inline-flex items-center gap-1 text-label-sm text-on-surface-variant truncate">
+      <span class="material-symbols-outlined text-[14px]" aria-hidden="true">{{
         project().statusIcon
       }}</span>
-      <span class="text-label-sm">{{ project().statusLabel }}</span>
-    </div>
+      {{ project().statusLabel }}
+    </span>
     <button
-      class="inline-flex items-center gap-1 bg-primary-container hover:bg-primary text-on-primary text-label-md px-3 py-1.5 rounded-lg transition-colors shadow-xs"
+      class="inline-flex items-center gap-space-xs text-label-md text-primary hover:text-secondary transition-colors shrink-0"
       type="button"
       (click)="open.emit(project())"
     >
-      <span>{{ project().nextStep.label }}</span>
+      {{ project().nextStep.label }}
       <span class="material-symbols-outlined text-[16px]" aria-hidden="true">arrow_forward</span>
     </button>
   </div>
