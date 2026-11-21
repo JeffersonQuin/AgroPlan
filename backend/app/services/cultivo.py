@@ -156,7 +156,7 @@ def _bloque_out(
     cultivo = cultivo_repo.get_by_codigo(db, bloque.cultivo_codigo)
     ciclo, kc, aptitud = _datos_cultivo(cultivo, terreno.suelo_codigo)
     area = float(bloque.area_m2)
-    area_terreno = float(terreno.area_m2) or 1.0
+    area_terreno = float(terreno.area_m2)
     demanda = float(bloque.demanda_l_m2_dia)
 
     advertencias: list[Advertencia] = []
@@ -174,7 +174,11 @@ def _bloque_out(
 
     return BloqueCultivoOut.model_validate(bloque).model_copy(
         update={
-            "porcentaje": round(area / area_terreno * 100, 2),
+            # Un terreno con área 0 no debería existir (el paso 1 rechaza polígonos
+            # sin superficie); si igual llegara, el porcentaje es 0 y no un absurdo.
+            "porcentaje": (
+                round(area / area_terreno * 100, 2) if area_terreno > 0 else 0.0
+            ),
             "demanda_total_l_dia": round(area * demanda, 1),
             "ciclo_dias": ciclo,
             "kc": kc,
@@ -392,12 +396,12 @@ def actualizar_bloque(
     bloque_id: uuid.UUID,
     data: BloqueCultivoUpdate,
 ) -> CultivoRespuesta:
-    terreno = _terreno_requerido(db, proyecto)
-    advertencias: list[Advertencia] = []
     bloque = bloque_repo.get_by_id(db, bloque_id, proyecto.id)
     if bloque is None:
         raise CultivoServiceError(404, "Bloque de cultivo no encontrado")
 
+    terreno = _terreno_requerido(db, proyecto)
+    advertencias: list[Advertencia] = []
     campos = data.model_fields_set
 
     if "poligono" in campos and data.poligono is not None and "porcentaje" in campos:

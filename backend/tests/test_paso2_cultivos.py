@@ -295,6 +295,72 @@ def test_cambiar_de_suelo_cambia_el_veredicto(cliente_autenticado: TestClient) -
     )
 
 
+def test_suelo_sin_entrada_no_emite_veredicto(cliente_autenticado: TestClient) -> None:
+    cliente = cliente_autenticado
+    proyecto_id = _proyecto(cliente)
+    _bloque(cliente, proyecto_id, cultivo_codigo="papa", modo="porcentaje", porcentaje=50)
+
+    pedregoso = cliente.patch(
+        f"/proyectos/{proyecto_id}/terreno", json={"suelo_codigo": "franco"}
+    )
+    assert pedregoso.status_code == 200
+    # Un suelo que la ficha no declara (acá forzamos el caso con arenoso, que sí
+    # declara): lo que importa es que sin entrada no haya veredicto ni aviso.
+    bloque = cliente.get(f"/proyectos/{proyecto_id}/cultivos").json()[0]
+    assert bloque["aptitud_suelo"]["veredicto"] == "apto"
+
+    # Lechuga no declara aptitud de suelo: no se inventa nada.
+    alta = _bloque(
+        cliente, proyecto_id, cultivo_codigo="lechuga", modo="porcentaje", porcentaje=10
+    )
+    assert alta["bloque"]["aptitud_suelo"] is None
+    assert alta["bloque"]["advertencias"] == []
+
+
+def test_derivados_coherentes_si_el_cultivo_sale_del_catalogo(
+    cliente_autenticado: TestClient, db_session: Session
+) -> None:
+    cliente = cliente_autenticado
+    proyecto_id = _proyecto(cliente)
+    _bloque(cliente, proyecto_id, cultivo_codigo="papa", modo="porcentaje", porcentaje=70)
+    _bloque(cliente, proyecto_id, cultivo_codigo="lechuga", modo="porcentaje", porcentaje=30)
+
+    bloques = cliente.get(f"/proyectos/{proyecto_id}/cultivos").json()
+    assert [bloque["porcentaje"] for bloque in bloques] == [70.0, 30.0]
+    assert sum(bloque["porcentaje"] for bloque in bloques) == 100.0
+    assert bloques[0]["demanda_total_l_dia"] == 280.0
+
+    db_session.query(Cultivo).filter_by(codigo="papa").delete()
+    db_session.commit()
+
+    # Sin catálogo no hay de dónde derivar: se devuelve el bloque con lo que se sabe.
+    huerfano = cliente.get(f"/proyectos/{proyecto_id}/cultivos")
+    assert huerfano.status_code == 200, huerfano.text
+    papa = next(b for b in huerfano.json() if b["cultivo_codigo"] == "papa")
+    assert papa["ciclo_dias"] is None
+    assert papa["kc"] is None
+    assert papa["aptitud_suelo"] is None
+    assert papa["porcentaje"] == 70.0
+
+
+def test_patch_de_bloque_inexistente_en_proyecto_sin_terreno_es_404(
+    cliente_autenticado: TestClient,
+) -> None:
+    """El orden de las validaciones no cambia el 404 histórico."""
+
+    import uuid as uuid_module
+
+    cliente = cliente_autenticado
+    proyecto_id = cliente.post("/proyectos", json={"nombre": "Sin terreno"}).json()["id"]
+
+    respuesta = cliente.patch(
+        f"/proyectos/{proyecto_id}/cultivos/{uuid_module.uuid4()}",
+        json={"etiqueta": "Zona A"},
+    )
+    assert respuesta.status_code == 404, respuesta.text
+    assert respuesta.json()["detail"] == "Bloque de cultivo no encontrado"
+
+
 def test_aplicar_la_corrida_deja_los_bloques_con_aptitud(
     cliente_autenticado: TestClient,
 ) -> None:
