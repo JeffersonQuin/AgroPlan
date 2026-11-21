@@ -1,0 +1,18 @@
+{
+  "codigo": "quinoa",
+  "nombre": "Quinoa",
+  "icono": "Q",
+  "color": "#B8860B",
+  "demanda_agua_l_m2_dia": 2.5,
+  "ciclo_dias": 150,
+  "meses_siembra": [3, 4, 9, 10],
+  "notas": "Cultivo andino tolerante a la salinidad y a la sequía; no soporta anegamiento. Ficha curada de un cultivo que no está en el catálogo sembrado.",
+  "fuentes": [
+    {
+      "tipo": "manual",
+      "titulo": "Ficha técnica curada AgroPlan",
+      "url": null,
+      "fragmento": "Ficha de referencia para el camino híbrido de investigación"
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "codigo": "zapallo",
+  "nombre": "Zapallo",
+  "icono": "Z",
+  "color": "#EF6C00",
+  "demanda_agua_l_m2_dia": 4.5,
+  "ciclo_dias": 130,
+  "meses_siembra": [3, 4, 9, 10],
+  "notas": "Rastrero de cobertura rápida; demanda alta en fructificación. Ficha curada de un cultivo que no está en el catálogo sembrado.",
+  "fuentes": [
+    {
+      "tipo": "manual",
+      "titulo": "Ficha técnica curada AgroPlan",
+      "url": null,
+      "fragmento": "Ficha de referencia para el camino híbrido de investigación"
+    }
+  ]
+}

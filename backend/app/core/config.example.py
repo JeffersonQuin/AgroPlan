@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     AGENTE_MODELO: str = "deepseek-v4.1-flash"
     AGENTE_TIMEOUT_S: int = 45
     AGENTE_REINTENTOS: int = 1
+    # Presupuesto de búsquedas web por corrida: el agente investiga un producto
+    # fuera del catálogo con este techo de consultas.
+    AGENTE_MAX_BUSQUEDAS: int = 6
 
     @property
     def cors_origins_list(self) -> list[str]:

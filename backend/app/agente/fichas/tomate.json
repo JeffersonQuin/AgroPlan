@@ -1,0 +1,18 @@
+{
+  "codigo": "tomate",
+  "nombre": "Tomate",
+  "icono": "T",
+  "color": "#E53935",
+  "demanda_agua_l_m2_dia": 5.0,
+  "ciclo_dias": 110,
+  "meses_siembra": [3, 4, 9, 10, 11],
+  "notas": "Exigente en agua y calcio; evitar mojar el follaje para prevenir hongos.",
+  "fuentes": [
+    {
+      "tipo": "manual",
+      "titulo": "Ficha técnica curada AgroPlan",
+      "url": null,
+      "fragmento": "Demanda y ciclo del catálogo base"
+    }
+  ]
+}

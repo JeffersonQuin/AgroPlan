@@ -1,0 +1,18 @@
+{
+  "codigo": "papa",
+  "nombre": "Papa",
+  "icono": "P",
+  "color": "#8D6E63",
+  "demanda_agua_l_m2_dia": 2.0,
+  "ciclo_dias": 120,
+  "meses_siembra": [3, 4, 9, 10],
+  "notas": "Tolera suelos francos; sensible a exceso de humedad.",
+  "fuentes": [
+    {
+      "tipo": "manual",
+      "titulo": "Ficha técnica curada AgroPlan",
+      "url": null,
+      "fragmento": "Demanda y ciclo del catálogo base"
+    }
+  ]
+}

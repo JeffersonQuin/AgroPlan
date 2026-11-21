@@ -1,0 +1,18 @@
+{
+  "codigo": "maiz",
+  "nombre": "Maiz",
+  "icono": "M",
+  "color": "#FBC02D",
+  "demanda_agua_l_m2_dia": 4.0,
+  "ciclo_dias": 140,
+  "meses_siembra": [3, 4, 9, 10],
+  "notas": "Alta demanda en floración; requiere suelos profundos y buen drenaje.",
+  "fuentes": [
+    {
+      "tipo": "manual",
+      "titulo": "Ficha técnica curada AgroPlan",
+      "url": null,
+      "fragmento": "Demanda y ciclo del catálogo base"
+    }
+  ]
+}

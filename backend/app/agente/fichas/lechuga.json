@@ -1,0 +1,18 @@
+{
+  "codigo": "lechuga",
+  "nombre": "Lechuga",
+  "icono": "L",
+  "color": "#7CB342",
+  "demanda_agua_l_m2_dia": 1.5,
+  "ciclo_dias": 65,
+  "meses_siembra": [2, 3, 4, 8, 9],
+  "notas": "Ciclo corto; conviene sombra parcial en verano y riego frecuente y liviano.",
+  "fuentes": [
+    {
+      "tipo": "manual",
+      "titulo": "Ficha técnica curada AgroPlan",
+      "url": null,
+      "fragmento": "Demanda y ciclo del catálogo base"
+    }
+  ]
+}
