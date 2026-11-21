@@ -201,7 +201,11 @@ def test_flujo_completo_del_wizard(cliente_autenticado: TestClient) -> None:
     )
     assert detalle.status_code == 200
     assert detalle.json()["entrada"]["area_m2"] == 200
-    assert detalle.json()["fuentes"] == []
+    # La corrida ya terminó: las fuentes del catálogo quedan persistidas.
+    assert [fuente["tipo"] for fuente in detalle.json()["fuentes"]] == [
+        "catalogo_interno",
+        "catalogo_interno",
+    ]
 
     # Control de concurrencia optimista del autosave.
     desactualizado = cliente.patch(
@@ -465,14 +469,20 @@ def test_endpoints_por_tabla_de_riego_y_agente(
         f"/proyectos/{proyecto_id}/agente/corridas/{corrida_id}/fuentes"
     )
     assert fuentes.status_code == 200
-    assert fuentes.json() == []
+    assert [fuente["tipo"] for fuente in fuentes.json()] == [
+        "catalogo_interno",
+        "catalogo_interno",
+    ]
 
     recomendaciones = cliente.get(
         f"/proyectos/{proyecto_id}/agente/corridas/"
         f"{corrida_id}/recomendaciones"
     )
     assert recomendaciones.status_code == 200
-    assert recomendaciones.json() == []
+    tipos = [fila["tipo"] for fila in recomendaciones.json()]
+    assert "sistema_riego" in tipos
+    assert "advertencia" in tipos
+    assert all(not fila["aplicada"] for fila in recomendaciones.json())
 
     recomendacion = AgenteRecomendacion(
         corrida_id=uuid.UUID(corrida_id),
