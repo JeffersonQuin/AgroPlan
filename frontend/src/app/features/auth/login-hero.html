@@ -1,0 +1,103 @@
+<!-- Topographic contour curves background -->
+<svg
+  class="absolute inset-0 w-full h-full opacity-10 pointer-events-none text-surface-container-lowest"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="1.5"
+  viewBox="0 0 500 700"
+  aria-hidden="true"
+>
+  <path d="M-100,50 C100,20 180,180 320,120 C420,80 480,210 600,190" />
+  <path d="M-80,120 C120,90 210,240 340,190 C440,150 510,290 620,260" />
+  <path d="M-60,190 C140,160 230,300 370,260 C470,220 530,360 640,330" />
+  <path d="M-40,260 C160,230 250,370 390,320 C490,290 560,430 660,400" />
+  <path d="M-20,330 C180,300 270,430 420,390 C520,360 580,500 680,480" />
+  <path d="M0,400 C200,370 290,500 440,460 C540,430 610,580 710,550" />
+  <path d="M20,470 C220,440 310,570 460,530 C560,500 630,650 730,620" />
+  <path d="M40,540 C240,510 330,640 480,600 C580,570 650,720 750,690" />
+  <circle cx="340" cy="190" fill="currentColor" r="4" />
+  <circle cx="370" cy="260" fill="currentColor" r="4" />
+  <circle cx="440" cy="460" fill="currentColor" r="4" />
+</svg>
+
+<!-- Soft gradient lighting accents -->
+<div
+  class="absolute -top-24 -left-24 w-80 h-80 rounded-full bg-secondary opacity-30 blur-3xl pointer-events-none"
+></div>
+<div
+  class="absolute -bottom-20 -right-20 w-80 h-80 rounded-full bg-secondary-container opacity-20 blur-3xl pointer-events-none"
+></div>
+
+<div class="relative z-10 flex items-center justify-between gap-space-sm">
+  <div
+    class="inline-flex items-center gap-space-xs px-space-md py-space-xs rounded-full bg-primary-container text-on-primary-container"
+  >
+    <span class="material-symbols-outlined text-[16px]" aria-hidden="true">agriculture</span>
+    <span class="text-label-sm uppercase tracking-wider">CAD &amp; SIG Hidráulico v3.2</span>
+  </div>
+  <div class="flex items-center gap-1.5 text-primary-fixed-dim">
+    <span class="inline-block w-2 h-2 rounded-full bg-secondary-fixed animate-pulse"></span>
+    <span class="text-label-sm">Motor de Cálculo Activo</span>
+  </div>
+</div>
+
+<div class="relative z-10 my-auto py-space-lg">
+  <div
+    class="w-12 h-12 rounded-lg bg-primary-container text-on-primary-container flex items-center justify-center mb-space-md shadow-sm"
+  >
+    <span
+      class="material-symbols-outlined text-[28px]"
+      style="font-variation-settings: 'FILL' 1"
+      aria-hidden="true"
+      >schema</span
+    >
+  </div>
+
+  <p class="text-headline-xl text-surface-container-lowest leading-tight tracking-tight mb-space-sm">
+    Planificación técnica de parcelas y dimensionamiento de riego de precisión en minutos.
+  </p>
+  <p class="text-body-md text-primary-fixed-dim max-w-sm">
+    Diseña sectores de goteo, distribuye líneas de aspersión y genera balances hídricos con
+    precisión topográfica y estándar agronómico.
+  </p>
+
+  <div class="grid grid-cols-2 gap-space-sm mt-space-lg">
+    <div class="p-space-sm rounded-lg bg-primary-container/80 backdrop-blur-sm">
+      <div class="flex items-center gap-space-xs text-secondary-fixed mb-0.5">
+        <span class="material-symbols-outlined text-[16px]" aria-hidden="true">polyline</span>
+        <span class="text-headline-md tabular-nums">+12.000 ha</span>
+      </div>
+      <p class="text-body-sm text-primary-fixed-dim leading-snug">
+        Parcelas y sectores diseñados
+      </p>
+    </div>
+    <div class="p-space-sm rounded-lg bg-primary-container/80 backdrop-blur-sm">
+      <div class="flex items-center gap-space-xs text-secondary-fixed mb-0.5">
+        <span class="material-symbols-outlined text-[16px]" aria-hidden="true">water_drop</span>
+        <span class="text-headline-md tabular-nums">-40% agua</span>
+      </div>
+      <p class="text-body-sm text-primary-fixed-dim leading-snug">
+        Ahorro con cálculo hidráulico
+      </p>
+    </div>
+  </div>
+</div>
+
+<div class="relative z-10 pt-space-md bg-primary-container/40 p-space-md rounded-lg">
+  <div class="flex items-center gap-space-sm">
+    <div
+      class="w-9 h-9 shrink-0 rounded-full bg-secondary-fixed text-on-secondary-fixed flex items-center justify-center text-label-md"
+      aria-hidden="true"
+    >
+      MC
+    </div>
+    <div class="min-w-0">
+      <p class="text-body-sm text-surface-container-lowest italic truncate">
+        "Redujo nuestros tiempos de cubicación de tuberías de días a 20 minutos."
+      </p>
+      <p class="text-label-sm text-primary-fixed-dim">
+        Ing. Marcos Calvo · Consultoría Agrotec
+      </p>
+    </div>
+  </div>
+</div>
