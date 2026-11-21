@@ -2,7 +2,8 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
-import { TokenResponse } from './auth.model';
+import { environment } from '../../../environments/environment';
+import { SESSION_STORAGE_KEY, TokenResponse } from './auth.model';
 import { LoginForm } from './login-form';
 
 const TOKEN_RESPONSE: TokenResponse = {
@@ -21,13 +22,23 @@ const TOKEN_RESPONSE: TokenResponse = {
 
 describe('LoginForm', () => {
   let http: HttpTestingController;
+  let navigations: string[];
 
   beforeEach(async () => {
     localStorage.clear();
+    navigations = [];
     await TestBed.configureTestingModule({
       imports: [LoginForm],
       providers: [
-        { provide: Router, useValue: { navigateByUrl: () => Promise.resolve(true) } },
+        {
+          provide: Router,
+          useValue: {
+            navigateByUrl: (url: string) => {
+              navigations.push(url);
+              return Promise.resolve(true);
+            },
+          },
+        },
         provideHttpClient(),
         provideHttpClientTesting(),
         {
@@ -64,11 +75,19 @@ describe('LoginForm', () => {
     );
   });
 
-  it('warns about the missing Google client id instead of a broken button', async () => {
+  it('renders the Google entry point, with a notice only when the client id is missing', async () => {
     const fixture = await render();
 
-    expect(fixture.nativeElement.textContent).toContain('Falta');
-    expect(fixture.nativeElement.textContent).toContain('googleClientId');
+    expect(fixture.nativeElement.querySelector('app-google-sign-in')).not.toBeNull();
+    if (environment.googleClientId.length === 0) {
+      expect(fixture.nativeElement.textContent).toContain('googleClientId');
+    }
+  });
+
+  it('has no submitable credential form left', async () => {
+    const fixture = await render();
+
+    expect(fixture.nativeElement.querySelector('form')).toBeNull();
   });
 
   it('exchanges the Google credential and stores the session', async () => {
@@ -81,7 +100,8 @@ describe('LoginForm', () => {
     request.flush(TOKEN_RESPONSE);
     await fixture.whenStable();
 
-    expect(localStorage.getItem('agroplan.session')).toContain('jwt-token');
+    expect(localStorage.getItem(SESSION_STORAGE_KEY)).toContain('jwt-token');
+    expect(navigations).toEqual(['/terreno']);
   });
 
   it('shows the backend error when the exchange fails', async () => {
@@ -94,5 +114,7 @@ describe('LoginForm', () => {
     await fixture.whenStable();
 
     expect(fixture.nativeElement.textContent).toContain('Token de Google inválido');
+    expect(navigations).toEqual([]);
+    expect(localStorage.getItem(SESSION_STORAGE_KEY)).toBeNull();
   });
 });
