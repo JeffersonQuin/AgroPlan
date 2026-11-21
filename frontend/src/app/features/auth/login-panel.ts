@@ -21,7 +21,6 @@ export class LoginPanel {
 
   protected readonly copy = this.store.copy;
   protected readonly mode = this.store.mode;
-  protected readonly demoLoaded = this.store.demoLoaded;
 
   protected readonly loginTabClass = computed(() => this.tabClass('login'));
   protected readonly registerTabClass = computed(() => this.tabClass('register'));

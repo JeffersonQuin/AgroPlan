@@ -1,10 +1,16 @@
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { AuthStore } from './auth.store';
 import { LoginPanel } from './login-panel';
 
 describe('LoginPanel', () => {
   beforeEach(async () => {
-    await TestBed.configureTestingModule({ imports: [LoginPanel] }).compileComponents();
+    await TestBed.configureTestingModule({
+      imports: [LoginPanel],
+      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
+    }).compileComponents();
   });
 
   async function render() {
@@ -33,30 +39,7 @@ describe('LoginPanel', () => {
     const heading = fixture.nativeElement.querySelector('h1') as HTMLElement;
     expect(heading.textContent).toContain('Crea tu cuenta técnica');
     expect(registerTab.getAttribute('aria-selected')).toBe('true');
-    expect(fixture.nativeElement.querySelector('#input-name')).not.toBeNull();
   });
 
-  it('hides the name field again when returning to login', async () => {
-    const fixture = await render();
 
-    (fixture.nativeElement.querySelector('#tab-register') as HTMLButtonElement).click();
-    await fixture.whenStable();
-
-    (fixture.nativeElement.querySelector('#tab-login') as HTMLButtonElement).click();
-    await fixture.whenStable();
-
-    expect(fixture.nativeElement.querySelector('#input-name')).toBeNull();
-  });
-
-  it('shows the jury notice only after the demo credentials are loaded', async () => {
-    const fixture = await render();
-    const store = TestBed.inject(AuthStore);
-
-    expect(fixture.nativeElement.textContent).not.toContain('Credenciales del Jurado cargadas');
-
-    store.demoCredentials();
-    await fixture.whenStable();
-
-    expect(fixture.nativeElement.textContent).toContain('Credenciales del Jurado cargadas');
-  });
 });

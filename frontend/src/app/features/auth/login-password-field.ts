@@ -1,13 +1,13 @@
-import { Component, computed, input, signal } from '@angular/core';
-import { FieldTree, FormField } from '@angular/forms/signals';
+import { Component, input, signal } from '@angular/core';
 
 /**
- * Password input with a visibility toggle and inline validation message.
+ * Password input with a visibility toggle.
+ *
  * Login-specific: it carries the "forgot password" affordance of the screen.
+ * It is disabled while the backend does not accept credentials.
  */
 @Component({
   selector: 'app-login-password-field',
-  imports: [FormField],
   template: `
     <div class="flex flex-col gap-space-xs">
       <div class="flex items-center justify-between">
@@ -31,16 +31,15 @@ import { FieldTree, FormField } from '@angular/forms/signals';
         <input
           [id]="inputId()"
           [type]="visible() ? 'text' : 'password'"
-          [formField]="field()"
-          [attr.aria-invalid]="hasError()"
-          [attr.aria-describedby]="hasError() ? inputId() + '-error' : null"
-          class="w-full pl-10 pr-11 py-2.5 rounded-lg bg-surface text-body-md text-on-surface placeholder:text-outline focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary transition-all"
+          [disabled]="disabled()"
+          class="w-full pl-10 pr-11 py-2.5 rounded-lg bg-surface text-body-md text-on-surface placeholder:text-outline focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary transition-all disabled:opacity-60 disabled:cursor-not-allowed"
           placeholder="••••••••••••"
           autocomplete="current-password"
         />
         <button
-          class="absolute right-3 text-on-surface-variant hover:text-on-surface p-1 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-primary transition-colors"
+          class="absolute right-3 text-on-surface-variant hover:text-on-surface p-1 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           type="button"
+          [disabled]="disabled()"
           [attr.aria-label]="visible() ? 'Ocultar contraseña' : 'Mostrar contraseña'"
           [attr.aria-pressed]="visible()"
           (click)="visible.set(!visible())"
@@ -50,26 +49,13 @@ import { FieldTree, FormField } from '@angular/forms/signals';
           }}</span>
         </button>
       </div>
-
-      @if (hasError()) {
-        <p [id]="inputId() + '-error'" class="text-label-sm text-error" role="alert">
-          {{ errorMessage() }}
-        </p>
-      }
     </div>
   `,
 })
 export class LoginPasswordField {
-  readonly field = input.required<FieldTree<string>>();
   readonly inputId = input.required<string>();
   readonly label = input('Contraseña');
+  readonly disabled = input(false);
 
   protected readonly visible = signal(false);
-
-  protected readonly errorMessage = computed(() => {
-    const state = this.field()();
-    return state.touched() ? (state.errors()[0]?.message ?? '') : '';
-  });
-
-  protected readonly hasError = computed(() => this.errorMessage().length > 0);
 }

@@ -1,79 +1,122 @@
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import { vi } from 'vitest';
-import { EMPTY_AUTH_FORM } from './auth.model';
+import { SESSION_STORAGE_KEY, TokenResponse } from './auth.model';
 import { AuthStore } from './auth.store';
+
+const TOKEN_RESPONSE: TokenResponse = {
+  access_token: 'jwt-token',
+  token_type: 'bearer',
+  usuario: {
+    id: 7,
+    email: 'agronomo@agroplan.com',
+    nombre: 'Ing. Rossi',
+    foto_url: null,
+    rol: 'cliente',
+    activo: true,
+    ultimo_acceso: null,
+  },
+};
 
 describe('AuthStore', () => {
   let store: AuthStore;
+  let http: HttpTestingController;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({});
+    localStorage.clear();
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(), provideHttpClientTesting()],
+    });
     store = TestBed.inject(AuthStore);
+    http = TestBed.inject(HttpTestingController);
   });
 
   afterEach(() => {
-    vi.useRealTimers();
+    http.verify();
+    localStorage.clear();
   });
 
-  it('starts in login mode and idle', () => {
-    expect(store.mode()).toBe('login');
-    expect(store.isRegister()).toBe(false);
-    expect(store.status()).toBe('idle');
-    expect(store.submitLabel()).toBe('Iniciar Sesión en AgroPlan');
+  it('starts without a session', () => {
+    expect(store.isAuthenticated()).toBe(false);
+    expect(store.user()).toBeNull();
+    expect(store.token()).toBeNull();
   });
 
-  it('swaps the copy when switching to register mode', () => {
-    store.setMode('register');
+  it('exchanges the Google id token and persists the session', () => {
+    let result: boolean | undefined;
+    store.loginWithGoogle('google-id-token').subscribe((ok) => (result = ok));
 
-    expect(store.isRegister()).toBe(true);
-    expect(store.copy().title).toBe('Crea tu cuenta técnica');
-    expect(store.submitLabel()).toBe('Registrarse y Crear Espacio');
-  });
-
-  it('clears the submit status and the demo notice when switching mode', async () => {
-    vi.useFakeTimers();
-    const pending = store.authenticate(EMPTY_AUTH_FORM);
-    await vi.advanceTimersByTimeAsync(1000);
-    await pending;
-    expect(store.status()).toBe('success');
-
-    store.demoCredentials();
-    expect(store.demoLoaded()).toBe(true);
-
-    store.setMode('register');
-    expect(store.status()).toBe('idle');
-    expect(store.demoLoaded()).toBe(false);
-  });
-
-  it('reports the submitting and success labels while authenticating', async () => {
-    vi.useFakeTimers();
-
-    const pending = store.authenticate(EMPTY_AUTH_FORM);
     expect(store.isSubmitting()).toBe(true);
-    expect(store.submitLabel()).toBe('Verificando estación…');
 
-    await vi.advanceTimersByTimeAsync(1000);
-    await pending;
+    const request = http.expectOne('http://localhost:8000/auth/google');
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual({ id_token: 'google-id-token' });
+    request.flush(TOKEN_RESPONSE);
 
-    expect(store.isSuccess()).toBe(true);
-    expect(store.submitLabel()).toBe('Acceso Autorizado');
+    expect(result).toBe(true);
+    expect(store.isAuthenticated()).toBe(true);
+    expect(store.token()).toBe('jwt-token');
+    expect(store.user()?.email).toBe('agronomo@agroplan.com');
+    expect(localStorage.getItem(SESSION_STORAGE_KEY)).toContain('jwt-token');
   });
 
-  it('rejects a second submit while one is still in flight', async () => {
-    vi.useFakeTimers();
+  it('uses the register endpoint in register mode', () => {
+    store.setMode('register');
+    store.loginWithGoogle('google-id-token').subscribe();
 
-    const first = store.authenticate(EMPTY_AUTH_FORM);
-    const second = await store.authenticate(EMPTY_AUTH_FORM);
-    expect(second).toBe(false);
-
-    await vi.advanceTimersByTimeAsync(1000);
-    await first;
+    const request = http.expectOne('http://localhost:8000/auth/google/register');
+    request.flush(TOKEN_RESPONSE);
   });
 
-  it('returns the demo credentials', () => {
-    expect(store.demoCredentials()).toEqual({
-      email: 'jurado.evaluador@agroplan.io',
-      password: 'JuradoPrecision2025!',
-    });
+  it('surfaces the backend detail when the exchange fails', () => {
+    let result: boolean | undefined;
+    store.loginWithGoogle('bad-token').subscribe((ok) => (result = ok));
+
+    http
+      .expectOne('http://localhost:8000/auth/google')
+      .flush({ detail: 'Token de Google inválido' }, { status: 401, statusText: 'Unauthorized' });
+
+    expect(result).toBe(false);
+    expect(store.status()).toBe('error');
+    expect(store.error()).toBe('Token de Google inválido');
+    expect(store.isAuthenticated()).toBe(false);
+  });
+
+  it('restores the session from localStorage', () => {
+    localStorage.setItem(
+      SESSION_STORAGE_KEY,
+      JSON.stringify({ token: 'persisted', user: TOKEN_RESPONSE.usuario }),
+    );
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({ providers: [] });
+    const restored = TestBed.inject(AuthStore);
+
+    expect(restored.isAuthenticated()).toBe(true);
+    expect(restored.token()).toBe('persisted');
+  });
+
+  it('clears the session on logout', () => {
+    localStorage.setItem(
+      SESSION_STORAGE_KEY,
+      JSON.stringify({ token: 'persisted', user: TOKEN_RESPONSE.usuario }),
+    );
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
+    const restored = TestBed.inject(AuthStore);
+
+    restored.logout();
+
+    expect(restored.isAuthenticated()).toBe(false);
+    expect(localStorage.getItem(SESSION_STORAGE_KEY)).toBeNull();
+  });
+
+  it('swaps the copy between login and register', () => {
+    expect(store.copy().title).toBe('Bienvenido de nuevo');
+    expect(store.submitLabel()).toBe('Iniciar Sesión con Google');
+
+    store.setMode('register');
+
+    expect(store.copy().title).toBe('Crea tu cuenta técnica');
+    expect(store.submitLabel()).toBe('Registrarse con Google');
   });
 });
