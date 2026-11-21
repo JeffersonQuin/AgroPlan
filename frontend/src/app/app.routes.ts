@@ -14,5 +14,11 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./features/register/register.page').then((m) => m.RegisterPage),
   },
+  {
+    path: 'projects',
+    title: 'Mis proyectos · AgroPlan',
+    loadComponent: () =>
+      import('./features/projects/projects.page').then((m) => m.ProjectsPage),
+  },
   { path: '**', redirectTo: 'login' },
 ];
