@@ -35,6 +35,7 @@ from app.schemas.comun import Advertencia
 ModoEjecucion = Literal["llm", "catalogo"]
 
 MODO_CATALOGO_ADVERTENCIA = "AGENTE_SIN_CREDENCIALES"
+PRODUCTO_NO_RECONOCIDO_ADVERTENCIA = "PRODUCTO_NO_RECONOCIDO"
 JUSTIFICACION_CATALOGO = (
     "Elegido por el catálogo: demanda de {demanda:g} L/m²/día compatible con los "
     "{disponible:g} L/m²/día disponibles del caudal efectivo."
@@ -120,14 +121,19 @@ def _buscar_cultivo(
 
 def _elegir_cultivos(
     entrada: EntradaAgente, catalogo: list[dict[str, Any]]
-) -> list[tuple[dict[str, Any], float | None]]:
+) -> tuple[list[tuple[dict[str, Any], float | None]], list[str]]:
     disponibles = _litros_por_m2_dia(entrada)
     elegidos: list[tuple[dict[str, Any], float | None]] = []
+    no_reconocidos: list[str] = []
     usados: set[str] = set()
 
     for producto in sorted(entrada.productos, key=lambda item: item.prioridad):
         cultivo = _buscar_cultivo(producto, catalogo)
-        if cultivo is None or str(cultivo["codigo"]) in usados:
+        if cultivo is None:
+            # El producto pedido no está en el catálogo: no se reemplaza en silencio.
+            no_reconocidos.append(producto.nombre)
+            continue
+        if str(cultivo["codigo"]) in usados:
             continue
         usados.add(str(cultivo["codigo"]))
         elegidos.append((cultivo, producto.area_deseada_m2))
@@ -156,7 +162,7 @@ def _elegir_cultivos(
 
     if not elegidos:
         elegidos.append((ordenados[0], None))
-    return elegidos
+    return elegidos, no_reconocidos
 
 
 def _propuesta_catalogo(contexto: ContextoAgente) -> tuple[PropuestaAgente, list[FuenteRecuperada]]:
@@ -165,7 +171,7 @@ def _propuesta_catalogo(contexto: ContextoAgente) -> tuple[PropuestaAgente, list
         raise ErrorAgente("El catálogo de cultivos está vacío: no hay nada que recomendar")
 
     disponibles = _litros_por_m2_dia(entrada)
-    elegidos = _elegir_cultivos(entrada, contexto.catalogo)
+    elegidos, no_reconocidos = _elegir_cultivos(entrada, contexto.catalogo)
     area_reparto = entrada.area_m2 / len(elegidos)
 
     cultivos: list[CultivoRecomendado] = []
@@ -206,6 +212,18 @@ def _propuesta_catalogo(contexto: ContextoAgente) -> tuple[PropuestaAgente, list
                 ),
                 campo="modelo",
             )
+        ]
+        + [
+            Advertencia(
+                codigo=PRODUCTO_NO_RECONOCIDO_ADVERTENCIA,
+                mensaje=(
+                    f"'{nombre}' no está en el catálogo: se recomendó otro cultivo en su "
+                    "lugar. Cargá la ficha o escribí el producto en el paso 2 para que el "
+                    "agente lo investigue."
+                )[:300],
+                campo="productos",
+            )
+            for nombre in no_reconocidos
         ],
     )
     return propuesta, [FUENTE_CATALOGO_CULTIVOS, FUENTE_CATALOGO_SUELOS]

@@ -268,6 +268,28 @@ def test_corrida_error_registra_el_detalle(
     assert detalle["salida"] is None
 
 
+def test_producto_no_reconocido_no_se_reemplaza_en_silencio(
+    cliente_autenticado: TestClient, db_session: Session
+) -> None:
+    """Si el catálogo pierde un cultivo ya asignado, el agente lo dice."""
+
+    cliente = cliente_autenticado
+    proyecto_id = _proyecto_con_cultivos(cliente)
+
+    lechuga = db_session.query(Cultivo).filter_by(codigo="lechuga").one()
+    lechuga.activo = False
+    db_session.commit()
+
+    inicio = _iniciar(cliente, proyecto_id)
+    salida = _detalle(cliente, proyecto_id, inicio["corrida_id"])["salida"]
+
+    codigos = [alerta["codigo"] for alerta in salida["advertencias"]]
+    assert "PRODUCTO_NO_RECONOCIDO" in codigos
+    assert all(
+        cultivo["cultivo_codigo"] != "lechuga" for cultivo in salida["cultivos"]
+    )
+
+
 # --------------------------------------------------------------------------- #
 # S2 / S3 — aplicar es el único paso que escribe
 # --------------------------------------------------------------------------- #

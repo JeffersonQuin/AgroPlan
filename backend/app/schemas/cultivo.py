@@ -31,7 +31,11 @@ class BloqueCultivoCreate(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    cultivo_codigo: str = Field(min_length=2, max_length=30)
+    # Uno de los dos: el código del catálogo o el producto tal como lo escribió el
+    # usuario. Con ``producto_texto`` el backend investiga (ficha curada primero,
+    # web como respaldo) y da de alta la ficha si no existía.
+    cultivo_codigo: str | None = Field(default=None, min_length=2, max_length=30)
+    producto_texto: str | None = Field(default=None, min_length=2, max_length=60)
     etiqueta: str | None = Field(default=None, max_length=60)
     siembra: date | None = None
     cosecha: date | None = None
@@ -39,6 +43,14 @@ class BloqueCultivoCreate(BaseModel):
     modo: ModoReparto = ModoReparto.PORCENTAJE
     porcentaje: float | None = Field(default=None, gt=0, le=100)
     poligono: Poligono | None = None
+
+    @model_validator(mode="after")
+    def _exigir_producto(self) -> "BloqueCultivoCreate":
+        if bool(self.cultivo_codigo) == bool(self.producto_texto):
+            raise ValueError(
+                "Indicá 'cultivo_codigo' o 'producto_texto', nunca los dos ni ninguno."
+            )
+        return self
 
     @model_validator(mode="after")
     def _exigir_dato_del_modo(self) -> "BloqueCultivoCreate":
@@ -110,7 +122,12 @@ class BalanceArea(BaseModel):
 
 
 class CultivoRespuesta(BaseModel):
-    """Respuesta de cualquier escritura del paso 2: el bloque y el balance completo."""
+    """Respuesta de cualquier escritura del paso 2: el bloque y el balance completo.
+
+    ``advertencias`` trae lo que pasó con la ficha del cultivo: ``CULTIVO_INVESTIGADO``
+    (el agente la creó y requiere revisión) o ``PRODUCTO_NO_RECONOCIDO``.
+    """
 
     bloque: BloqueCultivoOut
     balance: BalanceArea
+    advertencias: list[Advertencia] = Field(default_factory=list)

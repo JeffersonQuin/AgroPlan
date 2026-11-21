@@ -8,11 +8,13 @@ del payload.
 from __future__ import annotations
 
 import uuid
-from datetime import date
+from datetime import date, datetime, timezone
 from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
+from app.models.catalogo import Cultivo
+from app.models.enums import OrigenCultivo
 from app.models.proyecto import Proyecto, Terreno
 from app.models.proyecto_cultivo import ProyectoCultivo
 from app.repository import cultivo as cultivo_repo
@@ -131,15 +133,133 @@ def obtener_bloque(
     return BloqueCultivoOut.model_validate(bloque)
 
 
+def _resolver_producto(
+    db: Session, texto: str
+) -> tuple[Cultivo | None, list[Advertencia]]:
+    """Resuelve un producto escrito por el usuario que no está en el catálogo.
+
+    Camino híbrido: ficha curada del repo primero; búsqueda web sólo como respaldo y
+    con presupuesto. Si el agente tiene que crear la ficha, se guarda con
+    ``origen='agente'``, sin revisar y con sus fuentes, y la respuesta lo advierte.
+    Nunca inventa: si no hay con qué verificar, no hay cultivo.
+    """
+
+    from app.agente.investigacion import (
+        InvestigacionError,
+        ProductoNoReconocido,
+        investigar,
+    )
+
+    catalogo = cultivo_repo.list_all(db, solo_activos=True)
+    filas = [{"codigo": cultivo.codigo, "nombre": cultivo.nombre} for cultivo in catalogo]
+
+    try:
+        investigacion = investigar(texto, catalogo=filas)
+    except ProductoNoReconocido:
+        return None, [
+            Advertencia(
+                codigo="PRODUCTO_NO_RECONOCIDO",
+                mensaje=(
+                    f"No se pudo verificar '{texto}': no hay ficha curada y la búsqueda "
+                    "web no está disponible. Cargá la ficha o configurá el agente."
+                )[:300],
+                bloqueante=True,
+                campo="producto_texto",
+            )
+        ]
+    except InvestigacionError as exc:
+        return None, [
+            Advertencia(
+                codigo="INVESTIGACION_FALLIDA",
+                mensaje=f"La búsqueda de '{texto}' falló: {exc}"[:300],
+                bloqueante=True,
+                campo="producto_texto",
+            )
+        ]
+
+    existente = cultivo_repo.get_by_codigo(db, investigacion.codigo)
+    if existente is not None:
+        return existente, []
+
+    # Una ficha curada del repo ya la verificó una persona: entra revisada. Lo que
+    # viene de la web se usa en el acto pero queda pendiente y con aviso bloqueante.
+    desde_web = investigacion.origen == "web"
+    ahora = datetime.now(timezone.utc)
+
+    cultivo = Cultivo(
+        codigo=investigacion.codigo,
+        nombre=investigacion.nombre,
+        icono=investigacion.icono,
+        color=investigacion.color,
+        demanda_agua_l_m2_dia=_dec(investigacion.demanda_agua_l_m2_dia, 3),
+        ciclo_dias=investigacion.ciclo_dias,
+        meses_siembra=investigacion.meses_siembra,
+        activo=True,
+        origen=OrigenCultivo.AGENTE.value if desde_web else OrigenCultivo.HUMANO.value,
+        revisado_en=None if desde_web else ahora,
+        fuentes=[
+            {
+                "tipo": fuente.tipo,
+                "titulo": fuente.titulo,
+                "url": fuente.url,
+                "fragmento": fuente.fragmento,
+            }
+            for fuente in investigacion.fuentes
+        ],
+    )
+    db.add(cultivo)
+    db.commit()
+    db.refresh(cultivo)
+
+    if desde_web:
+        return cultivo, [
+            Advertencia(
+                codigo="CULTIVO_INVESTIGADO",
+                mensaje=(
+                    f"'{cultivo.nombre}' no estaba en el catálogo: el agente creó la ficha "
+                    f"con {len(investigacion.fuentes)} fuente(s) de web y queda pendiente "
+                    "de revisión."
+                )[:300],
+                bloqueante=True,
+                campo="cultivo_codigo",
+            )
+        ]
+
+    return cultivo, [
+        Advertencia(
+            codigo="CULTIVO_DESDE_FICHA",
+            mensaje=(
+                f"'{cultivo.nombre}' se dio de alta con la ficha curada de AgroPlan "
+                f"({investigacion.busquedas} búsqueda(s) web)."
+            )[:300],
+            campo="cultivo_codigo",
+        )
+    ]
+
+
 def crear_bloque(
     db: Session, proyecto: Proyecto, data: BloqueCultivoCreate
 ) -> CultivoRespuesta:
     terreno = _terreno_requerido(db, proyecto)
 
-    cultivo_catalogo = cultivo_repo.get_by_codigo(db, data.cultivo_codigo)
-    if cultivo_catalogo is None or not cultivo_catalogo.activo:
+    advertencias: list[Advertencia] = []
+    if data.producto_texto is not None:
+        cultivo_catalogo, advertencias = _resolver_producto(db, data.producto_texto)
+        if cultivo_catalogo is not None and not cultivo_catalogo.activo:
+            cultivo_catalogo = None
+    else:
+        cultivo_catalogo = cultivo_repo.get_by_codigo(db, data.cultivo_codigo or "")
+        if cultivo_catalogo is not None and not cultivo_catalogo.activo:
+            cultivo_catalogo = None
+
+    if cultivo_catalogo is None:
+        if advertencias:
+            # El producto no se pudo verificar: el motivo real es más útil que decir
+            # que "no existe".
+            raise CultivoServiceError(422, advertencias[0].mensaje)
         raise CultivoServiceError(
-            422, f"El cultivo '{data.cultivo_codigo}' no existe o está inactivo"
+            422,
+            f"El cultivo '{data.cultivo_codigo}' no existe o está inactivo",
         )
 
     _validar_fechas(data.siembra, data.cosecha)
@@ -164,7 +284,7 @@ def crear_bloque(
 
     bloque = ProyectoCultivo(
         proyecto_id=proyecto.id,
-        cultivo_codigo=data.cultivo_codigo,
+        cultivo_codigo=cultivo_catalogo.codigo,
         etiqueta=data.etiqueta,
         area_m2=_dec(area),
         poligono=poligono,
@@ -176,7 +296,11 @@ def crear_bloque(
     bloque = bloque_repo.create(db, bloque)
     riego_service.invalidar_diseno(db, proyecto.id)
 
-    return CultivoRespuesta(bloque=BloqueCultivoOut.model_validate(bloque), balance=balance(db, proyecto, terreno))
+    return CultivoRespuesta(
+        bloque=BloqueCultivoOut.model_validate(bloque),
+        balance=balance(db, proyecto, terreno),
+        advertencias=advertencias,
+    )
 
 
 def actualizar_bloque(
