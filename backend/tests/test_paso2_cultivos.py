@@ -157,6 +157,19 @@ def test_el_paso_1_guarda_la_profundidad_del_nivel_dinamico(
     assert limpieza.json()["profundidad_nivel_dinamico_m"] is None
 
 
+def test_el_paso_2_sin_terreno_sigue_devolviendo_lista_vacia(
+    cliente_autenticado: TestClient,
+) -> None:
+    """El front puede pedir los cultivos antes de dibujar el terreno."""
+
+    cliente = cliente_autenticado
+    proyecto_id = cliente.post("/proyectos", json={"nombre": "Sin terreno"}).json()["id"]
+
+    listado = cliente.get(f"/proyectos/{proyecto_id}/cultivos")
+    assert listado.status_code == 200, listado.text
+    assert listado.json() == []
+
+
 # --------------------------------------------------------------------------- #
 # Paso 2: derivados de la tarjeta
 # --------------------------------------------------------------------------- #

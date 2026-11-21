@@ -188,11 +188,13 @@ def _bloque_out(
 
 
 def listar_bloques(db: Session, proyecto: Proyecto) -> list[BloqueCultivoOut]:
+    bloques = bloque_repo.list_by_proyecto(db, proyecto.id)
+    if not bloques:
+        # Sin bloques no hay nada que derivar: no se exige terreno para responder [],
+        # así el front puede llamar al paso 2 antes del paso 1.
+        return []
     terreno = _terreno_requerido(db, proyecto)
-    return [
-        _bloque_out(db, bloque, terreno)
-        for bloque in bloque_repo.list_by_proyecto(db, proyecto.id)
-    ]
+    return [_bloque_out(db, bloque, terreno) for bloque in bloques]
 
 
 def obtener_bloque(
