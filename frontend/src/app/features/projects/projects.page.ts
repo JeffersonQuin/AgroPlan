@@ -1,4 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
+import { Router } from '@angular/router';
 import { ProjectsStore } from './state/projects.store';
 import { AppHeader } from './components/app-header/app-header';
 import { ProjectCard } from './components/project-card/project-card';
@@ -12,8 +13,9 @@ import { TechnicalFootnote } from './components/technical-footnote/technical-foo
  * Dashboard: the projects grid with search, status filter and sort, plus the
  * create-project dialog.
  *
- * The wizard hand-off ("Abrir proyecto" / "Continuar") is not wired yet: the
- * Terreno step does not exist, so the card actions only emit their event.
+ * "Nuevo proyecto" creates the project in the backend and opens step 1 for it.
+ * Opening an existing project from a card is still pending: the wizard resume
+ * needs the step-2..4 screens.
  */
 @Component({
   selector: 'app-projects-page',
@@ -30,6 +32,7 @@ import { TechnicalFootnote } from './components/technical-footnote/technical-foo
 })
 export class ProjectsPage {
   protected readonly store = inject(ProjectsStore);
+  private readonly router = inject(Router);
 
   protected readonly modalOpen = signal(false);
   protected readonly emptySimulated = signal(false);
@@ -37,6 +40,10 @@ export class ProjectsPage {
   protected readonly showOnboarding = computed(
     () => this.emptySimulated() || this.store.projects().length === 0,
   );
+
+  constructor() {
+    this.store.cargar();
+  }
 
 
   protected openModal(): void {
@@ -49,5 +56,11 @@ export class ProjectsPage {
 
   protected toggleEmptyState(): void {
     this.emptySimulated.update((simulated) => !simulated);
+  }
+
+  /** The modal created the project: close it and open step 1. */
+  protected onProjectCreated(proyectoId: string): void {
+    this.closeModal();
+    void this.router.navigate(['/proyectos', proyectoId, 'terreno']);
   }
 }

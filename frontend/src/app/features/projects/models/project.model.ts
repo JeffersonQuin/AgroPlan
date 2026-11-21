@@ -60,3 +60,45 @@ export interface CreateProjectInput {
   location: string;
   unitSystem: UnitSystem;
 }
+
+/* -------------------------------------------------------------------------- */
+/* Backend contract (FastAPI)                                                  */
+/* -------------------------------------------------------------------------- */
+
+export type EstadoProyectoApi = 'borrador' | 'en_progreso' | 'completado';
+
+/** Item of `GET /proyectos`: only what the card draws. */
+export interface ProyectoListadoApi {
+  id: string;
+  nombre: string;
+  zona: string | null;
+  unidad: UnitSystem;
+  estado: EstadoProyectoApi;
+  area_m2: number | null;
+  cultivos_count: number;
+  sistema_tipo: string | null;
+  ultimo_paso_completado: number;
+  actualizado_en: string;
+  version: number;
+}
+
+/** `POST /proyectos` and `GET /proyectos/{id}`. */
+export interface ProyectoApi {
+  id: string;
+  nombre: string;
+  zona: string | null;
+  unidad: UnitSystem;
+  estado: EstadoProyectoApi;
+  paso_actual: number;
+  ultimo_paso_completado: number;
+  version: number;
+  corrida_actual_id: string | null;
+  creado_en: string;
+  actualizado_en: string;
+}
+
+export interface CrearProyectoApi {
+  nombre: string;
+  zona?: string | null;
+  unidad?: UnitSystem;
+}

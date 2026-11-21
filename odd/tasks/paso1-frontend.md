@@ -1,0 +1,58 @@
+# Paso 1 funcional: proyectos → terreno contra el backend
+
+Primer slice de la integración con el frontend: el botón "Nuevo proyecto" crea el
+proyecto en la API y entra al paso 1, y el paso 1 guarda el terreno en el backend, que
+pasa a ser la fuente de verdad de las medidas.
+
+## Specs
+
+**S1** — Pedido del usuario, textual: *"pondremos funcionalidad a la parte de
+frontend/src/app/features/projects/projects.page.html que es punto de empiezo para un
+proyecto, pero en esta parte solo pondremos funcionalidad a los botones de "Nuevo
+proyecto". donde ese boton entrara al primer paso que es
+frontend/src/app/features/terrain/terrain.page.html, asi que completaremos esta slice
+primero que todo este bien y vamos por el paso 2 pero primero el paso 1"*
+
+**S2** — El backend ya expone el contrato (rama `dev`, PR #18): `POST /proyectos`,
+`GET /proyectos`, `GET /proyectos/{id}`, `PUT /proyectos/{id}/terreno`,
+`GET /proyectos/{id}/terreno`, `GET /catalogos/suelos`. El front no calcula medidas que
+el backend ya deriva.
+
+**S3** — Del contrato del flujo: el paso 1 es el polígono, el suelo y el agua; el área, el
+perímetro y los lados los deriva el backend desde los vértices.
+
+## Alcance
+
+- Botones "Nuevo proyecto" (header, toolbar y tarjeta fantasma) abren el modal.
+- El modal crea el proyecto en la API y navega a `proyectos/{id}/terreno`.
+- El dashboard lista los proyectos reales del usuario.
+- El paso 1 carga proyecto y terreno, guarda con `PUT /terreno` y muestra los derivados
+  del backend (área, perímetro, lados, caudal efectivo y su procedencia, alertas).
+- "Continuar a Cultivos" guarda el terreno. El paso 2 es el slice siguiente: el botón no
+  navega todavía.
+
+## Fuera de alcance
+
+- Paso 2, riego, agente desde la UI.
+- Edición de proyectos y borrado desde la grilla.
+- Croquis editable en el canvas (el canvas sigue siendo la referencia visual).
+
+## Tasks
+
+- T1 — Modelos y `ProjectsApi` (contrato HTTP + mapeo al modelo de la tarjeta). S1, S2.
+- T2 — `ProjectsStore` contra la API: cargar, crear, errores y estados. S1.
+- T3 — Modal async + navegación al paso 1, y el dashboard con datos reales. S1.
+- T4 — `TerrainApi`, `toVertices` y `TerrainStore` con carga y guardado. S2, S3.
+- T5 — Formulario y resumen con los derivados del backend; botón continuar. S3.
+- T6 — Ruta `proyectos/:proyectoId/terreno` y `TerrainPage` con el id del proyecto. S1.
+- T7 — Tests de api, stores y componentes. S1-S3.
+- T8 — Build y tests del proyecto con el Node del CLI.
+
+## Log
+
+**L1** (usuario, textual): *"ahora primero haremos lo siguiente pondremos funcionalidad a la
+parte de frontend/src/app/features/projects/projects.page.html que es punto de empiezo para un
+proyecto, pero en esta parte solo pondremos funcionalidad a los botones de "Nuevo proyecto".
+donde ese boton entrara al primer paso que es
+frontend/src/app/features/terrain/terrain.page.html, asi que completaremos esta slice primero
+que todo este bien y vamos por el paso 2 pero primero el paso 1"*

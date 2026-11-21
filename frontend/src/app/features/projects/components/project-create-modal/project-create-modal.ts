@@ -1,13 +1,14 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, output, signal } from '@angular/core';
 import { FormField, form, maxLength, required } from '@angular/forms/signals';
 import { CreateProjectInput, UnitSystem } from '../../models/project.model';
-import { ProjectsStore } from '../../state/projects.store';
+import { ProjectsStore, mensajeDeError } from '../../state/projects.store';
 
 const NAME_MAX_LENGTH = 60;
 
 /**
- * "+ Nuevo proyecto" dialog. Collects the identity of the project and creates
- * it in the store; the wizard hand-off lands when the Terreno step exists.
+ * "+ Nuevo proyecto" dialog. Collects the identity of the project, creates it in
+ * the backend and hands the real id back to the page, which navigates to step 1.
  */
 @Component({
   selector: 'app-project-create-modal',
@@ -22,6 +23,11 @@ export class ProjectCreateModal {
   private readonly store = inject(ProjectsStore);
 
   readonly close = output<void>();
+  /** Emitted with the new project id once the backend accepted it. */
+  readonly created = output<string>();
+
+  protected readonly submitting = signal(false);
+  protected readonly error = signal<string | null>(null);
 
   protected readonly model = signal<CreateProjectInput>({
     name: '',
@@ -51,12 +57,23 @@ export class ProjectCreateModal {
 
   protected onSubmit(event: Event): void {
     event.preventDefault();
+    if (this.submitting()) return;
 
     const name = this.form.name();
     name.markAsTouched();
     if (!name.valid()) return;
 
-    this.store.create(this.model());
-    this.close.emit();
+    this.submitting.set(true);
+    this.error.set(null);
+    this.store.crear(this.model()).subscribe({
+      next: (proyecto) => {
+        this.submitting.set(false);
+        this.created.emit(proyecto.id);
+      },
+      error: (error: HttpErrorResponse) => {
+        this.submitting.set(false);
+        this.error.set(mensajeDeError(error));
+      },
+    });
   }
 }
