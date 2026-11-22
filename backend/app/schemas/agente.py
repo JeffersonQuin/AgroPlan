@@ -269,34 +269,7 @@ class PropuestaAgente(BaseModel):
 
 
 # --------------------------------------------------------------------------- #
-# Geometría generada por el motor
-# --------------------------------------------------------------------------- #
-
-
-class BloqueGenerado(BaseModel):
-    """Bloque de cultivo con su polígono listo para pintar."""
-
-    id: uuid.UUID
-    cultivo_codigo: str
-    color: str
-    poligono: Poligono
-    area_m2: float
-    centroide: Punto
-
-
-class DisenoGenerado(BaseModel):
-    """Salida completa del motor: lo que el front pinta y el PDF consume."""
-
-    bloques: list[BloqueGenerado] = Field(default_factory=list)
-    sistema: SistemaRiegoOut
-    sectores: list[SectorOut] = Field(default_factory=list)
-    red: RedOut = Field(default_factory=RedOut)
-    computo: ComputoOut
-    advertencias: list[Advertencia] = Field(default_factory=list)
-
-
-# --------------------------------------------------------------------------- #
-# Corridas
+# Corridas: fuentes y recomendaciones persistidas
 # --------------------------------------------------------------------------- #
 
 
@@ -326,6 +299,114 @@ class RecomendacionOut(BaseModel):
     confianza: float | None = None
     aplicada: bool
     aplicada_en: datetime | None = None
+
+
+# --------------------------------------------------------------------------- #
+# Geometría generada por el motor
+# --------------------------------------------------------------------------- #
+
+
+class CifrasMotor(BaseModel):
+    """Cifras que calcula el motor determinístico para el informe (S9).
+
+    ``None`` es "no informado": el motor nunca rellena con cero un dato que no
+    calculó. El agente propone en ``CifrasAgente`` y ``AjusteMotor`` explica la
+    diferencia cuando el motor tuvo que recalcular.
+
+    ``caudal_sector_m3h`` sale de los sectores generados; con más de un sector es el
+    del sector de mayor gasto. Sin red generada cae al caudal del preview.
+    """
+
+    presion_trabajo_bar: float | None = None
+    caudal_sector_m3h: float | None = None
+    tiempo_riego_h: float | None = None
+    autonomia_dias: float | None = None
+    demanda_pico_l_dia: float | None = None
+
+
+class AjusteMotor(BaseModel):
+    """Una diferencia entre lo que propuso el agente y lo que hizo el motor (S3).
+
+    ``valor_agente`` y ``valor_motor`` son texto ya formateado para el informe: así
+    un ajuste de área, de presión o de cómputo comparte la misma forma y el front no
+    tiene que interpretar unidades.
+
+    El motor solo computa tubería, goteros y válvulas: los rubros del BOM que no
+    calcula (tanque, bomba y conexiones) no se contrastan y nunca generan un ajuste.
+    """
+
+    campo: str
+    valor_agente: str | None = None
+    valor_motor: str | None = None
+    motivo: str
+
+
+class CalendarioBloque(BaseModel):
+    """Siembra y cosecha de un bloque del cultivo (S9)."""
+
+    bloque_id: uuid.UUID
+    cultivo_codigo: str
+    etiqueta: str | None = None
+    siembra: date | None = None
+    cosecha: date | None = None
+
+
+class RecomendacionInforme(BaseModel):
+    """Recomendación final del informe, con su justificación (S7).
+
+    Las filas de ``agente_recomendaciones`` llegan con su ``tipo`` y sus marcas de
+    aplicación. Las recomendaciones finales del agente (``RecomendacionFinal``) no
+    tienen tipo propio en la base sin una migración: se informan con
+    ``tipo="final"`` y ``aplicada=None`` (no informado), nunca con un valor
+    inventado.
+    """
+
+    id: uuid.UUID | None = None
+    tipo: str
+    titulo: str
+    detalle: str | None = None
+    justificacion: str | None = None
+    aplicada: bool | None = None
+
+
+class BloqueGenerado(BaseModel):
+    """Bloque de cultivo con su polígono listo para pintar."""
+
+    id: uuid.UUID
+    cultivo_codigo: str
+    color: str
+    poligono: Poligono
+    area_m2: float
+    centroide: Punto
+    nombre: str | None = None
+    # Área del bloque sobre el terreno. None si el terreno no informa su área.
+    porcentaje: float | None = None
+    demanda_pico_l_dia: float | None = None
+    siembra: date | None = None
+    cosecha: date | None = None
+    ciclo_dias: int | None = None
+    kc: float | None = None
+    imagen_url: str | None = None
+
+
+class DisenoGenerado(BaseModel):
+    """Salida completa del motor: lo que el front pinta y el PDF consume."""
+
+    bloques: list[BloqueGenerado] = Field(default_factory=list)
+    sistema: SistemaRiegoOut
+    sectores: list[SectorOut] = Field(default_factory=list)
+    red: RedOut = Field(default_factory=RedOut)
+    computo: ComputoOut
+    advertencias: list[Advertencia] = Field(default_factory=list)
+    # Cifras del motor y las que propuso el agente, para poder compararlas (S3, S9).
+    cifras: CifrasMotor = Field(default_factory=CifrasMotor)
+    cifras_agente: CifrasAgente | None = None
+    eficiencia_pct: float | None = None
+    calendario: list[CalendarioBloque] = Field(default_factory=list)
+    materiales: list[MaterialAgente] = Field(default_factory=list)
+    recomendaciones: list[RecomendacionInforme] = Field(default_factory=list)
+    fuentes: list[FuenteOut] = Field(default_factory=list)
+    ajustes: list[AjusteMotor] = Field(default_factory=list)
 
 
 class RecomendacionUpdate(BaseModel):
@@ -362,6 +443,7 @@ class CorridaDetalleOut(CorridaOut):
     entrada: dict
     salida: PropuestaAgente | None = None
     fuentes: list[FuenteOut] = Field(default_factory=list)
+    recomendaciones: list[RecomendacionOut] = Field(default_factory=list)
 
 
 class ProductoSolicitado(BaseModel):
