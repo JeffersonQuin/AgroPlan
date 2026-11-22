@@ -258,7 +258,10 @@ def iniciar_corrida(
 
 
 def _contexto_desde_corrida(
-    db: Session, proyecto: Proyecto, entrada: EntradaAgente
+    db: Session,
+    proyecto: Proyecto,
+    entrada: EntradaAgente,
+    corrida_id: uuid.UUID | None = None,
 ) -> ContextoAgente:
     """Lee de la base lo que el agente puede mirar. Nunca lo que él mismo escribió."""
 
@@ -297,6 +300,7 @@ def _contexto_desde_corrida(
             else None
         ),
         bloques=len(bloque_repo.list_by_proyecto(db, proyecto.id)),
+        sesion=str(corrida_id),
     )
 
 

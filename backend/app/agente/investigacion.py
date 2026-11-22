@@ -21,6 +21,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, Literal
@@ -311,6 +312,11 @@ def _construir_buscador() -> Callable[[str], list[dict[str, Any]]]:
         api_key=settings.AGENTE_API_KEY,
         base_url=settings.AGENTE_BASE_URL,
         timeout=settings.AGENTE_TIMEOUT_S,
+        reasoning_effort=settings.AGENTE_RAZONAMIENTO,
+        default_headers={
+            "x-opencode-session": str(uuid.uuid4()),
+            "User-Agent": "agroplan-agente/1.0",
+        },
     )
     agente = Agent(  # pragma: no cover - depende de red/credenciales
         model=modelo,

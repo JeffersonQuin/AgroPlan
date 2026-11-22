@@ -14,6 +14,7 @@ En ambos casos la propuesta pasa por ``validacion.corregir`` y por el contrato r
 from __future__ import annotations
 
 import math
+import uuid
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
@@ -65,6 +66,10 @@ class ContextoAgente:
     suelo: dict[str, Any] | None = None
     riego_actual: dict[str, Any] | None = None
     bloques: int = 0
+    # El gateway OpenAI-compatible de OpenCode enruta por sesión: sin este id responde
+    # 400 "missing x-opencode-session". Se usa el id de la corrida, que además sirve
+    # para rastrear qué llamada produjo qué propuesta.
+    sesion: str = field(default_factory=lambda: str(uuid.uuid4()))
 
 
 @dataclass(slots=True)
@@ -260,6 +265,13 @@ def _propuesta_llm(contexto: ContextoAgente) -> tuple[PropuestaAgente, int | Non
         api_key=settings.AGENTE_API_KEY,
         base_url=settings.AGENTE_BASE_URL,
         timeout=settings.AGENTE_TIMEOUT_S,
+        # Razonamiento bajo: el reparto se valida del lado del backend, no hace falta
+        # que el modelo "piense" de más ni que gaste tokens en eso.
+        reasoning_effort=settings.AGENTE_RAZONAMIENTO,
+        default_headers={
+            "x-opencode-session": contexto.sesion,
+            "User-Agent": "agroplan-agente/1.0",
+        },
     )
     agente = Agent(
         model=modelo,

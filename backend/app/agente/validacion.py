@@ -387,6 +387,18 @@ def corregir(
     if not corregidos:
         raise PropuestaInvalida("Todas las áreas propuestas quedaron por debajo del mínimo")
 
+    # La cuantización deja un resto menor a una celda de la grilla; se le suma al
+    # cultivo más grande para que el reparto cubra el terreno exacto y el balance
+    # cierre en 100% en vez de quedar "ajustado" por 0,21 m².
+    total_corregido = sum(_dec(cultivo.area_m2) for cultivo in corregidos)
+    resto = _dec(area_m2) - total_corregido
+    quantum = _dec(area_m2) / 10000 if area_m2 > 0 else _dec(0)
+    if quantum > 0 and _dec(0) < resto < quantum * 2:
+        mayor = max(range(len(corregidos)), key=lambda indice: corregidos[indice].area_m2)
+        corregidos[mayor] = corregidos[mayor].model_copy(
+            update={"area_m2": float(_dec(corregidos[mayor].area_m2) + resto)}
+        )
+
     return PropuestaAgente(
         cultivos=corregidos,
         sistema=_corregir_sistema(propuesta.sistema, advertencias),

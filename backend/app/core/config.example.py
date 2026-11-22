@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     # Presupuesto de búsquedas web por corrida: el agente investiga un producto
     # fuera del catálogo con este techo de consultas.
     AGENTE_MAX_BUSQUEDAS: int = 6
+    # Esfuerzo de razonamiento del modelo: "low" para no gastar tokens en
+    # un reparto que ya validamos del lado del backend.
+    AGENTE_RAZONAMIENTO: str = "low"
 
     @property
     def cors_origins_list(self) -> list[str]:
