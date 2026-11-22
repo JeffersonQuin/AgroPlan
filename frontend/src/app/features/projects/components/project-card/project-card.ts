@@ -69,9 +69,11 @@ export class ProjectCard {
     return CARD_ICONS[icon];
   }
 
-  protected readonly areaLabel = computed(() =>
-    formatArea(this.project().areaM2, this.project().unitSystem),
-  );
+  protected readonly areaLabel = computed(() => {
+    const area = this.project().areaM2;
+    // Sin terreno no hay superficie: decir "0.00 ha" sería inventar un dato.
+    return area === null ? 'Sin definir' : formatArea(area, this.project().unitSystem);
+  });
 
   protected readonly modifiedLabel = computed(() => formatModifiedAt(this.project().modifiedAt));
 }

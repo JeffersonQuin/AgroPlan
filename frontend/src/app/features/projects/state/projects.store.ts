@@ -5,6 +5,7 @@ import { ProjectsApi } from '../projects.api';
 import {
   CreateProjectInput,
   EstadoProyectoApi,
+  GeometriaTerrenoApi,
   Project,
   ProjectFilter,
   ProjectSort,
@@ -15,7 +16,7 @@ import { formatModifiedAt } from '../utils/project-format';
 
 const COMPARATORS: Record<ProjectSort, (a: Project, b: Project) => number> = {
   recent: (a, b) => b.modifiedAt.localeCompare(a.modifiedAt),
-  area_desc: (a, b) => b.areaM2 - a.areaM2,
+  area_desc: (a, b) => (b.areaM2 ?? 0) - (a.areaM2 ?? 0),
   name: (a, b) => a.name.localeCompare(b.name, 'es'),
 };
 
@@ -25,11 +26,20 @@ const ESTADO_LABEL: Record<EstadoProyectoApi, string> = {
   completado: 'Cómputo listo',
 };
 
+/** What is still missing before the given wizard step, in card words. */
 const PASO_LABEL: Record<number, string> = {
   0: 'Pendiente de terreno',
   1: 'Pendiente de cultivos',
   2: 'Pendiente de sistema',
   3: 'Pendiente de resultado',
+};
+
+/** Wizard step name for the chip over the schematic. */
+const PASO_NOMBRE: Record<number, string> = {
+  1: 'Terreno',
+  2: 'Cultivos',
+  3: 'Riego',
+  4: 'Resultado',
 };
 
 /**
@@ -130,10 +140,17 @@ export class ProjectsStore {
 export function toProject(payload: ProyectoListadoApi | ProyectoApi): Project {
   const completado = payload.estado === 'completado';
   const paso = 'ultimo_paso_completado' in payload ? payload.ultimo_paso_completado : 0;
-  const siguiente = Math.min(Math.max(paso + 1, 1), 4);
   const cultivos = 'cultivos_count' in payload ? payload.cultivos_count : 0;
-  const area = 'area_m2' in payload ? (payload.area_m2 ?? 0) : 0;
+  const area = 'area_m2' in payload ? payload.area_m2 : null;
   const sistema = 'sistema_tipo' in payload ? payload.sistema_tipo : null;
+  const pendiente = 'pendiente_pct' in payload ? (payload.pendiente_pct ?? null) : null;
+  const sectores = 'num_sectores' in payload ? (payload.num_sectores ?? null) : null;
+  const geometria = 'geometria' in payload ? (payload.geometria ?? null) : null;
+
+  // Sin terreno guardado no hay avance posible: la tarjeta vuelve al paso 1 aunque
+  // el backend ya hubiera contado un paso (el listado nunca lo hace, pero el
+  // proyecto recién creado sí llega con la columna en cero).
+  const siguiente = area === null ? 1 : Math.min(Math.max(paso + 1, 1), 4);
 
   return {
     id: payload.id,
@@ -141,7 +158,9 @@ export function toProject(payload: ProyectoListadoApi | ProyectoApi): Project {
     location: payload.zona ?? 'Sin ubicación',
     modifiedAt: formatModifiedAt(payload.actualizado_en.slice(0, 16)),
     status: completado ? 'completed' : 'in_progress',
-    statusLabel: completado ? ESTADO_LABEL.completado : PASO_LABEL[paso] ?? 'En progreso',
+    statusLabel: completado
+      ? ESTADO_LABEL.completado
+      : (PASO_LABEL[siguiente - 1] ?? 'En progreso'),
     statusIcon: completado ? 'check_circle' : 'pending',
     statusTone: completado ? 'text-secondary' : 'text-tertiary-container',
     headerIcon: completado ? 'verified' : 'pending',
@@ -149,17 +168,39 @@ export function toProject(payload: ProyectoListadoApi | ProyectoApi): Project {
     headerTitle: completado ? 'Proyecto verificado' : 'Proyecto en progreso',
     unitSystem: payload.unidad,
     areaM2: area,
-    sectorsLabel: area > 0 ? `${Math.round(area)} m²` : 'Pendiente diseño',
+    sectorsLabel: etiquetaDeSectores(sectores),
     speciesLabel: cultivos === 1 ? '1 cultivo' : `${cultivos} cultivos`,
-    irrigationType: sistema ? capitalizar(sistema) : 'Sin sistema',
-    hydraulicSpecs: 'Sin definir',
+    irrigationType: sistema ? capitalizar(sistema) : 'Sin definir',
+    hydraulicSpecs:
+      pendiente === null ? 'Sin definir' : `Pendiente ${formatearPendiente(pendiente)} %`,
     crops: [],
-    preview: 'empty',
-    stepLabel: completado ? 'Paso 4: Resultado' : `Paso ${siguiente}`,
+    preview: geometria ? 'terreno' : 'empty',
+    geometria,
+    stepLabel: `Paso ${siguiente}: ${PASO_NOMBRE[siguiente]}`,
+    dimensionsLabel: geometria ? cotasDe(geometria) : undefined,
     nextStep: completado
-      ? { label: 'Abrir proyecto', icon: 'visibility' }
+      ? { label: 'Abrir proyecto', icon: 'visibility', step: siguiente }
       : { label: `Continuar (Paso ${siguiente})`, icon: 'edit', step: siguiente },
   };
+}
+
+function etiquetaDeSectores(sectores: number | null): string {
+  if (sectores === null) return 'Sin definir';
+  return sectores === 1 ? '1 sector' : `${sectores} sectores`;
+}
+
+/** 2 -> '2', 3.5 -> '3.5': the slope as saved, never padded with fake decimals. */
+function formatearPendiente(pendiente: number): string {
+  return Number.isInteger(pendiente) ? pendiente.toFixed(0) : pendiente.toFixed(1);
+}
+
+/** `60 × 40 m` from the bounding box of the saved contour. */
+function cotasDe(geometria: GeometriaTerrenoApi): string {
+  const xs = geometria.vertices.map((vertice) => vertice.x);
+  const ys = geometria.vertices.map((vertice) => vertice.y);
+  const ancho = Math.max(...xs) - Math.min(...xs);
+  const alto = Math.max(...ys) - Math.min(...ys);
+  return `${Math.round(ancho)} × ${Math.round(alto)} ${geometria.unidad}`;
 }
 
 function capitalizar(texto: string): string {

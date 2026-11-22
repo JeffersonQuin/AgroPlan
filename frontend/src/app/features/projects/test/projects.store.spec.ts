@@ -4,6 +4,19 @@ import { TestBed } from '@angular/core/testing';
 import { ProyectoListadoApi } from '../models/project.model';
 import { ProjectsStore } from '../state/projects.store';
 
+/** Rectángulo de 60 × 40 m: el mismo contorno que dibuja la tarjeta. */
+const RECTANGULO = {
+  vertices: [
+    { x: 0, y: 0 },
+    { x: 60, y: 0 },
+    { x: 60, y: 40 },
+    { x: 0, y: 40 },
+  ],
+  cerrado: true,
+  unidad: 'm',
+  eje_y: 'norte',
+};
+
 const PROYECTOS: ProyectoListadoApi[] = [
   {
     id: 'p-1',
@@ -14,6 +27,9 @@ const PROYECTOS: ProyectoListadoApi[] = [
     area_m2: 3200,
     cultivos_count: 2,
     sistema_tipo: 'goteo',
+    pendiente_pct: 2,
+    num_sectores: 2,
+    geometria: RECTANGULO,
     ultimo_paso_completado: 4,
     actualizado_en: '2026-11-21T11:06:00.123456',
     version: 3,
@@ -27,7 +43,10 @@ const PROYECTOS: ProyectoListadoApi[] = [
     area_m2: 6400,
     cultivos_count: 1,
     sistema_tipo: null,
-    ultimo_paso_completado: 1,
+    pendiente_pct: 3.5,
+    num_sectores: null,
+    geometria: RECTANGULO,
+    ultimo_paso_completado: 2,
     actualizado_en: '2026-11-20T09:30:00',
     version: 1,
   },
@@ -37,10 +56,13 @@ const PROYECTOS: ProyectoListadoApi[] = [
     zona: 'Quebrada',
     unidad: 'metric',
     estado: 'en_progreso',
-    area_m2: 1800,
+    area_m2: null,
     cultivos_count: 0,
     sistema_tipo: null,
-    ultimo_paso_completado: 0,
+    pendiente_pct: null,
+    num_sectores: null,
+    geometria: null,
+    ultimo_paso_completado: 1,
     actualizado_en: '2026-11-19T18:00:00',
     version: 1,
   },
@@ -87,11 +109,41 @@ describe('ProjectsStore', () => {
     expect(completado.speciesLabel).toBe('2 cultivos');
     expect(completado.irrigationType).toBe('Goteo');
     expect(completado.modifiedAt).toBe('21/11 11:06');
+  });
 
-    const pendiente = store.projects().find((project) => project.id === 'p-3')!;
-    expect(pendiente.statusLabel).toBe('Pendiente de terreno');
-    expect(pendiente.nextStep.step).toBe(1);
-    expect(pendiente.areaM2).toBe(1800);
+  it('draws the terrain, the species, the irrigation and the slope the project saves', () => {
+    cargar();
+    const terreno = store.projects().find((project) => project.id === 'p-1')!;
+
+    expect(terreno.preview).toBe('terreno');
+    expect(terreno.geometria?.vertices.length).toBe(4);
+    expect(terreno.sectorsLabel).toBe('2 sectores');
+    expect(terreno.hydraulicSpecs).toBe('Pendiente 2 %');
+    expect(terreno.stepLabel).toBe('Paso 4: Resultado');
+    expect(terreno.dimensionsLabel).toBe('60 × 40 m');
+
+    // Terreno y cultivos, sin sistema de riego: la fila de riego no inventa valores.
+    const sinSistema = store.projects().find((project) => project.id === 'p-2')!;
+    expect(sinSistema.preview).toBe('terreno');
+    expect(sinSistema.sectorsLabel).toBe('Sin definir');
+    expect(sinSistema.irrigationType).toBe('Sin definir');
+    expect(sinSistema.hydraulicSpecs).toBe('Pendiente 3.5 %');
+    expect(sinSistema.statusLabel).toBe('Pendiente de sistema');
+    expect(sinSistema.nextStep.step).toBe(3);
+  });
+
+  it('leaves a project without terrain on step 1 with no invented figures', () => {
+    cargar();
+    const sinTerreno = store.projects().find((project) => project.id === 'p-3')!;
+
+    expect(sinTerreno.areaM2).toBeNull();
+    expect(sinTerreno.preview).toBe('empty');
+    expect(sinTerreno.geometria).toBeNull();
+    expect(sinTerreno.dimensionsLabel).toBeUndefined();
+    expect(sinTerreno.hydraulicSpecs).toBe('Sin definir');
+    expect(sinTerreno.statusLabel).toBe('Pendiente de terreno');
+    expect(sinTerreno.nextStep.step).toBe(1);
+    expect(sinTerreno.stepLabel).toBe('Paso 1: Terreno');
   });
 
   it('keeps the search, the filter and the sort over the loaded projects', () => {
@@ -109,6 +161,7 @@ describe('ProjectsStore', () => {
     store.setFilter('all');
     store.setSort('area_desc');
     expect(store.visibleProjects()[0].name).toBe('Parcela Norte');
+    expect(store.visibleProjects()[2].name).toBe('Finca El Paraíso - B');
 
     store.setSort('name');
     expect(store.visibleProjects()[0].name).toBe('Finca El Paraíso - B');

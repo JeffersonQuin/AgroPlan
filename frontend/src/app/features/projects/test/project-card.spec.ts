@@ -1,6 +1,47 @@
 import { TestBed } from '@angular/core/testing';
 import { ProjectCard } from '../components/project-card/project-card';
 import { PROJECT_FIXTURES } from '../data/project.fixtures';
+import { ProyectoListadoApi } from '../models/project.model';
+import { toProject } from '../state/projects.store';
+
+const RECTANGULO: ProyectoListadoApi['geometria'] = {
+  vertices: [
+    { x: 0, y: 0 },
+    { x: 60, y: 0 },
+    { x: 60, y: 40 },
+    { x: 0, y: 40 },
+  ],
+  cerrado: true,
+  unidad: 'm',
+  eje_y: 'norte',
+};
+
+const CON_TERRENO: ProyectoListadoApi = {
+  id: 'p-1',
+  nombre: 'Los Olivos',
+  zona: 'Valle Central',
+  unidad: 'metric',
+  estado: 'en_progreso',
+  area_m2: 2400,
+  cultivos_count: 0,
+  sistema_tipo: null,
+  pendiente_pct: 2,
+  num_sectores: null,
+  geometria: RECTANGULO,
+  ultimo_paso_completado: 1,
+  actualizado_en: '2026-11-21T11:06:00',
+  version: 1,
+};
+
+const SIN_TERRENO: ProyectoListadoApi = {
+  ...CON_TERRENO,
+  id: 'p-2',
+  nombre: 'Sin plano',
+  area_m2: null,
+  pendiente_pct: null,
+  geometria: null,
+  ultimo_paso_completado: 1,
+};
 
 describe('ProjectCard', () => {
   beforeEach(async () => {
@@ -96,5 +137,48 @@ describe('ProjectCard', () => {
     action.click();
 
     expect(emitted).toBe(PROJECT_FIXTURES[0]);
+  });
+
+  async function renderApi(payload: ProyectoListadoApi) {
+    const fixture = TestBed.createComponent(ProjectCard);
+    fixture.componentRef.setInput('project', toProject(payload));
+    await fixture.whenStable();
+    return fixture;
+  }
+
+  it('draws the contour of the saved terrain with its real proportions', async () => {
+    const fixture = await renderApi(CON_TERRENO);
+    const poligono = fixture.nativeElement.querySelector('svg polygon') as SVGPolygonElement;
+
+    expect(poligono).not.toBeNull();
+    const puntos = (poligono.getAttribute('points') ?? '')
+      .trim()
+      .split(/\s+/)
+      .map((par) => par.split(',').map(Number));
+    expect(puntos.length).toBe(4);
+
+    const xs = puntos.map(([x]) => x);
+    const ys = puntos.map(([, y]) => y);
+    const proporcion =
+      (Math.max(...xs) - Math.min(...xs)) / (Math.max(...ys) - Math.min(...ys));
+    // Un rectángulo de 60 × 40 m no se puede dibujar deformado.
+    expect(proporcion).toBeCloseTo(1.5, 1);
+
+    const texto = fixture.nativeElement.textContent as string;
+    expect(texto).toContain('0.24 ha (2,400 m²)');
+    expect(texto).toContain('Pendiente 2 %');
+    expect(texto).toContain('Sin definir');
+    expect(texto).toContain('Paso 2: Cultivos');
+    expect(texto).toContain('60 × 40 m');
+  });
+
+  it('keeps the empty placeholder and says "Sin definir" without terrain', async () => {
+    const fixture = await renderApi(SIN_TERRENO);
+    const texto = fixture.nativeElement.textContent as string;
+
+    expect(texto).toContain('Sin terreno definido');
+    expect(texto).toContain('Sin definir');
+    expect(texto).not.toContain('0.00 ha');
+    expect(texto).toContain('Paso 1: Terreno');
   });
 });
