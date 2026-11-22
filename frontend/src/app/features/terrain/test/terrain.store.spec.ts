@@ -172,7 +172,9 @@ describe('TerrainStore contra el backend', () => {
     expect(primera.request.body.forma).toBe('trapecio');
     expect(primera.request.body.vertices.length).toBe(5);
     expect(primera.request.body.suelo_codigo).toBe('franco');
-    expect(primera.request.body.profundidad_nivel_dinamico_m).toBe(18);
+    // Sin informar: el backend asigna el caudal y el nivel queda vacío.
+    expect(primera.request.body.caudal_disponible_m3h).toBeNull();
+    expect(primera.request.body.profundidad_nivel_dinamico_m).toBeNull();
     primera.flush(TERRENO);
 
     expect(store.estado()).toBe('guardado');
@@ -197,6 +199,41 @@ describe('TerrainStore contra el backend', () => {
     expect(store.dimensions().topM).toBe(60);
     expect(store.dimensions().leftM).toBe(40);
     expect(store.caudalLabel()).toBe('2.5 m³/h');
+  });
+
+  it('takes the project name when the parcel has none yet', () => {
+    cargar(null);
+
+    expect(store.name()).toBe('Los Olivos');
+
+    store.setName('La Cañada');
+    expect(store.name()).toBe('La Cañada');
+  });
+
+  it('keeps the informed flow and level when the user types them', () => {
+    cargar(null);
+    store.setFlow(2.4);
+    store.setStaticLevel(21);
+
+    store.guardar();
+    const peticion = http.expectOne('http://localhost:8000/proyectos/p-1/terreno');
+    expect(peticion.request.body.caudal_disponible_m3h).toBe(2.4);
+    expect(peticion.request.body.profundidad_nivel_dinamico_m).toBe(21);
+    peticion.flush(TERRENO);
+  });
+
+  it('flags a polygon that crosses itself and a tiny area', () => {
+    cargar(null);
+
+    expect(store.validaciones().every((validacion) => validacion.ok)).toBe(true);
+    expect(store.validaciones().map((validacion) => validacion.ok).length).toBe(4);
+
+    store.setDimension('topM', 5);
+    store.setDimension('bottomM', 2);
+    store.setDimension('leftM', 3);
+
+    const falla = store.validaciones().find((validacion) => !validacion.ok);
+    expect(falla?.texto).toContain('Superficie insuficiente');
   });
 
   it('reports the save error without losing the form', () => {

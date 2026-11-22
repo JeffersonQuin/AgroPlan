@@ -60,7 +60,15 @@
 <!-- 2D Geometry Vector Plot Area -->
 <div class="relative w-full max-w-[700px] h-[460px] flex items-center justify-center">
 <!-- SVG Polygon and Technical Dimension Lines -->
-<svg class="w-full h-full drop-shadow-md overflow-visible" viewBox="0 0 740 480">
+<svg
+  #lienzo
+  class="w-full h-full drop-shadow-md overflow-visible touch-none"
+  viewBox="0 0 740 480"
+  (pointermove)="onPointerMove($event)"
+  (pointerup)="onPointerUp()"
+  (pointercancel)="onPointerUp()"
+  (pointerleave)="onPointerUp()"
+>
 <defs>
 <!-- Service road gravel pattern -->
 <pattern height="10" id="serviceRoad" patternunits="userSpaceOnUse" width="10">
@@ -110,7 +118,6 @@
   </g>
 }
 
-<!-- Decorative Perimeter Windbreak Trees (Matching snapshot aesthetic) -->
 <!-- Top tree row -->
 <circle cx="160" cy="56" fill="#2E7D32" r="9" stroke="#1E5222" stroke-width="2"></circle>
 <circle cx="210" cy="56" fill="#388E3C" r="9.5" stroke="#1E5222" stroke-width="2"></circle>

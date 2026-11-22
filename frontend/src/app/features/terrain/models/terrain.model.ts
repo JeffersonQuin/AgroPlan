@@ -22,10 +22,10 @@ export interface TerrainState {
   soil: SoilType;
   slopePct: number;
   waterSource: WaterSource;
-  /** Caudal disponible (aforo), m³/h. */
-  flowM3h: number;
-  /** Profundidad del nivel dinámico, m. */
-  staticLevelM: number;
+  /** Caudal disponible (aforo), m³/h. ``null`` = no lo informó: lo asume el sistema. */
+  flowM3h: number | null;
+  /** Profundidad del nivel dinámico, m. ``null`` = no informada. */
+  staticLevelM: number | null;
 }
 
 export interface TerrainMetrics {
@@ -93,8 +93,10 @@ export const INITIAL_TERRAIN: TerrainState = {
   soil: 'franco',
   slopePct: 1,
   waterSource: 'pozo',
-  flowM3h: 1.8,
-  staticLevelM: 18,
+  // Vacíos a propósito: el backend asigna caudal y el usuario no tiene por qué
+  // saber el aforo de su pozo para usar el paso 1.
+  flowM3h: null,
+  staticLevelM: null,
 };
 
 /* -------------------------------------------------------------------------- */
@@ -148,7 +150,8 @@ export interface GuardarTerrenoApi {
   suelo_codigo: string;
   pendiente_pct: number;
   fuente_agua: FuenteAguaApi;
-  caudal_disponible_m3h: number;
+  /** ``null`` = no informado: el backend asigna uno según la fuente. */
+  caudal_disponible_m3h: number | null;
   profundidad_nivel_dinamico_m: number | null;
 }
 

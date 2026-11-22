@@ -133,6 +133,85 @@ export function calculateMetrics(
   };
 }
 
+/** Area of any polygon in square metres, by the shoelace formula. */
+export function areaPoligono(vertices: ReadonlyArray<Vertice>): number {
+  let suma = 0;
+  for (let indice = 0; indice < vertices.length; indice++) {
+    const actual = vertices[indice];
+    const siguiente = vertices[(indice + 1) % vertices.length];
+    suma += actual.x * siguiente.y - siguiente.x * actual.y;
+  }
+  return Math.abs(suma) / 2;
+}
+
+/**
+ * True when two non-adjacent sides cross. With the four cotas the figure cannot
+ * self-intersect, but once vertices are dragged it can, and the backend would
+ * happily compute a nonsense area.
+ */
+export function seAutoIntersecta(vertices: ReadonlyArray<Vertice>): boolean {
+  const total = vertices.length;
+  if (total < 4) return false;
+
+  for (let i = 0; i < total; i++) {
+    const a1 = vertices[i];
+    const a2 = vertices[(i + 1) % total];
+    for (let j = i + 1; j < total; j++) {
+      // Lados consecutivos comparten un vértice: no cuentan.
+      if (j === i || (j + 1) % total === i || (i + 1) % total === j) continue;
+      if (seCruzan(a1, a2, vertices[j], vertices[(j + 1) % total])) return true;
+    }
+  }
+  return false;
+}
+
+function seCruzan(a: Vertice, b: Vertice, c: Vertice, d: Vertice): boolean {
+  const orientacion = (p: Vertice, q: Vertice, r: Vertice) =>
+    (q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x);
+
+  const d1 = orientacion(a, b, c);
+  const d2 = orientacion(a, b, d);
+  const d3 = orientacion(c, d, a);
+  const d4 = orientacion(c, d, b);
+
+  return ((d1 > 0) !== (d2 > 0)) && ((d3 > 0) !== (d4 > 0));
+}
+
+/**
+ * Cotas que cambian al arrastrar un vértice hasta (x, y) en metros.
+ *
+ * El vértice del origen no se mueve: trasladar la parcela no cambia el terreno.
+ * Todo lo que devuelve está clampeado a cero o más.
+ */
+export function cotasDesdeArrastre(
+  shape: ParcelShape,
+  dimensions: TerrainDimensions,
+  indice: number,
+  x: number,
+  y: number,
+): Partial<TerrainDimensions> {
+  const largo = Math.max(0, x);
+  const alto = Math.max(0, y);
+
+  if (shape === 'rectangulo') {
+    // (0,0) (largo,0) (largo,alto) (0,alto)
+    if (indice === 1) return { topM: largo, bottomM: largo };
+    if (indice === 2) return { topM: largo, bottomM: largo, leftM: alto, rightM: alto };
+    if (indice === 3) return { leftM: alto, rightM: alto };
+    return {};
+  }
+
+  // (0,alto) (largo,alto) (largo,alto-derecho) (base,0) (0,0)
+  if (indice === 0) return { leftM: alto };
+  if (indice === 1) return { topM: largo };
+  if (indice === 2) {
+    const derecha = Math.max(0, Math.round((dimensions.leftM - alto) * 10) / 10);
+    return { topM: largo, rightM: derecha };
+  }
+  if (indice === 3) return { bottomM: largo };
+  return {};
+}
+
 /** Vertical drop of the parcel for a slope given in percent. */
 export function calculateDesnivel(topM: number, slopePct: number): number {
   return round((Math.max(topM, 0) * Math.max(slopePct, 0)) / 100, 2);

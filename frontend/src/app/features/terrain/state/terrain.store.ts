@@ -21,13 +21,21 @@ import {
 } from '../models/terrain.model';
 import { TerrainApi } from '../terrain.api';
 import {
+  areaPoligono,
   calculateDesnivel,
   calculateMetrics,
   fromVertices,
-  REFERENCE_DIMENSIONS,
-  REFERENCE_METRICS,
+  seAutoIntersecta,
   toVertices,
 } from '../utils/terrain-geometry';
+
+export interface Validacion {
+  ok: boolean;
+  texto: string;
+}
+
+const AREA_MINIMA_M2 = 100;
+const PENDIENTE_MAXIMA_PCT = 10;
 
 const SHAPE_LABELS: Record<string, string> = {
   rectangulo: '4 lados (rectángulo)',
@@ -52,6 +60,7 @@ export class TerrainStore {
     ...INITIAL_TERRAIN,
     dimensions: { ...INITIAL_TERRAIN.dimensions },
   });
+  private readonly _nombreEditado = signal(false);
   private readonly _proyectoId = signal<string | null>(null);
   private readonly _nombreProyecto = signal('');
   private readonly _guardado = signal<TerrenoApi | null>(null);
@@ -136,7 +145,9 @@ export class TerrainStore {
   );
   readonly caudalLabel = computed(() => {
     const caudal = this.derivado()?.caudalEfectivoM3h;
-    return caudal === undefined ? `${this._state().flowM3h} m³/h` : `${caudal} m³/h`;
+    if (caudal !== undefined) return `${caudal} m³/h`;
+    const informado = this._state().flowM3h;
+    return informado === null ? 'Lo asigna el sistema' : `${informado} m³/h`;
   });
   readonly caudalOrigenLabel = computed(() => {
     const derivado = this.derivado();
@@ -151,6 +162,48 @@ export class TerrainStore {
     const option = SOIL_OPTIONS.find((soil) => soil.value === this._state().soil);
     return option ? `Infiltración: ${option.infiltration}` : '';
   });
+
+  /** Comprobaciones reales del paso 1, no texto decorativo. */
+  readonly validaciones = computed<Validacion[]>(() => {
+    const state = this._state();
+    const vertices = this.vertices();
+    const cotas = state.dimensions;
+    const rectangulo = state.shape === 'rectangulo';
+    const area = areaPoligono(vertices);
+    const completa =
+      cotas.topM > 0 && cotas.leftM > 0 && (rectangulo || cotas.bottomM > 0);
+
+    return [
+      {
+        ok: completa,
+        texto: completa
+          ? `${vertices.length} vértices con cotas completas`
+          : 'Faltan cotas: el área tiene que ser mayor que cero',
+      },
+      {
+        ok: area >= AREA_MINIMA_M2,
+        texto:
+          area >= AREA_MINIMA_M2
+            ? `Área admisible para cultivo (${Math.round(area)} m² ≥ ${AREA_MINIMA_M2} m²)`
+            : `Superficie insuficiente para cultivo (${Math.round(area)} m²)`,
+      },
+      {
+        ok: !seAutoIntersecta(vertices),
+        texto: seAutoIntersecta(vertices)
+          ? 'El polígono se cruza a sí mismo: revisá los vértices'
+          : 'Sin autointersección de aristas',
+      },
+      {
+        ok: state.slopePct <= PENDIENTE_MAXIMA_PCT,
+        texto:
+          state.slopePct <= PENDIENTE_MAXIMA_PCT
+            ? `Pendiente dentro del rango de riego (≤ ${PENDIENTE_MAXIMA_PCT}%)`
+            : `Pendiente alta para riego (${state.slopePct}%)`,
+      },
+    ];
+  });
+
+  readonly areaCalculadaM2 = computed(() => areaPoligono(this.vertices()));
 
   readonly guardando = computed(() => this._estado() === 'guardando');
   readonly guardadoLabel = computed(() => {
@@ -188,6 +241,10 @@ export class TerrainStore {
       next: ({ proyecto, terreno, suelos }) => {
         this._nombreProyecto.set(proyecto.nombre);
         this._suelos.set(suelos);
+        if (terreno === null && !this._nombreEditado()) {
+          // El usuario ya nombró el proyecto: no le pedimos otro nombre igual.
+          this._state.update((state) => ({ ...state, name: proyecto.nombre }));
+        }
         if (terreno !== null) this.aplicarTerreno(terreno);
         this._estado.set(terreno === null ? 'inicial' : 'guardado');
       },
@@ -218,6 +275,7 @@ export class TerrainStore {
   }
 
   setName(name: string): void {
+    this._nombreEditado.set(true);
     this._state.update((state) => ({ ...state, name }));
   }
 
@@ -244,12 +302,16 @@ export class TerrainStore {
     this._state.update((state) => ({ ...state, waterSource }));
   }
 
-  setFlow(flowM3h: number): void {
+  setFlow(flowM3h: number | null): void {
     this._state.update((state) => ({ ...state, flowM3h }));
   }
 
-  setStaticLevel(staticLevelM: number): void {
+  setStaticLevel(staticLevelM: number | null): void {
     this._state.update((state) => ({ ...state, staticLevelM }));
+  }
+
+  setNombreEditado(): void {
+    this._nombreEditado.set(true);
   }
 
   shapeLabel(shape: TerrainState['shape']): string {
@@ -267,7 +329,7 @@ export class TerrainStore {
       pendiente_pct: state.slopePct,
       fuente_agua: state.waterSource,
       caudal_disponible_m3h: state.flowM3h,
-      profundidad_nivel_dinamico_m: state.staticLevelM > 0 ? state.staticLevelM : null,
+      profundidad_nivel_dinamico_m: state.staticLevelM,
     };
   }
 
@@ -280,8 +342,8 @@ export class TerrainStore {
       soil: terreno.suelo_codigo as SoilType,
       slopePct: terreno.pendiente_pct,
       waterSource: terreno.fuente_agua as WaterSource,
-      flowM3h: terreno.caudal_efectivo_m3h,
-      staticLevelM: terreno.profundidad_nivel_dinamico_m ?? 0,
+      flowM3h: terreno.caudal_disponible_m3h,
+      staticLevelM: terreno.profundidad_nivel_dinamico_m,
     });
     this._guardado.set(terreno);
   }
@@ -289,15 +351,6 @@ export class TerrainStore {
 
 function formaDeApi(forma: TerrenoApi['forma']): TerrainState['shape'] {
   return forma === 'poligono' ? 'libre' : forma;
-}
-
-function isReference(dimensions: TerrainDimensions): boolean {
-  return (
-    dimensions.topM === REFERENCE_DIMENSIONS.topM &&
-    dimensions.bottomM === REFERENCE_DIMENSIONS.bottomM &&
-    dimensions.leftM === REFERENCE_DIMENSIONS.leftM &&
-    dimensions.rightM === REFERENCE_DIMENSIONS.rightM
-  );
 }
 
 function formatThousands(value: number): string {
