@@ -227,6 +227,47 @@ def test_flujo_completo_del_wizard(cliente_autenticado: TestClient) -> None:
     assert cliente.get(f"/proyectos/{proyecto_id}").status_code == 404
 
 
+def test_el_guardado_completo_del_paso_1_actualiza_con_patch(
+    cliente_autenticado: TestClient,
+) -> None:
+    """El front manda el mismo payload en PUT y en PATCH: la API lo acepta igual."""
+
+    cliente = cliente_autenticado
+    proyecto_id = _crear_proyecto(cliente)["id"]
+    payload = {
+        "nombre_parcela": "El Trébol",
+        "forma": "trapecio",
+        "vertices": [
+            {"x": 0, "y": 40},
+            {"x": 60, "y": 40},
+            {"x": 60, "y": 20},
+            {"x": 30, "y": 0},
+            {"x": 0, "y": 0},
+        ],
+        "suelo_codigo": "franco",
+        "pendiente_pct": 1,
+        "fuente_agua": "pozo",
+        "caudal_disponible_m3h": None,
+        "profundidad_nivel_dinamico_m": None,
+    }
+
+    creado = cliente.put(f"/proyectos/{proyecto_id}/terreno", json=payload)
+    assert creado.status_code == 200, creado.text
+
+    # Segundo guardado: mismo cuerpo completo, ahora por PATCH.
+    payload["nombre_parcela"] = "El Trébol Norte"
+    payload["forma"] = "poligono"
+    payload["pendiente_pct"] = 3
+    editado = cliente.patch(f"/proyectos/{proyecto_id}/terreno", json=payload)
+
+    assert editado.status_code == 200, editado.text
+    cuerpo = editado.json()
+    assert cuerpo["nombre_parcela"] == "El Trébol Norte"
+    assert cuerpo["forma"] == "poligono"
+    assert cuerpo["pendiente_pct"] == 3
+    assert cuerpo["area_m2"] == 2100
+
+
 def test_sectores_explicitos_y_edicion_de_bloque(
     cliente_autenticado: TestClient,
 ) -> None:

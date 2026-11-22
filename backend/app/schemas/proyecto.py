@@ -132,6 +132,9 @@ class TerrenoUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     nombre_parcela: str | None = Field(default=None, min_length=1, max_length=60)
+    # La forma es una etiqueta del terreno; el guardado completo la manda siempre, así
+    # que el PATCH tiene que aceptarla o el payload entero se rechaza.
+    forma: FormaTerreno | None = None
     vertices: list[Vertice] | None = None
     suelo_codigo: str | None = Field(default=None, min_length=2, max_length=20)
     pendiente_pct: float | None = Field(default=None, ge=0, le=30)

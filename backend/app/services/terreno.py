@@ -155,6 +155,9 @@ def actualizar_terreno(
 
     campos = data.model_fields_set
 
+    if "forma" in campos and data.forma is not None:
+        terreno.forma = data.forma.value
+
     if "suelo_codigo" in campos and data.suelo_codigo is not None:
         _validar_suelo(db, data.suelo_codigo)
         terreno.suelo_codigo = data.suelo_codigo
