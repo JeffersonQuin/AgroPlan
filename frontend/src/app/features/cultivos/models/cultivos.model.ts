@@ -110,4 +110,36 @@ export interface ResumenTerrenoApi {
   area_m2: number;
   caudal_efectivo_m3h: number;
   suelo_codigo: string;
+  geometria: { vertices: { x: number; y: number }[] };
+}
+
+/** Un producto que el usuario agregó a la lista, antes de generar. */
+export interface ProductoElegido {
+  /** Código del catálogo, o ``null`` si es un producto nuevo escrito a mano. */
+  codigo: string | null;
+  /** Lo que se manda cuando no hay código. */
+  texto: string;
+  etiqueta: string;
+  color: string;
+}
+
+/** `POST /proyectos/{id}/agente`. */
+export interface IniciarCorridaApi {
+  productos: { cultivo_codigo?: string; producto_texto?: string }[];
+  siembra: string | null;
+}
+
+/** `202` del disparo. */
+export interface CorridaIniciadaApi {
+  corrida_id: string;
+  estado: string;
+  intake_hash: string;
+}
+
+/** `GET /proyectos/{id}/agente/corridas/{corrida_id}`. */
+export interface CorridaDetalleApi {
+  id: string;
+  estado: string;
+  error_detalle: string | null;
+  salida: unknown | null;
 }

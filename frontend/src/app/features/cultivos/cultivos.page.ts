@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { WizardHeader } from '../wizard/components/wizard-header/wizard-header';
 import { CultivoForm } from './components/cultivo-form/cultivo-form';
@@ -8,11 +8,10 @@ import { BloqueApi } from './models/cultivos.model';
 import { CultivosStore } from './state/cultivos.store';
 
 /**
- * Step 2: crop distribution.
+ * Step 2: the user adds products and the agent distributes the terrain.
  *
- * The route carries the project id; the store loads the project, its terrain, the
- * blocks, the balance panel and the crop catalogue, and every write refreshes the
- * backend-calculated figures.
+ * The distribution is painted only after the agent answers: while the list is being
+ * built (and if it fails) the canvas shows the terrain as it was drawn in step 1.
  */
 @Component({
   selector: 'app-cultivos-page',
@@ -24,6 +23,12 @@ export class CultivosPage {
   private readonly route = inject(ActivatedRoute);
 
   protected readonly proyectoId = signal('');
+  protected readonly confirmarGeneracion = signal(false);
+  protected readonly modalPremium = signal(false);
+
+  protected readonly tituloGenerar = computed(() =>
+    this.store.generado() ? 'Regenerar distribución' : 'Generar distribución',
+  );
 
   constructor() {
     const proyectoId = this.route.snapshot.paramMap.get('proyectoId') ?? '';
@@ -31,9 +36,30 @@ export class CultivosPage {
     if (proyectoId !== '') this.store.cargar(proyectoId);
   }
 
-  /** La fila del panel pide editar: el formulario se llena con ese bloque. */
+  /** El primer generar avisa que consume el agente y no se repite gratis. */
+  protected pedirGeneracion(): void {
+    if (this.store.generado()) {
+      this.modalPremium.set(true);
+      return;
+    }
+    this.confirmarGeneracion.set(true);
+  }
+
+  protected confirmar(): void {
+    this.confirmarGeneracion.set(false);
+    this.store.generar();
+  }
+
+  protected cerrarConfirmacion(): void {
+    this.confirmarGeneracion.set(false);
+  }
+
+  protected cerrarPremium(): void {
+    this.modalPremium.set(false);
+  }
+
   protected onEditar(bloque: BloqueApi): void {
     this.store.seleccionar(bloque.cultivo_codigo);
-    void bloque;
+    this.modalPremium.set(true);
   }
 }

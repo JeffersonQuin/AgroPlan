@@ -12,9 +12,16 @@ import {
   CultivoCatalogoApi,
   CultivoRespuestaApi,
   EditarBloqueApi,
+  ProductoElegido,
 } from '../models/cultivos.model';
 
-export type EstadoPaso2 = 'inicial' | 'cargando' | 'listo' | 'guardando' | 'error';
+export type EstadoPaso2 =
+  | 'inicial'
+  | 'cargando'
+  | 'listo'
+  | 'guardando'
+  | 'generando'
+  | 'error';
 
 /**
  * Step 2 state, backed by the API.
@@ -39,6 +46,11 @@ export class CultivosStore {
   private readonly _estado = signal<EstadoPaso2>('inicial');
   private readonly _error = signal<string | null>(null);
   private readonly _seleccionado = signal<string | null>(null);
+  private readonly _productos = signal<ProductoElegido[]>([]);
+  private readonly _siembra = signal(hoy());
+  private readonly _verticesTerreno = signal<{ x: number; y: number }[]>([]);
+  private readonly _generado = signal(false);
+  private sondeo: ReturnType<typeof setInterval> | null = null;
 
   readonly nombreProyecto = this._nombreProyecto.asReadonly();
   readonly areaM2 = this._areaM2.asReadonly();
@@ -50,9 +62,18 @@ export class CultivosStore {
   readonly estado = this._estado.asReadonly();
   readonly error = this._error.asReadonly();
   readonly seleccionado = this._seleccionado.asReadonly();
+  readonly productos = this._productos.asReadonly();
+  readonly siembra = this._siembra.asReadonly();
+  readonly verticesTerreno = this._verticesTerreno.asReadonly();
+  /** ``true`` cuando ya hay una distribución generada por el agente. */
+  readonly generado = this._generado.asReadonly();
 
   readonly cargando = computed(() => this._estado() === 'cargando');
   readonly guardando = computed(() => this._estado() === 'guardando');
+  readonly generando = computed(() => this._estado() === 'generando');
+  readonly puedeGenerar = computed(
+    () => this._productos().length > 0 && !this.generando() && !this.generado(),
+  );
 
   readonly estadoGuardadoLabel = computed(() => {
     switch (this._estado()) {
@@ -113,7 +134,9 @@ export class CultivosStore {
         this._areaM2.set(terreno?.area_m2 ?? 0);
         this._caudalM3h.set(terreno?.caudal_efectivo_m3h ?? 0);
         this._sueloCodigo.set(terreno?.suelo_codigo ?? '');
+        this._verticesTerreno.set(terreno?.geometria?.vertices ?? []);
         this._bloques.set(bloques);
+        this._generado.set(bloques.length > 0);
         this._balance.set(balance);
         this._catalogo.set(catalogo.filter((cultivo) => cultivo.activo));
         this._estado.set('listo');
@@ -169,6 +192,139 @@ export class CultivosStore {
     this._seleccionado.set(codigo);
   }
 
+  // ------------------------------------------------------------------- //
+  // Lista de productos y generación con el agente
+  // ------------------------------------------------------------------- //
+
+  /** Agrega un producto del catálogo, o uno nuevo escrito a mano. */
+  agregarProducto(codigo: string | null, texto: string): void {
+    const limpio = texto.trim();
+    if (codigo === null && limpio.length < 2) return;
+
+    const catalogo = codigo === null ? undefined : this.catalogoPorCodigo(codigo);
+    const etiqueta = catalogo?.nombre ?? limpio;
+    if (this._productos().some((producto) => producto.etiqueta === etiqueta)) return;
+
+    this._productos.update((productos) => [
+      ...productos,
+      {
+        codigo,
+        texto: limpio,
+        etiqueta,
+        color: catalogo?.color ?? '#4CAF50',
+      },
+    ]);
+  }
+
+  quitarProducto(indice: number): void {
+    this._productos.update((productos) =>
+      productos.filter((_, posicion) => posicion !== indice),
+    );
+  }
+
+  setSiembra(fecha: string): void {
+    this._siembra.set(fecha || hoy());
+  }
+
+  /**
+   * Manda la lista al agente, espera el resultado y aplica la distribución.
+   *
+   * El agente decide **cuánta área** va a cada producto; el motor geométrico arma las
+   * parcelas al aplicar. Sólo se puede generar una vez: para repetirlo el usuario
+   * necesita el plan premium (lo gatea la pantalla).
+   */
+  generar(): void {
+    const proyectoId = this._proyectoId();
+    if (proyectoId === null || !this.puedeGenerar()) return;
+
+    this._estado.set('generando');
+    this._error.set(null);
+
+    this.api
+      .iniciarCorrida(proyectoId, {
+        productos: this._productos().map((producto) =>
+          producto.codigo !== null
+            ? { cultivo_codigo: producto.codigo }
+            : { producto_texto: producto.texto },
+        ),
+        siembra: this._siembra() || null,
+      })
+      .subscribe({
+        next: (inicio) => this.sondear(proyectoId, inicio.corrida_id),
+        error: (error: HttpErrorResponse) => {
+          this._error.set(mensajeDeError(error));
+          this._estado.set('error');
+        },
+      });
+  }
+
+  /** Consulta la corrida hasta que termina, y aplica la propuesta si salió bien. */
+  private sondear(proyectoId: string, corridaId: string): void {
+    this.detenerSondeo();
+    this.sondeo = setInterval(() => {
+      this.api.obtenerCorrida(proyectoId, corridaId).subscribe({
+        next: (detalle) => {
+          if (detalle.estado === 'ok') {
+            this.detenerSondeo();
+            this.aplicar(proyectoId, corridaId);
+          }
+          if (detalle.estado === 'error') {
+            this.detenerSondeo();
+            this._error.set(detalle.error_detalle ?? 'El agente no pudo generar la propuesta');
+            this._estado.set('error');
+          }
+        },
+        error: (error: HttpErrorResponse) => {
+          this.detenerSondeo();
+          this._error.set(mensajeDeError(error));
+          this._estado.set('error');
+        },
+      });
+    }, 1500);
+  }
+
+  private detenerSondeo(): void {
+    if (this.sondeo !== null) {
+      clearInterval(this.sondeo);
+      this.sondeo = null;
+    }
+  }
+
+  private aplicar(proyectoId: string, corridaId: string): void {
+    this.api.aplicarCorrida(proyectoId, corridaId).subscribe({
+      next: () => {
+        this._generado.set(true);
+        this._productos.set([]);
+        this.recargarBloques(proyectoId);
+      },
+      error: (error: HttpErrorResponse) => {
+        this._error.set(mensajeDeError(error));
+        this._estado.set('error');
+      },
+    });
+  }
+
+  private recargarBloques(proyectoId: string): void {
+    forkJoin({
+      bloques: this.api.listar(proyectoId),
+      balance: this.api.balance(proyectoId),
+    }).subscribe({
+      next: ({ bloques, balance }) => {
+        this._bloques.set(bloques);
+        this._balance.set(balance);
+        this._estado.set('listo');
+      },
+      error: (error: HttpErrorResponse) => {
+        this._error.set(mensajeDeError(error));
+        this._estado.set('error');
+      },
+    });
+  }
+
+  private catalogoPorCodigo(codigo: string): CultivoCatalogoApi | undefined {
+    return this._catalogo().find((cultivo) => cultivo.codigo === codigo);
+  }
+
   /** Recarga sólo el panel: tras un borrado el backend no devuelve el balance. */
   private refrescarBalance(): void {
     const proyectoId = this._proyectoId();
@@ -205,4 +361,12 @@ export class CultivosStore {
       }),
     );
   }
+}
+
+/** Hoy en formato `YYYY-MM-DD`, que es lo que espera el backend. */
+function hoy(): string {
+  const ahora = new Date();
+  const mes = `${ahora.getMonth() + 1}`.padStart(2, '0');
+  const dia = `${ahora.getDate()}`.padStart(2, '0');
+  return `${ahora.getFullYear()}-${mes}-${dia}`;
 }

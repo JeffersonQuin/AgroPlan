@@ -99,11 +99,11 @@ describe('CultivosStore', () => {
 
   afterEach(() => http.verify());
 
-  function cargar(): void {
+  function cargar(bloques: BloqueApi[] = [PAPA]): void {
     store.cargar('p-1');
     http.expectOne('http://localhost:8000/proyectos/p-1').flush(PROYECTO);
     http.expectOne('http://localhost:8000/proyectos/p-1/terreno').flush(TERRENO);
-    http.expectOne('http://localhost:8000/proyectos/p-1/cultivos').flush([PAPA]);
+    http.expectOne('http://localhost:8000/proyectos/p-1/cultivos').flush(bloques);
     http.expectOne('http://localhost:8000/proyectos/p-1/cultivos/balance').flush(BALANCE);
     http.expectOne('http://localhost:8000/catalogos/cultivos').flush(CATALOGO);
   }
@@ -167,6 +167,39 @@ describe('CultivosStore', () => {
 
     expect(store.estado()).toBe('error');
     expect(store.error()).toBe('La suma de porcentajes supera el 100%');
+  });
+
+  it('sends the product list and the sowing date to the agent', () => {
+    cargar([]);
+    store.agregarProducto('papa', '');
+    store.agregarProducto(null, 'yuca');
+    store.setSiembra('2026-11-20');
+
+    expect(store.puedeGenerar()).toBe(true);
+    store.generar();
+
+    const peticion = http.expectOne('http://localhost:8000/proyectos/p-1/agente');
+    expect(peticion.request.method).toBe('POST');
+    expect(peticion.request.body).toEqual({
+      productos: [{ cultivo_codigo: 'papa' }, { producto_texto: 'yuca' }],
+      siembra: '2026-11-20',
+    });
+    expect(peticion.request.body.productos.length).toBe(2);
+    expect(store.generando()).toBe(true);
+  });
+
+  it('surfaces the agent failure without leaving the spinner on', () => {
+    cargar([]);
+    store.agregarProducto('papa', '');
+    store.generar();
+
+    http
+      .expectOne('http://localhost:8000/proyectos/p-1/agente')
+      .flush({ detail: 'La corrida ya está aplicada' }, { status: 409, statusText: 'Conflict' });
+
+    expect(store.generando()).toBe(false);
+    expect(store.error()).toBe('La corrida ya está aplicada');
+    expect(store.puedeGenerar()).toBe(true);
   });
 
   it('removes a block and asks for the new balance', () => {

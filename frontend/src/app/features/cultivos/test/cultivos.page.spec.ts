@@ -99,15 +99,23 @@ describe('CultivosPage', () => {
 
   afterEach(() => http.verify());
 
-  async function montar() {
+  async function montar(bloques: unknown[] = [BLOQUE]) {
     const harness = await RouterTestingHarness.create('/proyectos/p-1/cultivos');
     http.expectOne('http://localhost:8000/proyectos/p-1').flush(PROYECTO);
     http.expectOne('http://localhost:8000/proyectos/p-1/terreno').flush({
       area_m2: 200,
       caudal_efectivo_m3h: 3,
       suelo_codigo: 'franco',
+      geometria: {
+        vertices: [
+          { x: 0, y: 0 },
+          { x: 10, y: 0 },
+          { x: 10, y: 20 },
+          { x: 0, y: 20 },
+        ],
+      },
     });
-    http.expectOne('http://localhost:8000/proyectos/p-1/cultivos').flush([BLOQUE]);
+    http.expectOne('http://localhost:8000/proyectos/p-1/cultivos').flush(bloques);
     http.expectOne('http://localhost:8000/proyectos/p-1/cultivos/balance').flush(BALANCE);
     http.expectOne('http://localhost:8000/catalogos/cultivos').flush(CATALOGO);
     await harness.fixture.whenStable();
@@ -128,34 +136,44 @@ describe('CultivosPage', () => {
     expect(html.textContent).toContain('3 m³/h');
   });
 
-  it('adds a crop by percentage against the backend', async () => {
-    const harness = await montar();
+  it('shows the step-1 terrain as the default distribution', async () => {
+    const harness = await montar([]);
     const html = harness.routeNativeElement as HTMLElement;
 
-    const porcentaje = html.querySelector('#porcentaje') as HTMLInputElement;
-    porcentaje.value = '30';
-    porcentaje.dispatchEvent(new Event('input', { bubbles: true }));
-    await harness.fixture.whenStable();
+    expect(html.textContent).toContain('Terreno del paso 1');
+    expect(html.textContent).toContain(
+      'Agregá productos y generá la distribución con el agente',
+    );
+    const generar = Array.from(
+      html.querySelectorAll('button') as NodeListOf<HTMLButtonElement>,
+    ).find((boton) => boton.textContent?.includes('Generar distribución'))!;
+    expect(generar.disabled).toBe(true);
+  });
 
-    const agregar = Array.from(html.querySelectorAll('button') as NodeListOf<HTMLButtonElement>)
-      .find((boton) => boton.textContent?.includes('Agregar cultivo'))!;
+  it('adds a product and asks for confirmation before generating', async () => {
+    // Sin distribución previa: el paso 2 está en modo "elegir productos".
+    const harness = await montar([]);
+    const html = harness.routeNativeElement as HTMLElement;
+
+    const agregar = html.querySelector(
+      'button[aria-label="Agregar producto del catálogo"]',
+    ) as HTMLButtonElement;
     agregar.click();
     await harness.fixture.whenStable();
 
-    const peticion = http.expectOne('http://localhost:8000/proyectos/p-1/cultivos');
-    expect(peticion.request.method).toBe('POST');
-    // Papa ya está asignada: el selector sólo ofrece lo que falta.
-    expect(peticion.request.body.cultivo_codigo).toBe('lechuga');
-    expect(peticion.request.body.modo).toBe('porcentaje');
-    expect(peticion.request.body.porcentaje).toBe(30);
-    peticion.flush({
-      bloque: { ...BLOQUE, id: 'b-2', orden: 2, porcentaje: 30, area_m2: 60 },
-      balance: { ...BALANCE, asignado_m2: 200, disponible_m2: 0, estado: 'correcto' },
-      advertencias: [],
-    });
+    expect(html.textContent).toContain('Productos elegidos (1)');
+    expect(html.textContent).toContain('Lechuga');
+
+    const generar = Array.from(
+      html.querySelectorAll('button') as NodeListOf<HTMLButtonElement>,
+    ).find((boton) => boton.textContent?.includes('Generar distribución'))!;
+    expect(generar.disabled).toBe(false);
+
+    generar.click();
     await harness.fixture.whenStable();
 
-    expect(html.textContent).toContain('Cultivos configurados (2)');
-    expect(html.textContent).toContain('correcto');
+    expect(html.textContent).toContain('¿Generar la distribución?');
+    expect(html.textContent).toContain('una sola vez');
+    expect(html.textContent).toContain('La siembra queda para el');
   });
 });

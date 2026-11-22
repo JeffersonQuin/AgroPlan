@@ -5,10 +5,13 @@ import { environment } from '../../../environments/environment';
 import {
   BalanceApi,
   BloqueApi,
+  CorridaDetalleApi,
+  CorridaIniciadaApi,
   CrearBloqueApi,
   CultivoCatalogoApi,
   CultivoRespuestaApi,
   EditarBloqueApi,
+  IniciarCorridaApi,
   ResumenTerrenoApi,
 } from './models/cultivos.model';
 
@@ -51,5 +54,23 @@ export class CultivosApi {
 
   eliminar(proyectoId: string, bloqueId: string): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/${proyectoId}/cultivos/${bloqueId}`);
+  }
+
+  /** Dispara el agente con la lista de productos del paso 2. */
+  iniciarCorrida(proyectoId: string, dto: IniciarCorridaApi): Observable<CorridaIniciadaApi> {
+    return this.http.post<CorridaIniciadaApi>(`${this.baseUrl}/${proyectoId}/agente`, dto);
+  }
+
+  obtenerCorrida(proyectoId: string, corridaId: string): Observable<CorridaDetalleApi> {
+    return this.http.get<CorridaDetalleApi>(
+      `${this.baseUrl}/${proyectoId}/agente/corridas/${corridaId}`,
+    );
+  }
+
+  aplicarCorrida(proyectoId: string, corridaId: string): Observable<unknown> {
+    return this.http.post(
+      `${this.baseUrl}/${proyectoId}/agente/corridas/${corridaId}/aplicar`,
+      {},
+    );
   }
 }
