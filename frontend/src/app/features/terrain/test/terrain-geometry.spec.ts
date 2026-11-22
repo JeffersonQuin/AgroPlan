@@ -37,8 +37,25 @@ describe('terrain geometry', () => {
 });
 
 describe('toVertices / fromVertices', () => {
+  it('a rectangle only uses the top length and the left height', () => {
+    const vertices = toVertices({ topM: 60, bottomM: 30, leftM: 40, rightM: 20 }, 'rectangulo');
+
+    expect(vertices).toEqual([
+      { x: 0, y: 0 },
+      { x: 60, y: 0 },
+      { x: 60, y: 40 },
+      { x: 0, y: 40 },
+    ]);
+    expect(calculateMetrics({ topM: 60, bottomM: 30, leftM: 40, rightM: 20 }, 'rectangulo')).toEqual({
+      areaM2: 2400,
+      perimeterM: 200,
+      diagonalM: 72.11,
+    });
+    expect(fromVertices(vertices)).toEqual({ topM: 60, bottomM: 60, leftM: 40, rightM: 40 });
+  });
+
   it('builds the same five-vertex figure the preview measures', () => {
-    const vertices = toVertices({ topM: 60, bottomM: 30, leftM: 40, rightM: 20 });
+    const vertices = toVertices({ topM: 60, bottomM: 30, leftM: 40, rightM: 20 }, 'trapecio');
 
     expect(vertices).toEqual([
       { x: 0, y: 40 },
@@ -50,7 +67,9 @@ describe('toVertices / fromVertices', () => {
   });
 
   it('rebuilds the cotas from a saved polygon', () => {
-    const cotas = fromVertices(toVertices({ topM: 60, bottomM: 30, leftM: 40, rightM: 20 }));
+    const cotas = fromVertices(
+      toVertices({ topM: 60, bottomM: 30, leftM: 40, rightM: 20 }, 'trapecio'),
+    );
 
     expect(cotas).toEqual({ topM: 60, bottomM: 30, leftM: 40, rightM: 20 });
   });

@@ -77,10 +77,25 @@ export class TerrainStore {
   readonly flowM3h = computed(() => this._state().flowM3h);
   readonly staticLevelM = computed(() => this._state().staticLevelM);
 
-  /** Live preview from the four cotas; the saved terrain overrides it. */
-  readonly metrics = computed<TerrainMetrics>(() => {
-    const dimensions = this._state().dimensions;
-    return isReference(dimensions) ? REFERENCE_METRICS : calculateMetrics(dimensions);
+  /** Live preview from the cotas; the saved terrain overrides it. */
+  readonly metrics = computed<TerrainMetrics>(() =>
+    calculateMetrics(this._state().dimensions, this._state().shape),
+  );
+
+  /** The polygon that is drawn and, on save, sent to the backend. */
+  readonly vertices = computed(() =>
+    toVertices(this._state().dimensions, this._state().shape),
+  );
+
+  /** Cotas the current shape actually uses: a rectangle ignores base and right side. */
+  readonly cotasVisibles = computed(() => {
+    const shape = this._state().shape;
+    return {
+      topM: shape === 'rectangulo' ? 'Largo' : 'Largo Superior',
+      bottomM: shape !== 'rectangulo',
+      leftM: shape === 'rectangulo' ? 'Alto' : 'Lateral Izq. (Alto)',
+      rightM: shape !== 'rectangulo',
+    };
   });
 
   readonly desnivelM = computed(() =>
@@ -247,7 +262,7 @@ export class TerrainStore {
     return {
       nombre_parcela: state.name.trim() || 'Mi parcela',
       forma: FORMA_API[state.shape],
-      vertices: toVertices(state.dimensions),
+      vertices: toVertices(state.dimensions, state.shape),
       suelo_codigo: state.soil,
       pendiente_pct: state.slopePct,
       fuente_agua: state.waterSource,

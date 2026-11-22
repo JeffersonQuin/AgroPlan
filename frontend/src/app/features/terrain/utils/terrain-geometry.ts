@@ -1,4 +1,4 @@
-import { TerrainDimensions, TerrainMetrics } from '../models/terrain.model';
+import { ParcelShape, TerrainDimensions, TerrainMetrics } from '../models/terrain.model';
 
 /**
  * Reference geometry shown by the mockup on first load.
@@ -25,21 +25,43 @@ export const REFERENCE_DIMENSIONS: TerrainDimensions = {
  * Closes the parcel as top → right side → diagonal → bottom → left side and
  * measures it with the shoelace formula.
  */
+/** A vertex of the parcel, in metres, with the origin at the bottom-left corner. */
+export interface Vertice { x: number; y: number; }
+
 /**
- * Vertices the backend receives: the same figure `calculateMetrics` measures, so
- * the area the API returns matches what the wizard previewed.
+ * Vertices the backend receives, for the chosen shape:
+ *
+ * - ``rectangulo`` — four sides from the top length and the left height;
+ * - ``trapecio`` — the mockup's five-point figure, closed with a diagonal;
+ * - ``libre`` — same figure as the trapezoid until the free drawing lands.
+ *
+ * It is the same figure ``calculateMetrics`` measures, so the area the API
+ * returns matches what the wizard previewed.
  */
-export function toVertices({ topM, bottomM, leftM, rightM }: TerrainDimensions) {
-  const left = Math.max(leftM, 0);
-  const right = Math.min(Math.max(rightM, 0), left);
-  const top = Math.max(topM, 0);
-  const bottom = Math.max(bottomM, 0);
+export function toVertices(
+  { topM, bottomM, leftM, rightM }: TerrainDimensions,
+  shape: ParcelShape,
+): Vertice[] {
+  const izquierda = Math.max(leftM, 0);
+  const arriba = Math.max(topM, 0);
+
+  if (shape === 'rectangulo') {
+    return [
+      { x: 0, y: 0 },
+      { x: arriba, y: 0 },
+      { x: arriba, y: izquierda },
+      { x: 0, y: izquierda },
+    ];
+  }
+
+  const derecha = Math.min(Math.max(rightM, 0), izquierda);
+  const abajo = Math.max(bottomM, 0);
 
   return [
-    { x: 0, y: left },
-    { x: top, y: left },
-    { x: top, y: left - right },
-    { x: bottom, y: 0 },
+    { x: 0, y: izquierda },
+    { x: arriba, y: izquierda },
+    { x: arriba, y: izquierda - derecha },
+    { x: abajo, y: 0 },
     { x: 0, y: 0 },
   ];
 }
@@ -48,7 +70,15 @@ export function toVertices({ topM, bottomM, leftM, rightM }: TerrainDimensions) 
  * Rebuilds the four cotas from a saved polygon, so re-entering step 1 shows the
  * parcel the user defined instead of the mockup reference.
  */
-export function fromVertices(vertices: ReadonlyArray<{ x: number; y: number }>): TerrainDimensions | null {
+export function fromVertices(
+  vertices: ReadonlyArray<{ x: number; y: number }>,
+): TerrainDimensions | null {
+  if (vertices.length === 4) {
+    const alto = Math.max(...vertices.map((vertice) => vertice.y));
+    const largo = Math.max(...vertices.map((vertice) => vertice.x));
+    return { topM: largo, bottomM: largo, leftM: alto, rightM: alto };
+  }
+
   if (vertices.length !== 5) return null;
 
   const ys = vertices.map((vertex) => vertex.y);
@@ -64,7 +94,20 @@ export function fromVertices(vertices: ReadonlyArray<{ x: number; y: number }>):
   };
 }
 
-export function calculateMetrics({ topM, bottomM, leftM, rightM }: TerrainDimensions) {
+export function calculateMetrics(
+  { topM, bottomM, leftM, rightM }: TerrainDimensions,
+  shape: ParcelShape = 'trapecio',
+) {
+  if (shape === 'rectangulo') {
+    const largo = Math.max(topM, 0);
+    const alto = Math.max(leftM, 0);
+    return {
+      areaM2: round(largo * alto, 2),
+      perimeterM: round(2 * (largo + alto), 2),
+      diagonalM: round(Math.hypot(largo, alto), 2),
+    };
+  }
+
   const left = Math.max(leftM, 0);
   const right = Math.max(rightM, 0);
   const top = Math.max(topM, 0);

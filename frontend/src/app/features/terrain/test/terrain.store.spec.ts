@@ -9,17 +9,31 @@ describe('TerrainStore', () => {
     store = TestBed.inject(TerrainStore);
   });
 
-  it('starts with the mockup reference values', () => {
+  it('starts from the cotas of the mockup, measured for real', () => {
     expect(store.name()).toBe('Mi parcela');
     expect(store.shape()).toBe('trapecio');
-    expect(store.areaHaLabel()).toBe('0.32 ha');
-    expect(store.areaSqMLabel()).toBe('(3,200 m²)');
-    expect(store.perimeterLabel()).toBe('172.4 m');
+    // Las cotas del diseño dan 2.100 m², no los 3.200 que mostraba el mockup.
+    expect(store.areaHaLabel()).toBe('0.21 ha');
+    expect(store.areaSqMLabel()).toBe('(2,100 m²)');
+    expect(store.perimeterLabel()).toBe('186.1 m');
     expect(store.verticesLabel()).toBe('4 lados (trapecio)');
-    expect(store.diagonalLabel()).toBe('42.40 m');
+    expect(store.diagonalLabel()).toBe('36.06 m');
     expect(store.desnivelLabel()).toBe('0.60 m (1% pend.)');
     expect(store.slopeLabel()).toBe('1.0 %');
     expect(store.infiltrationLabel()).toBe('Infiltración: 15-25 mm/h');
+  });
+
+  it('draws the same figure it sends to the backend', () => {
+    expect(store.vertices().length).toBe(5);
+
+    store.setShape('rectangulo');
+
+    expect(store.vertices().length).toBe(4);
+    expect(store.aPayload().vertices.length).toBe(4);
+    expect(store.aPayload().forma).toBe('rectangulo');
+    expect(store.metrics().areaM2).toBe(2400);
+    expect(store.cotasVisibles().bottomM).toBe(false);
+    expect(store.cotasVisibles().rightM).toBe(false);
   });
 
   it('replaces the reference metrics with real geometry when a cota changes', () => {
