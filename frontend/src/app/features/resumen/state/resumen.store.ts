@@ -100,6 +100,7 @@ export class ResumenStore {
   private readonly _estadoCorrida = signal<string | null>(null);
   private readonly _faseCorrida = signal<string | null>(null);
   private readonly _faseDesdeCorrida = signal<string | null>(null);
+  private readonly _timeoutCorrida = signal<number | null>(null);
   private readonly _descargandoPdf = signal(false);
   private readonly _errorPdf = signal<string | null>(null);
 
@@ -121,6 +122,13 @@ export class ResumenStore {
    */
   readonly faseCorrida = this._faseCorrida.asReadonly();
   readonly faseDesdeCorrida = this._faseDesdeCorrida.asReadonly();
+  /**
+   * Presupuesto de espera del modelo en segundos, tal como lo publica el backend.
+   *
+   * `null` mientras no llegó el detalle o en corridas viejas: la pantalla muestra
+   * entonces el cronómetro sin techo.
+   */
+  readonly timeoutCorrida = this._timeoutCorrida.asReadonly();
   readonly descargandoPdf = this._descargandoPdf.asReadonly();
   readonly errorPdf = this._errorPdf.asReadonly();
 
@@ -266,6 +274,7 @@ export class ResumenStore {
     this._estadoCorrida.set(null);
     this._faseCorrida.set(null);
     this._faseDesdeCorrida.set(null);
+    this._timeoutCorrida.set(null);
     this._corridaId.set(null);
 
     this.cultivosApi
@@ -368,6 +377,7 @@ export class ResumenStore {
     this._estadoCorrida.set(detalle.estado);
     this._faseCorrida.set(detalle.fase ?? null);
     this._faseDesdeCorrida.set(detalle.fase_desde ?? null);
+    this._timeoutCorrida.set(detalle.timeout_s ?? null);
     if (!CORRIDA_TERMINAL.includes(detalle.estado)) return;
 
     if (detalle.estado !== 'ok') {
@@ -411,6 +421,7 @@ export class ResumenStore {
     this._estadoCorrida.set(null);
     this._faseCorrida.set(null);
     this._faseDesdeCorrida.set(null);
+    this._timeoutCorrida.set(null);
     this._corridaId.set(null);
     this._estado.set('informe');
   }

@@ -480,6 +480,10 @@ class CorridaOut(BaseModel):
     frontend cronometra desde ``fase_desde``, así recargar la página no reinicia ni
     infla el conteo. Las corridas viejas, anteriores a estas columnas, llegan con
     ``None`` en las dos.
+
+    ``timeout_s`` es el presupuesto de espera del modelo (``AGENTE_TIMEOUT_S``): el
+    frontend lo muestra al lado del cronómetro para que la espera tenga un techo
+    conocido. Los consumidores viejos lo pueden ignorar sin romperse.
     """
 
     model_config = ConfigDict(from_attributes=True)
@@ -489,6 +493,7 @@ class CorridaOut(BaseModel):
     estado: str
     fase: str | None = None
     fase_desde: datetime | None = None
+    timeout_s: int | None = None
     modelo: str | None = None
     motor_version: str
     prompt_version: str

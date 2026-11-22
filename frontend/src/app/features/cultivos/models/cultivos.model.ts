@@ -170,4 +170,11 @@ export interface CorridaDetalleApi {
    */
   fase?: string | null;
   fase_desde?: string | null;
+  /**
+   * Presupuesto de espera del modelo en segundos (`AGENTE_TIMEOUT_S`).
+   *
+   * Es aditivo: las corridas viejas o los backends sin el campo llegan con `null` (o
+   * sin la clave) y la pantalla simplemente no muestra el techo (S2).
+   */
+  timeout_s?: number | null;
 }

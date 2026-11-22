@@ -162,7 +162,7 @@ def _disparar(
 
     propuesta = _propuesta(materiales)
 
-    def agente_falso(_contexto):
+    def agente_falso(_contexto, on_fase=None):
         return ResultadoAgente(
             propuesta=propuesta.model_copy(deep=True),
             fuentes=[],

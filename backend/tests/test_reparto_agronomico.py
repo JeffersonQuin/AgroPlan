@@ -671,7 +671,7 @@ def test_en_modo_llm_manda_el_area_del_agente(
     monkeypatch.setattr(settings, "AGENTE_MODO", "llm", raising=False)
     monkeypatch.setattr(settings, "AGENTE_API_KEY", "sk-prueba", raising=False)
     monkeypatch.setattr(
-        agente_cliente, "_propuesta_llm", lambda _contexto: (cruda, 10, 20)
+        agente_cliente, "_propuesta_llm", lambda _contexto, on_fase=None: (cruda, 10, 20)
     )
 
     proyecto_id = _proyecto(cliente)

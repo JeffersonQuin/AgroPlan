@@ -23,6 +23,7 @@ from app.agente import ejecutar as ejecutar_agente
 from app.agente import fichas as fichas_agente
 from app.agente.cliente import MODO_CATALOGO_ADVERTENCIA
 from app.agente.validacion import repartir_porcentajes
+from app.core.config import settings
 from app.models.agente import AgenteCorrida, AgenteFuente, AgenteRecomendacion
 from app.models.enums import (
     EstadoCorrida,
@@ -1125,7 +1126,14 @@ def ejecutar_corrida(db: Session, corrida_id: uuid.UUID, proyecto_id: uuid.UUID)
         entrada = EntradaAgente.model_validate(corrida.entrada)
         contexto = _contexto_desde_corrida(db, proyecto, entrada)
         corrida = _marcar_fase(db, corrida, FASE_MODELO)
-        resultado = ejecutar_agente(contexto)
+
+        def on_fase(fase: str) -> None:
+            # ``_marcar_fase`` devuelve la corrida refrescada: se guarda acá para no
+            # perder la fase recién escrita (ni su ``fase_desde``) al seguir el flujo.
+            nonlocal corrida
+            corrida = _marcar_fase(db, corrida, fase)
+
+        resultado = ejecutar_agente(contexto, on_fase=on_fase)
         # El modelo ya devolvió: acá el backend empieza a sanear la propuesta. La
         # corrección interna de ``agente.validacion`` viaja dentro de la fase del
         # modelo; lo que sigue es el saneo/reparto del servicio.
@@ -1335,7 +1343,9 @@ def aplicar_corrida(
 
 def listar_corridas(db: Session, proyecto: Proyecto) -> list[CorridaOut]:
     return [
-        CorridaOut.model_validate(corrida)
+        CorridaOut.model_validate(corrida).model_copy(
+            update={"timeout_s": int(settings.AGENTE_TIMEOUT_S)}
+        )
         for corrida in agente_corrida_repo.list_by_proyecto(db, proyecto.id)
     ]
 
@@ -1357,7 +1367,13 @@ def obtener_corrida(
     ]
     detalle = CorridaDetalleOut.model_validate(corrida)
     return detalle.model_copy(
-        update={"fuentes": fuentes, "recomendaciones": recomendaciones}
+        update={
+            # El presupuesto de espera del modelo viaja con la corrida: el frontend lo
+            # muestra al lado del cronómetro en vez de inventar un porcentaje.
+            "timeout_s": int(settings.AGENTE_TIMEOUT_S),
+            "fuentes": fuentes,
+            "recomendaciones": recomendaciones,
+        }
     )
 
 
