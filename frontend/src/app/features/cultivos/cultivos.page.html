@@ -6,14 +6,14 @@
   />
 
   <main
-    class="flex-1 p-4 grid grid-cols-1 lg:grid-cols-[300px_1fr_320px] gap-4 max-w-[1920px] mx-auto w-full items-start overflow-hidden"
+    class="flex-1 w-full max-w-[1920px] mx-auto grid grid-cols-1 lg:grid-cols-[300px_1fr_320px] items-start gap-space-md sm:gap-space-lg lg:gap-space-xl p-space-md sm:p-space-lg lg:p-space-xl"
   >
-    <app-cultivo-form />
+    <app-cultivo-form class="min-w-0" />
 
-    <div class="flex flex-col gap-3 min-h-[460px]">
+    <div class="flex flex-col gap-3 min-h-[260px] sm:min-h-[360px] lg:min-h-[460px] min-w-0">
       <!-- Cabecera del proyecto -->
       <div
-        class="bg-white rounded-xl border border-agro-border px-4 py-2.5 shadow-sm flex items-center justify-between gap-3"
+        class="bg-white rounded-xl border border-agro-border px-4 py-2.5 shadow-sm flex flex-wrap items-center justify-between gap-x-3 gap-y-1"
       >
         <div class="flex items-center gap-2 min-w-0">
           <ng-icon class="text-agro-600" name="matLocationOnOutline" size="18" aria-hidden="true" />
@@ -21,7 +21,7 @@
             {{ store.nombreProyecto() }} ({{ store.areaM2() }} m²)
           </span>
         </div>
-        <div class="text-[11px] text-slate-500 shrink-0">
+        <div class="text-[11px] text-slate-500 min-w-0">
           Capacidad hidráulica de referencia:
           <strong class="text-slate-800">{{ store.caudalM3h() }} m³/h</strong>
           @if (store.sueloCodigo()) {
@@ -33,7 +33,7 @@
       <!-- Productos elegidos: ocupan el centro, con el detalle diferido al resumen -->
       @if (borrador.vacio()) {
         <div
-          class="flex-1 min-h-[360px] rounded-xl border-2 border-dashed border-slate-300 bg-white/60 flex flex-col items-center justify-center text-center p-8"
+          class="flex-1 min-h-[220px] sm:min-h-[280px] lg:min-h-[360px] rounded-xl border-2 border-dashed border-slate-300 bg-white/60 flex flex-col items-center justify-center text-center p-space-md sm:p-space-lg lg:p-space-xl"
         >
           <ng-icon
             class="text-slate-300"
@@ -108,16 +108,16 @@
       }
 
       <!-- Navegación del wizard -->
-      <div class="flex items-center justify-between gap-3">
+      <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
         <a
-          class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-slate-300 text-slate-700 text-xs font-semibold hover:bg-slate-50"
+          class="inline-flex w-full items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg border border-slate-300 text-slate-700 text-xs font-semibold hover:bg-slate-50 sm:w-auto"
           [routerLink]="['/proyectos', proyectoId(), 'terreno']"
         >
           <ng-icon name="matArrowBackOutline" size="16" aria-hidden="true" />
           Volver a Terreno
         </a>
         <a
-          class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-agro-500 hover:bg-agro-600 text-white text-xs font-bold"
+          class="inline-flex w-full items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-agro-500 hover:bg-agro-600 text-white text-xs font-bold sm:w-auto"
           [routerLink]="['/proyectos', proyectoId(), 'riego']"
         >
           A Sistema
@@ -126,6 +126,6 @@
       </div>
     </div>
 
-    <app-cultivos-panel />
+    <app-cultivos-panel class="min-w-0" />
   </main>
 </div>
