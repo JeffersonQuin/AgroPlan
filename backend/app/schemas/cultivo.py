@@ -8,6 +8,7 @@ casos el área la calcula el backend a partir de la geometría.
 import uuid
 from datetime import date
 from enum import StrEnum
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -31,7 +32,11 @@ class BloqueCultivoCreate(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    cultivo_codigo: str = Field(min_length=2, max_length=30)
+    # Uno de los dos: el código del catálogo o el producto tal como lo escribió el
+    # usuario. Con ``producto_texto`` el backend investiga (ficha curada primero,
+    # web como respaldo) y da de alta la ficha si no existía.
+    cultivo_codigo: str | None = Field(default=None, min_length=2, max_length=30)
+    producto_texto: str | None = Field(default=None, min_length=2, max_length=60)
     etiqueta: str | None = Field(default=None, max_length=60)
     siembra: date | None = None
     cosecha: date | None = None
@@ -39,6 +44,14 @@ class BloqueCultivoCreate(BaseModel):
     modo: ModoReparto = ModoReparto.PORCENTAJE
     porcentaje: float | None = Field(default=None, gt=0, le=100)
     poligono: Poligono | None = None
+
+    @model_validator(mode="after")
+    def _exigir_producto(self) -> "BloqueCultivoCreate":
+        if bool(self.cultivo_codigo) == bool(self.producto_texto):
+            raise ValueError(
+                "Indicá 'cultivo_codigo' o 'producto_texto', nunca los dos ni ninguno."
+            )
+        return self
 
     @model_validator(mode="after")
     def _exigir_dato_del_modo(self) -> "BloqueCultivoCreate":
@@ -62,8 +75,21 @@ class BloqueCultivoUpdate(BaseModel):
     poligono: Poligono | None = None
 
 
+class AptitudSuelo(BaseModel):
+    """Veredicto del cultivo sobre el suelo del terreno.
+
+    Es informativo: el suelo nunca bloquea el avance del paso 2, porque un cultivo
+    puede crecer fuera de su suelo ideal con otro manejo. ``None`` en el bloque
+    significa que no sabemos (ni la ficha ni la investigación traen ese suelo).
+    """
+
+    veredicto: Literal["apto", "condicionado", "no_apto"]
+    motivo: str | None = None
+    fuente: str | None = None
+
+
 class BloqueCultivoOut(BaseModel):
-    """Bloque persistido, con el área ya derivada."""
+    """Bloque persistido, con el área derivada y todo lo que muestra el paso 2."""
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -77,6 +103,14 @@ class BloqueCultivoOut(BaseModel):
     demanda_l_m2_dia: float
     orden: int
     origen: OrigenBloque
+    # Derivados por el backend para que el front no calcule nada.
+    porcentaje: float = 0.0
+    demanda_total_l_dia: float = 0.0
+    ciclo_dias: int | None = None
+    kc: float | None = None
+    dias_a_cosecha: int | None = None
+    aptitud_suelo: AptitudSuelo | None = None
+    advertencias: list[Advertencia] = Field(default_factory=list)
 
 
 class CicloCultivo(BaseModel):
@@ -110,7 +144,12 @@ class BalanceArea(BaseModel):
 
 
 class CultivoRespuesta(BaseModel):
-    """Respuesta de cualquier escritura del paso 2: el bloque y el balance completo."""
+    """Respuesta de cualquier escritura del paso 2: el bloque y el balance completo.
+
+    ``advertencias`` trae lo que pasó con la ficha del cultivo: ``CULTIVO_INVESTIGADO``
+    (el agente la creó y requiere revisión) o ``PRODUCTO_NO_RECONOCIDO``.
+    """
 
     bloque: BloqueCultivoOut
     balance: BalanceArea
+    advertencias: list[Advertencia] = Field(default_factory=list)

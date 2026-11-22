@@ -1,5 +1,5 @@
 <div
-  class="absolute inset-0 bg-on-surface/40 backdrop-blur-xs"
+  class="fixed inset-0 bg-on-surface/40 backdrop-blur-xs"
   (click)="close.emit()"
   aria-hidden="true"
 ></div>
@@ -10,11 +10,11 @@
   aria-modal="true"
   aria-labelledby="new-project-title"
 >
-  <div class="flex items-center justify-between px-space-lg py-space-md border-b border-outline-variant/40">
+  <div
+    class="flex items-center justify-between px-space-lg py-space-md border-b border-outline-variant/40"
+  >
     <div class="flex items-center gap-2">
-      <span class="material-symbols-outlined text-[20px] text-primary" aria-hidden="true"
-        >add_location_alt</span
-      >
+      <ng-icon class="text-primary" name="matAddLocationAltOutline" size="20" aria-hidden="true" />
       <h2 id="new-project-title" class="text-headline-md text-on-surface">
         Nuevo proyecto agrícola
       </h2>
@@ -25,7 +25,7 @@
       aria-label="Cerrar ventana"
       (click)="close.emit()"
     >
-      <span class="material-symbols-outlined text-[20px]" aria-hidden="true">close</span>
+      <ng-icon name="matCloseOutline" size="20" aria-hidden="true" />
     </button>
   </div>
 
@@ -35,9 +35,7 @@
         <label class="text-label-md text-on-surface" for="projectName">
           Nombre del proyecto / parcela
         </label>
-        <span class="text-label-sm text-outline">
-          {{ nameLength() }} / {{ nameMaxLength }}
-        </span>
+        <span class="text-label-sm text-outline"> {{ nameLength() }} / {{ nameMaxLength }} </span>
       </div>
       <input
         id="projectName"
@@ -62,11 +60,12 @@
     <div class="space-y-1">
       <label class="text-label-md text-on-surface" for="projectLocation">Ubicación / Zona</label>
       <div class="relative">
-        <span
-          class="material-symbols-outlined absolute left-3 top-2.5 text-outline text-[20px]"
+        <ng-icon
+          class="absolute left-3 top-2.5 text-outline"
+          name="matLocationOnOutline"
+          size="20"
           aria-hidden="true"
-          >location_on</span
-        >
+        />
         <input
           id="projectLocation"
           type="text"
@@ -80,7 +79,7 @@
 
     <div class="space-y-1">
       <span class="text-label-md text-on-surface">Unidad de medida predeterminada</span>
-      <div class="grid grid-cols-2 gap-space-sm">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-space-sm">
         <button
           class="flex flex-col items-start px-space-md py-2 rounded-lg border text-left transition-colors"
           [class]="
@@ -113,9 +112,12 @@
     </div>
 
     <div class="flex items-start gap-space-xs bg-surface-container-low rounded-lg p-space-sm">
-      <span class="material-symbols-outlined text-[18px] text-tertiary-container" aria-hidden="true"
-        >lightbulb</span
-      >
+      <ng-icon
+        class="text-tertiary-container"
+        name="matLightbulbOutline"
+        size="18"
+        aria-hidden="true"
+      />
       <p class="text-body-sm text-on-surface-variant">
         Después del alta vas al
         <strong class="text-on-surface">Paso 1 (Terreno)</strong> para ingresar las coordenadas,
@@ -123,20 +125,33 @@
       </p>
     </div>
 
-    <div class="flex items-center justify-end gap-space-sm pt-space-xs">
+    @if (error(); as mensaje) {
+      <p
+        class="text-label-md text-error bg-error-container/40 border border-error/30 rounded-lg px-space-sm py-2"
+        role="alert"
+      >
+        {{ mensaje }}
+      </p>
+    }
+
+    <div
+      class="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-space-sm pt-space-xs"
+    >
       <button
-        class="px-space-lg py-2.5 rounded-lg text-label-md text-on-surface-variant hover:bg-surface-container-low transition-colors"
+        class="w-full sm:w-auto px-space-lg py-2.5 rounded-lg text-label-md text-on-surface-variant hover:bg-surface-container-low transition-colors disabled:opacity-50"
         type="button"
+        [disabled]="submitting()"
         (click)="close.emit()"
       >
         Cancelar
       </button>
       <button
-        class="inline-flex items-center gap-space-xs bg-primary-container hover:bg-primary text-on-primary text-label-md px-space-lg py-2.5 rounded-lg transition-all shadow-sm"
+        class="w-full sm:w-auto inline-flex items-center justify-center gap-space-xs bg-primary-container hover:bg-primary text-on-primary text-label-md px-space-lg py-2.5 rounded-lg transition-all shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
         type="submit"
+        [disabled]="submitting()"
       >
-        Crear y pasar al Terreno (Paso 1)
-        <span class="material-symbols-outlined text-[18px]" aria-hidden="true">arrow_forward</span>
+        {{ submitting() ? 'Creando…' : 'Crear y pasar al Terreno (Paso 1)' }}
+        <ng-icon name="matArrowForwardOutline" size="18" aria-hidden="true" />
       </button>
     </div>
   </form>

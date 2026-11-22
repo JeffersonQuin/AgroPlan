@@ -1,0 +1,81 @@
+{
+  "codigo": "maiz",
+  "nombre": "Maiz",
+  "icono": "M",
+  "color": "#FBC02D",
+  "demanda_agua_l_m2_dia": 4.0,
+  "ciclo_dias": 140,
+  "meses_siembra": [
+    3,
+    4,
+    9,
+    10
+  ],
+  "notas": "Alta demanda en floración; requiere suelos profundos y buen drenaje.",
+  "imagen": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/ce/Starr-200723-7945-Zea_mays-Hawaiian_Supersweet_10_harvested_cobs-Hawea_Pl_Olinda-Maui_%2850336256246%29.jpg/1280px-Starr-200723-7945-Zea_mays-Hawaiian_Supersweet_10_harvested_cobs-Hawea_Pl_Olinda-Maui_(50336256246).jpg",
+  "imagen_fuente": "https://commons.wikimedia.org/wiki/File:Starr-200723-7945-Zea_mays-Hawaiian_Supersweet_10_harvested_cobs-Hawea_Pl_Olinda-Maui_(50336256246).jpg",
+  "fuentes": [
+    {
+      "tipo": "manual",
+      "titulo": "Ficha técnica curada AgroPlan",
+      "url": null,
+      "fragmento": "Demanda y ciclo del catálogo base"
+    }
+  ],
+  "kc": 1.2,
+  "densidad_plantas_m2": 7.0,
+  "profundidad_raiz_cm": 80,
+  "aptitud_suelo": {
+    "franco": {
+      "veredicto": "apto",
+      "motivo": "Perfil profundo y equilibrado para el sistema radical.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "arenoso": {
+      "veredicto": "condicionado",
+      "motivo": "Requiere riegos más frecuentes por baja retención.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "arcilloso": {
+      "veredicto": "condicionado",
+      "motivo": "Drenaje lento: riesgo de anegamiento temprano.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "limoso": {
+      "veredicto": "apto",
+      "motivo": "Buena reserva de agua para el ciclo.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "franco_arenoso": {
+      "veredicto": "apto",
+      "motivo": "Buen perfil para el sistema radical.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "franco_arcilloso": {
+      "veredicto": "apto",
+      "motivo": "Retiene agua para el ciclo largo.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "salino": {
+      "veredicto": "condicionado",
+      "motivo": "Tolera algo de sal, con rendimiento menor.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "calcareo": {
+      "veredicto": "condicionado",
+      "motivo": "Vigilar zinc y hierro.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "pedregoso": {
+      "veredicto": "condicionado",
+      "motivo": "Raíz profunda: piedras en el perfil limitan.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "organico": {
+      "veredicto": "apto",
+      "motivo": "Buena fertilidad; cuidado con el exceso de nitrógeno.",
+      "fuente": "Ficha curada AgroPlan"
+    }
+  },
+  "imagen_credito": "Foto: Forest and Kim Starr / Wikimedia Commons, CC BY 2.0"
+}

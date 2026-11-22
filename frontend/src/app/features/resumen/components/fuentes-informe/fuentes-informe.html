@@ -1,0 +1,40 @@
+<section
+  class="bg-white rounded-xl border border-agro-border p-4 shadow-sm flex flex-col gap-2.5"
+  data-seccion-fuentes
+>
+  <h2 class="text-sm font-bold text-slate-800">Fuentes Consultadas</h2>
+
+  @if (fuentes().length === 0) {
+    <p class="text-[11px] text-slate-500">
+      Fuentes consultadas: <span class="text-slate-400">no informado</span>.
+    </p>
+  } @else {
+    <ul class="flex flex-col gap-2 text-[11px]">
+      @for (fuente of fuentes(); track fuente.id) {
+        <li class="flex flex-col gap-0.5" data-fuente>
+          <div class="flex items-center justify-between gap-2">
+            <span class="font-bold text-slate-800 truncate">{{ titulo(fuente) }}</span>
+            <span
+              class="text-[9px] font-bold uppercase tracking-wide text-slate-400 shrink-0"
+            >
+              {{ fuente.tipo }}
+            </span>
+          </div>
+          @if (fuente.url !== null) {
+            <a
+              class="text-agro-700 hover:text-agro-800 hover:underline truncate"
+              [href]="fuente.url"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              {{ fuente.url }}
+            </a>
+          }
+          <span class="text-[9.5px] text-slate-400">
+            Recuperada el {{ formatearFecha(fuente.recuperado_en) }}
+          </span>
+        </li>
+      }
+    </ul>
+  }
+</section>

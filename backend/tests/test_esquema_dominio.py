@@ -31,6 +31,7 @@ TABLAS_NUEVAS = {
     "agente_fuentes",
     "agente_recomendaciones",
     "cultivos",
+    "materiales_precio",
     "proyecto_cultivos",
     "proyectos",
     "red_nodos",
@@ -88,7 +89,13 @@ def test_catalogo_sembrado(base_url):  # T5
         assert sesion.query(Cultivo).count() == 8
         papa = sesion.get(Cultivo, "papa")
         assert papa.meses_siembra == [3, 9, 10, 11]
-        assert sesion.execute(sa.text("select count(*) from suelos")).scalar_one() == 4
+        # 4 suelos de la textura básica + 6 de las zonas productivas de Bolivia.
+    assert sesion.execute(sa.text("select count(*) from suelos")).scalar_one() == 10
+    assert sesion.execute(
+        sa.text("select count(*) from suelos where codigo in "
+                "('franco_arenoso', 'franco_arcilloso', 'salino', 'calcareo', "
+                "'pedregoso', 'organico')")
+    ).scalar_one() == 6
 
 
 def test_check_caudal_coherente(base_url, ruta_db):  # S2
@@ -158,7 +165,7 @@ def test_ddl_postgresql_portable(tmp_path, monkeypatch):  # S9
     with salida.open("w") as destino, contextlib.redirect_stdout(destino):
         command.upgrade(_cfg(), "head", sql=True)
     sql = salida.read_text()
-    assert sql.count("CREATE TABLE") == 15
+    assert sql.count("CREATE TABLE") == 16
     assert "JSONB" in sql and "UUID" in sql
     assert "ARRAY" not in sql and "gen_random_uuid" not in sql
 

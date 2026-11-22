@@ -9,6 +9,9 @@ from sqlalchemy.pool import StaticPool
 
 # Ensure test settings before importing app modules that read settings.
 os.environ.setdefault("DATABASE_URL", "sqlite+pysqlite:///:memory:")
+# La suite nunca llama al modelo: con la clave vacía el agente corre en modo catálogo,
+# que es determinístico y no cuesta tokens. Las variables de entorno ganan sobre .env.
+os.environ["AGENTE_API_KEY"] = ""
 os.environ.setdefault("JWT_SECRET", "test-secret")
 os.environ.setdefault("GOOGLE_CLIENT_ID", "test-google-client-id")
 

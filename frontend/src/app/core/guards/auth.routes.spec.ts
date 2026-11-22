@@ -15,7 +15,7 @@ describe('route protection', () => {
   afterEach(() => localStorage.clear());
 
   it('guards the projects and terrain routes', () => {
-    for (const path of ['projects', 'terreno']) {
+    for (const path of ['projects', 'proyectos/:proyectoId/terreno']) {
       const route = routes.find((candidate) => candidate.path === path);
       expect(route?.canActivate).toEqual([authGuard]);
     }
@@ -45,9 +45,11 @@ describe('route protection', () => {
     TestBed.configureTestingModule({ providers: [provideRouter(routes)] });
     const router = TestBed.inject(Router);
 
-    await router.navigateByUrl('/terreno');
+    await router.navigateByUrl('/proyectos/p-1/terreno');
 
     expect(router.url.startsWith('/login')).toBe(true);
-    expect(new URL('http://x' + router.url).searchParams.get('returnUrl')).toBe('/terreno');
+    expect(new URL('http://x' + router.url).searchParams.get('returnUrl')).toBe(
+      '/proyectos/p-1/terreno',
+    );
   });
 });

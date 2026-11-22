@@ -1,0 +1,190 @@
+<div class="bg-agro-surface text-slate-800 font-sans min-h-screen flex flex-col antialiased">
+  <app-wizard-header
+    [paso]="3"
+    [nombreProyecto]="store.nombreProyecto()"
+    [estadoGuardado]="'Restricciones del paso 3'"
+  />
+
+  <main
+    class="flex-1 w-full max-w-[1920px] mx-auto grid grid-cols-1 lg:grid-cols-[300px_1fr_320px] items-start gap-space-md sm:gap-space-lg lg:gap-space-xl p-space-md sm:p-space-lg lg:p-space-xl"
+  >
+    <app-riego-form class="min-w-0" />
+
+    <div class="flex flex-col gap-space-md sm:gap-space-lg min-w-0 min-h-[320px] sm:min-h-[400px] lg:min-h-[460px]">
+      <!-- Cabecera del proyecto -->
+      <div
+        class="bg-white rounded-xl border border-agro-border px-4 py-2.5 shadow-sm flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5"
+      >
+        <div class="flex items-center gap-2 min-w-0">
+          <ng-icon class="text-agro-600" name="matLocationOnOutline" size="18" aria-hidden="true" />
+          <span class="text-xs font-bold text-slate-800 truncate">
+            {{ store.nombreProyecto() }} ({{ store.areaM2() }} m²)
+          </span>
+        </div>
+        <div class="text-[11px] text-slate-500 min-w-0">
+          Fuente del paso 1:
+          <strong class="text-slate-800">{{ store.fuenteLabel() }}</strong>
+          · {{ store.caudalM3h() }} m³/h
+        </div>
+      </div>
+
+      <!-- Lo elegido en este paso -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <article class="bg-white rounded-xl border border-agro-border p-4 shadow-sm">
+          <ng-icon class="text-agro-600" name="matBoltOutline" size="18" aria-hidden="true" />
+          <p class="text-[10px] font-bold uppercase tracking-wide text-slate-400 mt-1">Energía</p>
+          <p class="text-sm font-bold text-slate-800">
+            {{ borrador.energia() === 'solar' ? 'Solar' : 'Red eléctrica' }}
+          </p>
+        </article>
+
+        <article class="bg-white rounded-xl border border-agro-border p-4 shadow-sm">
+          <ng-icon class="text-agro-600" name="matWaterDropOutline" size="18" aria-hidden="true" />
+          <p class="text-[10px] font-bold uppercase tracking-wide text-slate-400 mt-1">
+            {{
+              store.fuenteEsDeposito() ? 'Capacidad del ' + store.fuenteDepositoLabel() : 'Tanque'
+            }}
+          </p>
+          @if (borrador.tanqueL() !== null) {
+            <p class="text-sm font-bold text-slate-800">{{ borrador.tanqueL() }} L</p>
+          } @else if (store.fuenteEsDeposito()) {
+            <p class="text-sm font-bold text-slate-500">Sin dato</p>
+          } @else {
+            <p class="text-sm font-bold text-slate-800">No tiene</p>
+          }
+        </article>
+
+        <article class="bg-white rounded-xl border border-agro-border p-4 shadow-sm">
+          <ng-icon class="text-agro-600" name="matPaymentsOutline" size="18" aria-hidden="true" />
+          <p class="text-[10px] font-bold uppercase tracking-wide text-slate-400 mt-1">
+            Presupuesto
+          </p>
+          @if (borrador.presupuestoEfectivo() !== null) {
+            <p class="text-sm font-bold text-slate-800">{{ borrador.presupuestoEfectivo() }} Bs</p>
+          } @else if (borrador.presupuestoBajoElPiso()) {
+            <p class="text-sm font-bold text-amber-700">No se manda (bajo el mínimo)</p>
+          } @else {
+            <p class="text-sm font-bold text-slate-500">Sin presupuesto</p>
+          }
+        </article>
+      </div>
+
+      <!-- Qué hace el agente con esto -->
+      <div class="lg:flex-1 bg-white rounded-xl border border-agro-border p-5 shadow-sm">
+        <h2 class="text-sm font-bold text-slate-800">El resumen final decide el sistema</h2>
+        <p class="text-[11px] text-slate-500 mt-1 max-w-xl leading-snug">
+          Este paso no consulta al agente ni calcula nada: sólo guarda lo que tenés disponible. El
+          sistema de riego más adecuado y el trazo de la red se generan una sola vez en el paso 4.
+        </p>
+
+        <ul class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-slate-600">
+          <li class="flex items-start gap-2">
+            <ng-icon
+              class="text-agro-600"
+              name="matCheckCircleOutline"
+              size="16"
+              aria-hidden="true"
+            />
+            Tecnología de riego y emisores
+          </li>
+          <li class="flex items-start gap-2">
+            <ng-icon
+              class="text-agro-600"
+              name="matCheckCircleOutline"
+              size="16"
+              aria-hidden="true"
+            />
+            Trazo de la red y diámetros de tubería
+          </li>
+          <li class="flex items-start gap-2">
+            <ng-icon
+              class="text-agro-600"
+              name="matCheckCircleOutline"
+              size="16"
+              aria-hidden="true"
+            />
+            Sectores, turnos y presión de trabajo
+          </li>
+          <li class="flex items-start gap-2">
+            <ng-icon
+              class="text-agro-600"
+              name="matCheckCircleOutline"
+              size="16"
+              aria-hidden="true"
+            />
+            Materiales dentro del presupuesto informado
+          </li>
+        </ul>
+      </div>
+
+      <!-- Navegación del wizard -->
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <a
+          class="inline-flex w-full sm:w-auto items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg border border-slate-300 text-slate-700 text-xs font-semibold hover:bg-slate-50"
+          [routerLink]="['/proyectos', proyectoId(), 'cultivos']"
+        >
+          <ng-icon name="matArrowBackOutline" size="16" aria-hidden="true" />
+          Volver a Cultivos
+        </a>
+        <a
+          class="inline-flex w-full sm:w-auto items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-agro-500 hover:bg-agro-600 text-white text-xs font-semibold shadow-sm shadow-emerald-700/20"
+          [routerLink]="['/proyectos', proyectoId(), 'resultado']"
+        >
+          Continuar a Resultado
+          <ng-icon name="matArrowForwardOutline" size="16" aria-hidden="true" />
+        </a>
+      </div>
+    </div>
+
+    <!-- Riel derecho: fuente de agua del paso 1 -->
+    <aside
+      class="flex flex-col gap-space-md sm:gap-space-lg min-w-0 custom-scrollbar lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:pl-0.5"
+    >
+      <div class="bg-white rounded-xl border border-agro-border p-4 shadow-sm">
+        <div class="flex items-center gap-2 pb-3 mb-3 border-b border-slate-100">
+          <ng-icon class="text-agro-600" name="matWaterOutline" size="20" aria-hidden="true" />
+          <div>
+            <h2 class="text-sm font-bold text-slate-800">Fuente de agua</h2>
+            <p class="text-[11px] text-slate-400">Cargada en el paso 1</p>
+          </div>
+        </div>
+
+        <dl class="text-[11px] flex flex-col gap-1.5">
+          <div class="flex justify-between gap-2">
+            <dt class="text-slate-500">Fuente</dt>
+            <dd class="font-bold text-slate-800">{{ store.fuenteLabel() }}</dd>
+          </div>
+          <div class="flex justify-between gap-2">
+            <dt class="text-slate-500">Caudal efectivo</dt>
+            <dd class="font-bold text-slate-800">{{ store.caudalM3h() }} m³/h</dd>
+          </div>
+          <div class="flex justify-between gap-2">
+            <dt class="text-slate-500">Área</dt>
+            <dd class="font-bold text-slate-800">{{ store.areaM2() }} m²</dd>
+          </div>
+        </dl>
+
+        @if (store.sinCaudal()) {
+          <p
+            class="mt-3 text-[10px] font-semibold text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-2 leading-snug"
+            role="alert"
+          >
+            El terreno no tiene caudal informado: el diseño va a quedar condicionado. Podés
+            completarlo en el paso 1.
+          </p>
+        } @else {
+          <p class="mt-3 text-[10px] text-slate-400 leading-snug">
+            El agente usa este caudal para repartir los sectores y los turnos.
+          </p>
+        }
+      </div>
+
+      <div
+        class="bg-white rounded-xl border border-dashed border-slate-300 p-4 text-[10px] text-slate-500 leading-snug"
+      >
+        Balance hidráulico, presión, autonomía y cómputo de materiales aparecen en el
+        <strong class="text-slate-700">resumen del paso 4</strong>, cuando el agente diseña la red.
+      </div>
+    </aside>
+  </main>
+</div>

@@ -23,11 +23,32 @@ export const routes: Routes = [
       import('./features/projects/projects.page').then((m) => m.ProjectsPage),
   },
   {
-    path: 'terreno',
+    path: 'proyectos/:proyectoId/terreno',
     title: 'Terreno · AgroPlan',
     canActivate: [authGuard],
     loadComponent: () =>
       import('./features/terrain/terrain.page').then((m) => m.TerrainPage),
+  },
+  {
+    path: 'proyectos/:proyectoId/cultivos',
+    title: 'Cultivos · AgroPlan',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/cultivos/cultivos.page').then((m) => m.CultivosPage),
+  },
+  {
+    path: 'proyectos/:proyectoId/riego',
+    title: 'Sistema de riego · AgroPlan',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/riego/riego.page').then((m) => m.RiegoPage),
+  },
+  {
+    path: 'proyectos/:proyectoId/resultado',
+    title: 'Informe · AgroPlan',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/resumen/resumen.page').then((m) => m.ResumenPage),
   },
   { path: '**', redirectTo: 'login' },
 ];

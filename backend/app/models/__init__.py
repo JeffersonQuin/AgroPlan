@@ -1,5 +1,6 @@
 from app.models.agente import AgenteCorrida, AgenteFuente, AgenteRecomendacion
 from app.models.catalogo import Cultivo, Suelo
+from app.models.material_precio import MaterialPrecio
 from app.models.proyecto import Proyecto, Terreno
 from app.models.proyecto_cultivo import ProyectoCultivo
 from app.models.riego import RedNodo, RedTramo, Sector, SectorBloque, SistemaRiego
@@ -12,6 +13,7 @@ __all__ = [
     "AgenteFuente",
     "AgenteRecomendacion",
     "Cultivo",
+    "MaterialPrecio",
     "Proyecto",
     "ProyectoCultivo",
     "RedNodo",

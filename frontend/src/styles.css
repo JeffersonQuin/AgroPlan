@@ -151,16 +151,6 @@
   }
 }
 
-/* Material Symbols helper, matching the icon set used by the mockup. */
-.material-symbols-outlined {
-  font-variation-settings:
-    'FILL' 0,
-    'wght' 400,
-    'GRAD' 0,
-    'opsz' 24;
-  user-select: none;
-}
-
 /* Technical CAD grid used by the wizard canvas. */
 .cad-grid {
   background-color: #fcfdfc;

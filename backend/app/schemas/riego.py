@@ -85,6 +85,15 @@ class SectoresIn(BaseModel):
     sectores: list[SectorIn] = Field(min_length=1, max_length=8)
 
 
+class SectorUpdate(BaseModel):
+    """Edición parcial de un sector ya generado."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    etiqueta: str | None = Field(default=None, max_length=60)
+    secuencia: int | None = Field(default=None, ge=1, le=8)
+
+
 class SectorOut(BaseModel):
     """Sector generado, con sus derivados hidráulicos."""
 
@@ -99,6 +108,26 @@ class SectorOut(BaseModel):
     caudal_m3h: float
     secuencia: int
     cultivo_ids: list[uuid.UUID] = Field(default_factory=list)
+
+
+class SectorBloqueIn(BaseModel):
+    """Alta de un bloque de cultivo dentro de un sector."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    proyecto_cultivo_id: uuid.UUID
+    area_m2: float = Field(gt=0)
+
+
+class SectorBloqueOut(BaseModel):
+    """Vínculo persistido entre un sector y un bloque de cultivo."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    sector_id: uuid.UUID
+    proyecto_cultivo_id: uuid.UUID
+    area_m2: float
 
 
 class TramoOut(BaseModel):
@@ -140,8 +169,11 @@ class EmisoresTramoOut(BaseModel):
 
 
 class ComputoOut(BaseModel):
-    """Cómputo rápido de materiales, derivado de la red."""
+    """Cómputo rápido de materiales, derivado de la red.
 
+    El motor solo computa estos tres rubros. Tanque, bomba y conexiones no se
+    calculan y no se contrastan contra la propuesta del agente (S3).
+    """
     tuberia_m: float
     goteros_u: int
     valvulas_u: int

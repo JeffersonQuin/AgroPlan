@@ -1,4 +1,7 @@
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { TerrainForm } from '../components/terrain-form/terrain-form';
 import { TerrainStore } from '../state/terrain.store';
 
@@ -6,7 +9,10 @@ describe('TerrainForm', () => {
   let store: TerrainStore;
 
   beforeEach(async () => {
-    await TestBed.configureTestingModule({ imports: [TerrainForm] }).compileComponents();
+    await TestBed.configureTestingModule({
+      imports: [TerrainForm],
+      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
+    }).compileComponents();
     store = TestBed.inject(TerrainStore);
   });
 
@@ -69,6 +75,17 @@ describe('TerrainForm', () => {
     expect(fixture.nativeElement.textContent).toContain(store.diagonalLabel());
   });
 
+  it('builds the soil options from the loaded catalogue', async () => {
+    const fixture = await render();
+
+    // Sin catálogo (la API no respondió) cae en la lista local de respaldo.
+    const opciones = Array.from(
+      fixture.nativeElement.querySelectorAll('#tipo-suelo option') as NodeListOf<HTMLOptionElement>,
+    ).map((opcion) => opcion.value);
+
+    expect(opciones).toEqual(['franco', 'arenoso', 'arcilloso', 'limoso']);
+  });
+
   it('updates the infiltration badge with the soil', async () => {
     const fixture = await render();
     const select = fixture.nativeElement.querySelector('#tipo-suelo') as HTMLSelectElement;
@@ -82,8 +99,32 @@ describe('TerrainForm', () => {
     expect(fixture.nativeElement.textContent).toContain('Infiltración: < 8 mm/h');
   });
 
+  it('shows the assumed slope first and reveals the control on demand', async () => {
+    const fixture = await render();
+
+    expect(fixture.nativeElement.textContent).toContain('Asumimos');
+    expect(fixture.nativeElement.querySelector('#pendiente-terreno')).toBeNull();
+
+    const conocer = Array.from(
+      fixture.nativeElement.querySelectorAll('button') as NodeListOf<HTMLButtonElement>,
+    ).find((button) => button.textContent?.includes('La conozco'))!;
+    conocer.click();
+    await fixture.whenStable();
+
+    expect(fixture.nativeElement.querySelector('#pendiente-terreno')).not.toBeNull();
+    expect(fixture.nativeElement.textContent).toContain('1.0 %');
+  });
+
   it('shows the slope badge and updates it from the range', async () => {
     const fixture = await render();
+    // La pendiente arranca asumida: hay que decir que la conocemos para ver el control.
+    Array.from(
+      fixture.nativeElement.querySelectorAll('button') as NodeListOf<HTMLButtonElement>,
+    )
+      .find((button) => button.textContent?.includes('La conozco'))!
+      .click();
+    await fixture.whenStable();
+
     const range = fixture.nativeElement.querySelector(
       'input[type="range"]',
     ) as HTMLInputElement;

@@ -1,23 +1,21 @@
-import { Component, inject } from '@angular/core';
-import {
-  ParcelShape,
-  SHAPE_OPTIONS,
-  SOIL_OPTIONS,
-  SoilType,
-  TerrainDimensions,
-} from '../../models/terrain.model';
+import { Component, inject, output } from '@angular/core';
+import { RouterLink } from '@angular/router';
+import { ParcelShape, SHAPE_OPTIONS, SoilType, TerrainDimensions } from '../../models/terrain.model';
 import { TerrainStore } from '../../state/terrain.store';
 
 /** Left rail of the terrain step: identity, cotas, soil and slope. */
 @Component({
   selector: 'app-terrain-form',
+  imports: [RouterLink],
   templateUrl: './terrain-form.html',
 })
 export class TerrainForm {
   protected readonly store = inject(TerrainStore);
 
+  /** Guardar y seguir al paso 2: la página guarda y navega. */
+  readonly continuar = output<void>();
+
   protected readonly shapeOptions = SHAPE_OPTIONS;
-  protected readonly soilOptions = SOIL_OPTIONS;
 
   protected shapeClass(shape: ParcelShape): Record<string, boolean> {
     const active = this.store.shape() === shape;
@@ -48,5 +46,18 @@ export class TerrainForm {
 
   protected onSlope(event: Event): void {
     this.store.setSlope(Number.parseFloat((event.target as HTMLInputElement).value));
+  }
+
+  protected guardar(): void {
+    this.continuar.emit();
+  }
+
+  /** El usuario dice que conoce la pendiente: se revela el control. */
+  protected definirPendiente(): void {
+    this.store.setSlope(this.store.slopePct());
+  }
+
+  protected usarPendienteAsumida(): void {
+    this.store.usarPendienteAsumida();
   }
 }

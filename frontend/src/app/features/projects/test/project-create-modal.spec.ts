@@ -1,14 +1,23 @@
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { ProjectCreateModal } from '../components/project-create-modal/project-create-modal';
 import { ProjectsStore } from '../state/projects.store';
 
 describe('ProjectCreateModal', () => {
   let store: ProjectsStore;
+  let http: HttpTestingController;
 
   beforeEach(async () => {
-    await TestBed.configureTestingModule({ imports: [ProjectCreateModal] }).compileComponents();
+    await TestBed.configureTestingModule({
+      imports: [ProjectCreateModal],
+      providers: [provideHttpClient(), provideHttpClientTesting()],
+    }).compileComponents();
     store = TestBed.inject(ProjectsStore);
+    http = TestBed.inject(HttpTestingController);
   });
+
+  afterEach(() => http.verify());
 
   async function render() {
     const fixture = TestBed.createComponent(ProjectCreateModal);
@@ -55,23 +64,57 @@ describe('ProjectCreateModal', () => {
     await fixture.whenStable();
 
     expect(fixture.nativeElement.textContent).toContain('Poné un nombre para el proyecto.');
-    expect(store.projects().length).toBe(3);
+    http.expectNone('http://localhost:8000/proyectos');
   });
 
-  it('creates the project and asks to be closed', async () => {
+  it('creates the project in the backend and hands the id to the page', async () => {
     const fixture = await render();
-    let closed = false;
-    fixture.componentInstance.close.subscribe(() => (closed = true));
+    let creado = '';
+    fixture.componentInstance.created.subscribe((id) => (creado = id));
 
     await type(fixture, '#projectName', 'Los Olivos');
     await type(fixture, '#projectLocation', 'Valle Central');
     query<HTMLFormElement>(fixture, 'form').dispatchEvent(new Event('submit', { bubbles: true }));
     await fixture.whenStable();
 
-    expect(store.projects().length).toBe(4);
+    const peticion = http.expectOne('http://localhost:8000/proyectos');
+    expect(peticion.request.method).toBe('POST');
+    peticion.flush({
+      id: 'p-4',
+      nombre: 'Los Olivos',
+      zona: 'Valle Central',
+      unidad: 'metric',
+      estado: 'borrador',
+      paso_actual: 1,
+      ultimo_paso_completado: 0,
+      version: 1,
+      corrida_actual_id: null,
+      creado_en: '2026-11-21T12:00:00',
+      actualizado_en: '2026-11-21T12:00:00',
+    });
+    await fixture.whenStable();
+
+    expect(creado).toBe('p-4');
+    expect(store.projects().length).toBe(1);
     expect(store.projects()[0].name).toBe('Los Olivos');
-    expect(store.projects()[0].location).toBe('Valle Central');
-    expect(closed).toBe(true);
+  });
+
+  it('shows the backend error and keeps the dialog open', async () => {
+    const fixture = await render();
+    let creado = '';
+    fixture.componentInstance.created.subscribe((id) => (creado = id));
+
+    await type(fixture, '#projectName', 'Los Olivos');
+    query<HTMLFormElement>(fixture, 'form').dispatchEvent(new Event('submit', { bubbles: true }));
+    await fixture.whenStable();
+
+    http
+      .expectOne('http://localhost:8000/proyectos')
+      .flush({ detail: 'El proyecto ya existe' }, { status: 409, statusText: 'Conflict' });
+    await fixture.whenStable();
+
+    expect(creado).toBe('');
+    expect(fixture.nativeElement.textContent).toContain('El proyecto ya existe');
   });
 
   it('emits close when the dialog is dismissed', async () => {

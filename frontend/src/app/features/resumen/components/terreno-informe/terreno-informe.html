@@ -1,0 +1,71 @@
+<section
+  class="bg-white rounded-xl border border-agro-border p-4 shadow-sm flex flex-col gap-3"
+  data-seccion-terreno
+>
+  <div class="flex items-center justify-between gap-2">
+    <h2 class="flex items-center gap-1.5 text-sm font-bold text-slate-800">
+      <ng-icon class="text-agro-600" name="matLocationOnOutline" size="18" aria-hidden="true" />
+      Datos del Terreno
+    </h2>
+    <a
+      class="inline-flex items-center gap-1 text-[11px] font-semibold text-agro-700 hover:text-agro-800 hover:underline"
+      [routerLink]="['/proyectos', proyectoId(), 'terreno']"
+    >
+      Paso 1
+      <ng-icon name="matArrowForwardOutline" size="13" aria-hidden="true" />
+    </a>
+  </div>
+
+  <dl class="bg-slate-50/70 border border-slate-100 rounded-lg p-3 flex flex-col gap-1.5 text-[11px]">
+    <div class="flex justify-between gap-2 pb-1.5 border-b border-slate-200/60">
+      <dt class="text-slate-500">Nombre</dt>
+      <dd class="font-bold text-slate-800">{{ store.terreno()?.nombre ?? 'no informado' }}</dd>
+    </div>
+    <div class="flex justify-between gap-2 pb-1.5 border-b border-slate-200/60">
+      <dt class="text-slate-500">Área total</dt>
+      <dd class="font-bold text-slate-800 font-mono text-right">
+        @if (store.terreno() !== null) {
+          {{ aHectareas(store.terreno()!.areaM2) }} ha
+          <span class="text-slate-500 font-normal">
+            ({{ formatearNumero(store.terreno()!.areaM2) }} m²)
+          </span>
+        } @else {
+          <span class="text-slate-400">no informado</span>
+        }
+      </dd>
+    </div>
+    <div class="flex justify-between gap-2 pb-1.5 border-b border-slate-200/60">
+      <dt class="flex items-center gap-1 text-slate-500">
+        <ng-icon class="text-slate-400" name="matLandscapeOutline" size="13" aria-hidden="true" />
+        Suelo
+      </dt>
+      <dd class="font-semibold text-slate-800 text-right">
+        {{ store.terreno()?.sueloNombre || 'no informado' }}
+      </dd>
+    </div>
+    <div class="flex justify-between gap-2 pb-1.5 border-b border-slate-200/60">
+      <dt class="flex items-center gap-1 text-slate-500">
+        <ng-icon class="text-slate-400" name="matWaterDropOutline" size="13" aria-hidden="true" />
+        Agua disponible
+      </dt>
+      <dd class="font-semibold text-slate-800 text-right">
+        @if (store.terreno() !== null) {
+          {{ store.terreno()!.fuenteLabel }}
+          <span class="font-mono">({{ formatearNumero(store.terreno()!.caudalM3h, 2) }} m³/h)</span>
+        } @else {
+          <span class="text-slate-400">no informado</span>
+        }
+      </dd>
+    </div>
+    <div class="flex justify-between gap-2">
+      <dt class="text-slate-500">Pendiente</dt>
+      <dd class="font-semibold text-slate-700 text-right">
+        @if (store.terreno()?.pendientePct !== null && store.terreno()?.pendientePct !== undefined) {
+          {{ formatearNumero(store.terreno()!.pendientePct, 2) }} %
+        } @else {
+          <span class="text-slate-400">no informado</span>
+        }
+      </dd>
+    </div>
+  </dl>
+</section>

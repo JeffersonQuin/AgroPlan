@@ -1,0 +1,81 @@
+{
+  "codigo": "cebolla",
+  "nombre": "Cebolla",
+  "icono": "C",
+  "color": "#8E24AA",
+  "demanda_agua_l_m2_dia": 1.6,
+  "ciclo_dias": 150,
+  "meses_siembra": [
+    3,
+    4,
+    5,
+    6
+  ],
+  "kc": 1.05,
+  "densidad_plantas_m2": 60,
+  "profundidad_raiz_cm": 25,
+  "notas": "Raíz superficial: sensible a la competencia y al exceso de humedad.",
+  "imagen": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Mixed_onions.jpg/1280px-Mixed_onions.jpg",
+  "imagen_fuente": "https://commons.wikimedia.org/wiki/File:Mixed_onions.jpg",
+  "aptitud_suelo": {
+    "franco": {
+      "veredicto": "apto",
+      "motivo": "Suelo ideal para el bulbo.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "arenoso": {
+      "veredicto": "apto",
+      "motivo": "Buen drenaje, menos riesgo de pudrición.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "arcilloso": {
+      "veredicto": "condicionado",
+      "motivo": "Retiene de más: riesgo de pudrición del bulbo.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "limoso": {
+      "veredicto": "apto",
+      "motivo": "Buena retención con manejo cuidadoso.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "franco_arenoso": {
+      "veredicto": "apto",
+      "motivo": "Equilibrado, fácil de cosechar.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "franco_arcilloso": {
+      "veredicto": "apto",
+      "motivo": "Buena reserva; cuidar el drenaje al final.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "salino": {
+      "veredicto": "condicionado",
+      "motivo": "Tolera algo de sal según variedad.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "calcareo": {
+      "veredicto": "condicionado",
+      "motivo": "Vigilar azufre y micronutrientes.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "pedregoso": {
+      "veredicto": "condicionado",
+      "motivo": "Molesta en la cosecha del bulbo.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "organico": {
+      "veredicto": "apto",
+      "motivo": "Fértil; evitar materia orgánica fresca.",
+      "fuente": "Ficha curada AgroPlan"
+    }
+  },
+  "fuentes": [
+    {
+      "tipo": "manual",
+      "titulo": "Ficha técnica curada AgroPlan",
+      "url": null,
+      "fragmento": "Demanda, ciclo y aptitud de suelo de arranque"
+    }
+  ],
+  "imagen_credito": "Foto: Colin / Wikimedia Commons, CC BY-SA 3.0"
+}

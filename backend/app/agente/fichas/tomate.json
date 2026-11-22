@@ -1,0 +1,82 @@
+{
+  "codigo": "tomate",
+  "nombre": "Tomate",
+  "icono": "T",
+  "color": "#E53935",
+  "demanda_agua_l_m2_dia": 5.0,
+  "ciclo_dias": 110,
+  "meses_siembra": [
+    3,
+    4,
+    9,
+    10,
+    11
+  ],
+  "notas": "Exigente en agua y calcio; evitar mojar el follaje para prevenir hongos.",
+  "imagen": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/89/Tomato_je.jpg/1280px-Tomato_je.jpg",
+  "imagen_fuente": "https://commons.wikimedia.org/wiki/File:Tomato_je.jpg",
+  "fuentes": [
+    {
+      "tipo": "manual",
+      "titulo": "Ficha técnica curada AgroPlan",
+      "url": null,
+      "fragmento": "Demanda y ciclo del catálogo base"
+    }
+  ],
+  "kc": 1.1,
+  "densidad_plantas_m2": 2.5,
+  "profundidad_raiz_cm": 60,
+  "aptitud_suelo": {
+    "franco": {
+      "veredicto": "apto",
+      "motivo": "Suelo ideal para el cultivo.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "arenoso": {
+      "veredicto": "condicionado",
+      "motivo": "Riego más frecuente; sensible a estrés hídrico.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "arcilloso": {
+      "veredicto": "no_apto",
+      "motivo": "Encharcamiento y raíz sensible a hongos del suelo.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "limoso": {
+      "veredicto": "condicionado",
+      "motivo": "Vigilar compactación y drenaje.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "franco_arenoso": {
+      "veredicto": "apto",
+      "motivo": "Drenaje rápido, bueno para raíz sensible.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "franco_arcilloso": {
+      "veredicto": "condicionado",
+      "motivo": "Riesgo de encharcamiento y hongos del suelo.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "salino": {
+      "veredicto": "condicionado",
+      "motivo": "Moderadamente tolerante, con manejo.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "calcareo": {
+      "veredicto": "condicionado",
+      "motivo": "pH alto: puede bloquear micronutrientes.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "pedregoso": {
+      "veredicto": "condicionado",
+      "motivo": "Raíz profunda; piedras en el perfil limitan.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "organico": {
+      "veredicto": "apto",
+      "motivo": "Fértil, con buen manejo de humedad.",
+      "fuente": "Ficha curada AgroPlan"
+    }
+  },
+  "imagen_credito": "Foto: Softeis / Wikimedia Commons, CC BY-SA 3.0"
+}

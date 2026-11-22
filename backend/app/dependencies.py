@@ -1,3 +1,4 @@
+import uuid
 from collections.abc import Callable
 
 from fastapi import Depends, HTTPException, status
@@ -6,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.core.security import InvalidTokenError, decodificar_jwt
 from app.database import get_db
+from app.models.proyecto import Proyecto
 from app.models.usuario import Usuario
 from app.repository import usuario as usuario_repo
 
@@ -54,3 +56,18 @@ def require_role(*roles: str) -> Callable:
         return current_user
 
     return role_checker
+
+
+def get_proyecto_actual(
+    proyecto_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user),
+) -> Proyecto:
+    """Resuelve el proyecto del path y verifica que sea del usuario autenticado."""
+
+    from app.services.proyecto import ProyectoServiceError, get_proyecto
+
+    try:
+        return get_proyecto(db, proyecto_id, current_user)
+    except ProyectoServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc

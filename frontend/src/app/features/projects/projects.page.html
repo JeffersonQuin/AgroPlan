@@ -3,7 +3,7 @@
 <main class="w-full pt-16 bg-surface min-h-[calc(100vh-64px)]">
   <div class="flex flex-col w-full">
     <div
-      class="w-full max-w-7xl mx-auto px-margin-desktop py-space-lg flex flex-col gap-space-lg"
+      class="w-full max-w-7xl mx-auto px-4 sm:px-space-lg lg:px-margin-desktop py-space-lg flex flex-col gap-space-lg"
     >
       <app-projects-toolbar
         [activeCount]="store.projects().length"
@@ -12,6 +12,22 @@
         (toggleEmptyState)="toggleEmptyState()"
       />
 
+      @if (store.error(); as mensaje) {
+        <div
+          class="flex flex-wrap items-center justify-between gap-space-sm bg-error-container/40 border border-error/30 rounded-xl px-space-md py-space-sm"
+          role="alert"
+        >
+          <span class="text-label-md text-on-surface">{{ mensaje }}</span>
+          <button
+            class="text-label-md text-primary hover:underline"
+            type="button"
+            (click)="reintentar()"
+          >
+            Reintentar
+          </button>
+        </div>
+      }
+
       <app-projects-filters />
 
       @if (showOnboarding()) {
@@ -19,31 +35,28 @@
       } @else {
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-space-lg">
           @for (project of store.visibleProjects(); track project.id) {
-            <app-project-card [project]="project" />
+            <app-project-card [project]="project" (open)="onProjectOpen($event)" />
           }
 
           <button
-            class="group text-left bg-surface-bright/50 hover:bg-surface-bright rounded-xl p-space-lg transition-all flex flex-col items-center justify-center min-h-[380px] text-center cursor-pointer shadow-xs hover:shadow-sm"
+            class="group text-left bg-surface-bright/50 hover:bg-surface-bright rounded-xl p-space-lg transition-all flex flex-col items-center justify-center min-h-[240px] md:min-h-[380px] text-center cursor-pointer shadow-xs hover:shadow-sm"
             type="button"
             (click)="openModal()"
           >
             <span
               class="w-14 h-14 rounded-full bg-surface-container-low flex items-center justify-center text-primary mb-space-sm group-hover:bg-primary-container group-hover:text-on-primary transition-colors"
             >
-              <span class="material-symbols-outlined text-[28px]" aria-hidden="true">add</span>
+              <ng-icon name="matAddOutline" size="28" aria-hidden="true" />
             </span>
             <span class="text-headline-sm text-on-surface">Creá tu nuevo plano</span>
             <span
               class="inline-flex items-center gap-1 text-label-md text-primary mt-space-sm group-hover:gap-2 transition-all"
             >
               Comenzar diseño
-              <span class="material-symbols-outlined text-[16px]" aria-hidden="true"
-                >arrow_forward</span
-              >
+              <ng-icon name="matArrowForwardOutline" size="16" aria-hidden="true" />
             </span>
           </button>
         </div>
-
       }
 
       <app-technical-footnote />
@@ -52,5 +65,5 @@
 </main>
 
 @if (modalOpen()) {
-  <app-project-create-modal (close)="closeModal()" />
+  <app-project-create-modal (close)="closeModal()" (created)="onProjectCreated($event)" />
 }

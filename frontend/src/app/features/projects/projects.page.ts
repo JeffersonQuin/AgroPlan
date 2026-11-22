@@ -1,4 +1,8 @@
 import { Component, computed, inject, signal } from '@angular/core';
+import { Router } from '@angular/router';
+import { NgIcon, provideIcons } from '@ng-icons/core';
+import { matAddOutline, matArrowForwardOutline } from '@ng-icons/material-symbols/outline';
+import { Project } from './models/project.model';
 import { ProjectsStore } from './state/projects.store';
 import { AppHeader } from './components/app-header/app-header';
 import { ProjectCard } from './components/project-card/project-card';
@@ -12,8 +16,9 @@ import { TechnicalFootnote } from './components/technical-footnote/technical-foo
  * Dashboard: the projects grid with search, status filter and sort, plus the
  * create-project dialog.
  *
- * The wizard hand-off ("Abrir proyecto" / "Continuar") is not wired yet: the
- * Terreno step does not exist, so the card actions only emit their event.
+ * "Nuevo proyecto" creates the project in the backend and opens step 1 for it.
+ * Opening an existing project from a card is still pending: the wizard resume
+ * needs the step-2..4 screens.
  */
 @Component({
   selector: 'app-projects-page',
@@ -25,11 +30,14 @@ import { TechnicalFootnote } from './components/technical-footnote/technical-foo
     ProjectsEmptyState,
     TechnicalFootnote,
     ProjectCreateModal,
+    NgIcon,
   ],
+  viewProviders: [provideIcons({ matAddOutline, matArrowForwardOutline })],
   templateUrl: './projects.page.html',
 })
 export class ProjectsPage {
   protected readonly store = inject(ProjectsStore);
+  private readonly router = inject(Router);
 
   protected readonly modalOpen = signal(false);
   protected readonly emptySimulated = signal(false);
@@ -38,6 +46,9 @@ export class ProjectsPage {
     () => this.emptySimulated() || this.store.projects().length === 0,
   );
 
+  constructor() {
+    this.store.cargar();
+  }
 
   protected openModal(): void {
     this.modalOpen.set(true);
@@ -47,7 +58,26 @@ export class ProjectsPage {
     this.modalOpen.set(false);
   }
 
+  protected reintentar(): void {
+    this.store.cargar();
+  }
+
   protected toggleEmptyState(): void {
     this.emptySimulated.update((simulated) => !simulated);
+  }
+
+  /** The modal created the project: close it and open step 1. */
+  protected onProjectCreated(proyectoId: string): void {
+    this.closeModal();
+    this.abrirPaso1(proyectoId);
+  }
+
+  /** A card asked to resume the wizard: always lands on step 1 for now. */
+  protected onProjectOpen(project: Project): void {
+    this.abrirPaso1(project.id);
+  }
+
+  private abrirPaso1(proyectoId: string): void {
+    void this.router.navigate(['/proyectos', proyectoId, 'terreno']);
   }
 }

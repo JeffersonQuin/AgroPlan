@@ -1,0 +1,71 @@
+<section
+  class="bg-white rounded-xl border border-agro-border p-4 shadow-sm flex flex-col gap-3"
+  data-seccion-tecnologia
+>
+  <div class="flex items-center justify-between gap-2">
+    <h2 class="text-sm font-bold text-slate-800">Tecnología &amp; Cabezal</h2>
+    <span
+      class="inline-flex items-center gap-1 text-[11px] font-bold text-agro-800 bg-agro-100/90 px-2 py-0.5 rounded-full"
+    >
+      @if (eficiencia() !== null) {
+        Eficiencia {{ formatearNumero(eficiencia()) }}%
+      } @else {
+        <span class="text-slate-400 font-normal">Eficiencia no informada</span>
+      }
+    </span>
+  </div>
+
+  @if (sistema(); as sistema) {
+    <dl class="bg-slate-50/70 border border-slate-100 rounded-lg p-3 flex flex-col gap-2 text-[11px]">
+      <div class="flex flex-col">
+        <dt class="text-slate-500">Método de riego</dt>
+        <dd class="font-bold text-slate-800">{{ textoSistema(sistema.tipo) }}</dd>
+      </div>
+      <div class="flex flex-col">
+        <dt class="text-slate-500">Almacenamiento</dt>
+        <dd class="font-bold text-slate-800">
+          @if (sistema.tanque_l !== null) {
+            Tanque {{ formatearNumero(sistema.tanque_l) }} L
+          } @else {
+            <span class="text-slate-400 font-normal">no informado</span>
+          }
+        </dd>
+      </div>
+      <div class="flex flex-col">
+        <dt class="text-slate-500">Impulsión motriz</dt>
+        <dd class="font-bold text-slate-800">
+          Bomba {{ formatearNumero(sistema.bomba_hp, 1) }} HP
+        </dd>
+      </div>
+      <div class="flex flex-col">
+        <dt class="text-slate-500">Emisor</dt>
+        <dd class="font-bold text-slate-800">
+          @if (sistema.emisor) {
+            {{ textoEmisor(sistema.emisor.tipo) }}
+            {{ formatearNumero(sistema.emisor.caudal_lh, 2) }} L/h · separación
+            {{ formatearNumero(sistema.emisor.separacion_m, 2) }} m
+          } @else {
+            <span class="text-slate-400 font-normal">no informado</span>
+          }
+        </dd>
+      </div>
+      <div class="flex flex-col">
+        <dt class="text-slate-500">Laterales y matriz</dt>
+        <dd class="font-bold text-slate-800">
+          Separación entre laterales {{ formatearNumero(sistema.separacion_laterales_m, 2) }} m ·
+          matriz PVC Ø{{ formatearNumero(sistema.diametro_principal_mm) }} mm
+        </dd>
+      </div>
+      <div class="flex flex-col">
+        <dt class="text-slate-500">Sectores</dt>
+        <dd class="font-bold text-slate-800">
+          {{ formatearNumero(sistema.num_sectores) }} sectores
+        </dd>
+      </div>
+    </dl>
+  } @else {
+    <p class="text-[11px] text-slate-500">
+      Tecnología y cabezal: <span class="text-slate-400">no informado</span>.
+    </p>
+  }
+</section>

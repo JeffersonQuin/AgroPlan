@@ -1,0 +1,24 @@
+<section
+  class="bg-amber-50/80 border border-amber-200 rounded-xl px-4 py-3 shadow-sm flex flex-col gap-1.5"
+  data-advertencias
+>
+  <h2 class="text-[10px] font-bold uppercase tracking-wide text-amber-900">
+    Advertencias del informe
+  </h2>
+  @if (advertencias().length === 0) {
+    <p class="text-[11px] text-slate-600">Sin advertencias del motor ni del agente.</p>
+  } @else {
+    <ul class="flex flex-col gap-1 text-[11px]">
+      @for (advertencia of advertencias(); track advertencia.codigo + advertencia.mensaje) {
+        <li
+          class="flex items-start gap-1.5 leading-snug"
+          [class]="advertencia.bloqueante ? 'text-red-800 font-semibold' : 'text-amber-900'"
+          data-advertencia
+        >
+          <span aria-hidden="true">{{ advertencia.bloqueante ? '✕' : '!' }}</span>
+          <span>{{ advertencia.mensaje }}</span>
+        </li>
+      }
+    </ul>
+  }
+</section>

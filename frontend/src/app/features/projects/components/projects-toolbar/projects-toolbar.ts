@@ -1,25 +1,33 @@
 import { Component, input, output } from '@angular/core';
+import { NgIcon, provideIcons } from '@ng-icons/core';
+import {
+  matAddCircleOutline,
+  matFolderSharedOutline,
+  matVisibilityOutline,
+} from '@ng-icons/material-symbols/outline';
 
 /** Page title, active-project counter and the primary actions. */
 @Component({
   selector: 'app-projects-toolbar',
+  imports: [NgIcon],
+  viewProviders: [
+    provideIcons({ matAddCircleOutline, matFolderSharedOutline, matVisibilityOutline }),
+  ],
   template: `
     <div
       class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-space-md"
     >
-      <div class="flex items-center gap-space-md">
+      <div class="flex items-center gap-space-md min-w-0">
         <div
           class="w-10 h-10 rounded-lg bg-surface-container-low flex items-center justify-center text-primary-container"
         >
-          <span class="material-symbols-outlined text-[24px]" aria-hidden="true"
-            >folder_shared</span
-          >
+          <ng-icon name="matFolderSharedOutline" size="24" aria-hidden="true" />
         </div>
-        <div>
-          <div class="flex items-center gap-space-sm">
-            <h1 class="text-headline-lg text-primary">Tus proyectos</h1>
+        <div class="min-w-0">
+          <div class="flex flex-wrap items-center gap-space-sm">
+            <h1 class="text-headline-lg text-primary min-w-0 truncate">Tus proyectos</h1>
             <span
-              class="px-space-sm py-0.5 rounded-full bg-surface-container-high text-label-sm text-on-surface"
+              class="px-space-sm py-0.5 rounded-full bg-surface-container-high text-label-sm text-on-surface shrink-0"
             >
               {{ activeCount() }} activos
             </span>
@@ -32,22 +40,20 @@ import { Component, input, output } from '@angular/core';
 
       <div class="flex items-center flex-wrap gap-space-sm">
         <button
-          class="inline-flex items-center gap-1.5 px-space-md py-2 rounded-lg bg-surface-bright text-on-surface-variant hover:bg-surface-container hover:text-on-surface text-label-sm transition-colors shadow-sm"
+          class="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-space-md py-2 rounded-lg bg-surface-bright text-on-surface-variant hover:bg-surface-container hover:text-on-surface text-label-sm transition-colors shadow-sm"
           type="button"
           [attr.aria-pressed]="emptyStateSimulated()"
           (click)="toggleEmptyState.emit()"
         >
-          <span class="material-symbols-outlined text-[16px]" aria-hidden="true">visibility</span>
-          <span>{{
-            emptyStateSimulated() ? 'Ver proyectos reales' : 'Simular estado vacío'
-          }}</span>
+          <ng-icon name="matVisibilityOutline" size="16" aria-hidden="true" />
+          <span>{{ emptyStateSimulated() ? 'Ver proyectos reales' : 'Simular estado vacío' }}</span>
         </button>
         <button
-          class="inline-flex items-center gap-space-xs bg-primary-container hover:bg-primary text-on-primary text-label-md px-space-lg py-2.5 rounded-lg transition-all shadow-sm"
+          class="w-full sm:w-auto inline-flex items-center justify-center gap-space-xs bg-primary-container hover:bg-primary text-on-primary text-label-md px-space-lg py-2.5 rounded-lg transition-all shadow-sm"
           type="button"
           (click)="newProject.emit()"
         >
-          <span class="material-symbols-outlined text-[18px]" aria-hidden="true">add_circle</span>
+          <ng-icon name="matAddCircleOutline" size="18" aria-hidden="true" />
           <span>+ Nuevo proyecto</span>
         </button>
       </div>

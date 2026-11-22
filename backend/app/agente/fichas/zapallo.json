@@ -1,0 +1,81 @@
+{
+  "codigo": "zapallo",
+  "nombre": "Zapallo",
+  "icono": "Z",
+  "color": "#EF6C00",
+  "demanda_agua_l_m2_dia": 4.5,
+  "ciclo_dias": 130,
+  "meses_siembra": [
+    3,
+    4,
+    9,
+    10
+  ],
+  "notas": "Rastrero de cobertura rápida; demanda alta en fructificación. Ficha curada de un cultivo que no está en el catálogo sembrado.",
+  "imagen": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/44/Cucurbita_2018_G1.jpg/1280px-Cucurbita_2018_G1.jpg",
+  "imagen_fuente": "https://commons.wikimedia.org/wiki/File:Cucurbita_2018_G1.jpg",
+  "fuentes": [
+    {
+      "tipo": "manual",
+      "titulo": "Ficha técnica curada AgroPlan",
+      "url": null,
+      "fragmento": "Ficha de referencia para el camino híbrido de investigación"
+    }
+  ],
+  "kc": 1.05,
+  "densidad_plantas_m2": 1.2,
+  "profundidad_raiz_cm": 60,
+  "aptitud_suelo": {
+    "franco": {
+      "veredicto": "apto",
+      "motivo": "Suelo profundo y fértil, ideal para el porte rastrero.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "arenoso": {
+      "veredicto": "condicionado",
+      "motivo": "Requiere materia orgánica y riegos frecuentes.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "arcilloso": {
+      "veredicto": "condicionado",
+      "motivo": "Buen vigor pero riesgo de encharcamiento.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "limoso": {
+      "veredicto": "apto",
+      "motivo": "Buena retención de agua para el ciclo largo.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "franco_arenoso": {
+      "veredicto": "apto",
+      "motivo": "Suelto y cálido, bueno para el porte rastrero.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "franco_arcilloso": {
+      "veredicto": "condicionado",
+      "motivo": "Riesgo de encharcamiento.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "salino": {
+      "veredicto": "condicionado",
+      "motivo": "Tolera algo de sal; vigilar desarrollo.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "calcareo": {
+      "veredicto": "condicionado",
+      "motivo": "Puede faltar hierro y zinc.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "pedregoso": {
+      "veredicto": "condicionado",
+      "motivo": "Raíz profunda; piedras limitan el desarrollo.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "organico": {
+      "veredicto": "apto",
+      "motivo": "Muy buen desarrollo con alta fertilidad.",
+      "fuente": "Ficha curada AgroPlan"
+    }
+  },
+  "imagen_credito": "Foto: George Chernilevsky / Wikimedia Commons, dominio público"
+}

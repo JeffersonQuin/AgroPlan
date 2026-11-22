@@ -1,0 +1,82 @@
+{
+  "codigo": "lechuga",
+  "nombre": "Lechuga",
+  "icono": "L",
+  "color": "#7CB342",
+  "demanda_agua_l_m2_dia": 1.5,
+  "ciclo_dias": 65,
+  "meses_siembra": [
+    2,
+    3,
+    4,
+    8,
+    9
+  ],
+  "notas": "Ciclo corto; conviene sombra parcial en verano y riego frecuente y liviano.",
+  "imagen": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/da/Iceberg_lettuce_in_SB.jpg/1280px-Iceberg_lettuce_in_SB.jpg",
+  "imagen_fuente": "https://commons.wikimedia.org/wiki/File:Iceberg_lettuce_in_SB.jpg",
+  "fuentes": [
+    {
+      "tipo": "manual",
+      "titulo": "Ficha técnica curada AgroPlan",
+      "url": null,
+      "fragmento": "Demanda y ciclo del catálogo base"
+    }
+  ],
+  "kc": 1.0,
+  "densidad_plantas_m2": 9.0,
+  "profundidad_raiz_cm": 20,
+  "aptitud_suelo": {
+    "franco": {
+      "veredicto": "apto",
+      "motivo": "Suelo ideal: humedad pareja y buen drenaje.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "arenoso": {
+      "veredicto": "condicionado",
+      "motivo": "Retiene poco: aumentar frecuencia de riego.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "arcilloso": {
+      "veredicto": "condicionado",
+      "motivo": "Puede encharcar: vigilar drenaje y hongos.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "limoso": {
+      "veredicto": "apto",
+      "motivo": "Alta retención con buen manejo de riego.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "franco_arenoso": {
+      "veredicto": "apto",
+      "motivo": "Drena bien y permite raíces superficiales sanas.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "franco_arcilloso": {
+      "veredicto": "condicionado",
+      "motivo": "Retiene humedad de más: vigilar hongos.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "salino": {
+      "veredicto": "no_apto",
+      "motivo": "Muy sensible a la salinidad.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "calcareo": {
+      "veredicto": "condicionado",
+      "motivo": "Puede amarillear por falta de hierro.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "pedregoso": {
+      "veredicto": "condicionado",
+      "motivo": "Raíz superficial: molesta en siembra y cosecha.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "organico": {
+      "veredicto": "apto",
+      "motivo": "Alta fertilidad, ideal para hoja.",
+      "fuente": "Ficha curada AgroPlan"
+    }
+  },
+  "imagen_credito": "Foto: Geographer / Wikimedia Commons, CC BY 1.0"
+}

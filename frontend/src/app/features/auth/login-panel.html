@@ -1,38 +1,15 @@
 <div class="flex items-center justify-between gap-space-sm pb-space-md">
   <span class="inline-flex items-center gap-1.5 text-primary">
-    <span class="material-symbols-outlined text-[26px]" aria-hidden="true">agriculture</span>
+    <ng-icon name="matAgricultureOutline" size="26" aria-hidden="true" />
     <span class="text-headline-md">AgroPlan</span>
   </span>
 
-  <div class="inline-flex p-0.5 rounded-lg bg-surface-container-low" role="tablist">
-    <button
-      class="px-space-md py-1 rounded-md text-label-sm transition-all"
-      type="button"
-      role="tab"
-      id="tab-login"
-      [attr.aria-selected]="mode() === 'login'"
-      [class]="loginTabClass()"
-      (click)="setMode('login')"
-    >
-      Iniciar Sesión
-    </button>
-    <button
-      class="px-space-md py-1 rounded-md text-label-sm transition-all"
-      type="button"
-      role="tab"
-      id="tab-register"
-      [attr.aria-selected]="mode() === 'register'"
-      [class]="registerTabClass()"
-      (click)="setMode('register')"
-    >
-      Crear Cuenta
-    </button>
-  </div>
+  <app-auth-nav active="login" />
 </div>
 
 <div class="mt-space-sm mb-space-md">
-  <h1 class="text-headline-lg text-on-surface tracking-tight">{{ copy().title }}</h1>
-  <p class="text-body-md text-on-surface-variant mt-0.5">{{ copy().subtitle }}</p>
+  <h1 class="text-headline-lg text-on-surface tracking-tight">{{ copy.title }}</h1>
+  <p class="text-body-md text-on-surface-variant mt-0.5">{{ copy.subtitle }}</p>
 </div>
 
 <app-login-form />

@@ -5,13 +5,23 @@ CRUD en la API. Sin ``cultivos`` no existe el cálculo de demanda hídrica del p
 y sin ``suelos`` el motor no puede decidir la separación entre goteros.
 """
 
+from datetime import datetime
 from decimal import Decimal
+from typing import Any
 
-from sqlalchemy import Boolean, CheckConstraint, Numeric, SmallInteger, String
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    Numeric,
+    SmallInteger,
+    String,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
-from app.models.tipos import JSONB_TIPO
+from app.models.enums import VALORES_ORIGEN_CULTIVO, OrigenCultivo
+from app.models.tipos import JSONB_TIPO, check_en
 
 
 class Cultivo(Base):
@@ -29,11 +39,37 @@ class Cultivo(Base):
     densidad_plantas_m2: Mapped[Decimal | None] = mapped_column(Numeric(6, 2), nullable=True)
     profundidad_raiz_cm: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
     meses_siembra: Mapped[list[int] | None] = mapped_column(JSONB_TIPO, nullable=True)
+    # Coeficiente de cultivo (Kc pico) del paso 2. Sale de la ficha curada o de la
+    # investigación; nunca lo inventa el motor.
+    kc: Mapped[Decimal | None] = mapped_column(Numeric(4, 2), nullable=True)
+    # {"franco": {"veredicto": "apto", "motivo": "drenaje y retención equilibrados"}}
+    aptitud_suelo: Mapped[dict[str, Any] | None] = mapped_column(JSONB_TIPO, nullable=True)
     activo: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # ``agente`` cuando la ficha la creó el agente investigando un producto que no
+    # existía: se usa en el acto y queda pendiente de revisión con sus fuentes.
+    origen: Mapped[str] = mapped_column(
+        String(10),
+        nullable=False,
+        default=OrigenCultivo.HUMANO.value,
+        server_default=OrigenCultivo.HUMANO.value,
+    )
+    revisado_en: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    fuentes: Mapped[list[dict] | None] = mapped_column(JSONB_TIPO, nullable=True)
+    # Imagen de la ficha curada del cultivo y la página de donde salió (S4). Es la
+    # primera opción del informe; el agente sólo investiga la que falte.
+    imagen_url: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    imagen_fuente_url: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    # Texto de atribución de la licencia de la foto, para mostrarlo bajo la imagen.
+    imagen_credito: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
     __table_args__ = (
         CheckConstraint("demanda_agua_l_m2_dia > 0", name="ck_cultivos_demanda_positiva"),
         CheckConstraint("ciclo_dias > 0", name="ck_cultivos_ciclo_positivo"),
+        CheckConstraint(
+            check_en("origen", VALORES_ORIGEN_CULTIVO), name="ck_cultivos_origen"
+        ),
     )
 
     def __repr__(self) -> str:  # pragma: no cover - ayuda de depuración
