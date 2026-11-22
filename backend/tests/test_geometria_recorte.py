@@ -170,3 +170,44 @@ def test_punto_interior_de_un_poligono_concavo_queda_adentro() -> None:
 
     punto = geometria.punto_interior(u)
     assert geometria.punto_en_poligono(punto, u)
+
+
+def test_punto_interior_de_una_franja_bipartita_no_cae_en_el_hueco() -> None:
+    # Franja del terreno en C partida por el hueco: en la altura del centroide sólo
+    # queda la costura de ancho cero, así que el centroide y el centro de la caja
+    # caen fuera. El punto tiene que estar estrictamente adentro, no sobre el borde.
+    franja = [
+        (11.0, 0.0),
+        (20.0, 0.0),
+        (20.0, 10.0),
+        (11.0, 10.0),
+        (11.0, 20.0),
+        (20.0, 20.0),
+        (20.0, 30.0),
+        (11.0, 30.0),
+    ]
+    assert not geometria.punto_en_poligono(geometria.centroide(franja), franja)
+    assert not geometria.punto_en_poligono(geometria.centro_caja(franja), franja)
+
+    punto = geometria.punto_interior(franja)
+    assert geometria.punto_en_poligono(punto, franja)
+    # Estrictamente adentro: lejos de la costura y de cualquier arista.
+    assert geometria.distancia(punto, (11.0, 15.0)) > 1e-3
+    assert min(
+        abs(punto[0] - x)
+        for arista in zip(franja, franja[1:] + franja[:1])
+        for x in (arista[0][0], arista[1][0])
+        if arista[0][0] == arista[1][0]
+    ) > 1e-3
+
+
+def test_punto_interior_de_un_poligono_degenerado_no_rompe() -> None:
+    # Área cero: no hay interior, pero el motor necesita un punto válido y finito.
+    degenerado = [(0.0, 0.0), (10.0, 0.0), (5.0, 0.0)]
+    assert geometria.area_poligono(degenerado) == pytest.approx(0.0)
+
+    punto = geometria.punto_interior(degenerado)
+    assert all(valor == pytest.approx(valor) for valor in punto)  # no es NaN
+    x_min, y_min, x_max, y_max = geometria.caja(degenerado)
+    assert x_min <= punto[0] <= x_max
+    assert y_min <= punto[1] <= y_max

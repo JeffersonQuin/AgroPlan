@@ -1005,6 +1005,26 @@ def test_las_recomendaciones_no_muestran_diagnosticos_internos(
     assert not any("catálogo interno" in texto for texto in textos)
 
 
+def test_el_filtro_sigue_descartando_los_diagnosticos_del_pipeline() -> None:
+    """S5: la forma del diagnóstico del pipeline sigue clasificando como interno."""
+    assert agente_service._es_diagnostico_interno(MODO_CATALOGO)
+    assert agente_service._es_diagnostico_interno(
+        "La corrida se resolvió con el catálogo interno: no hay credenciales del "
+        "modelo configuradas."
+    )
+    assert agente_service._es_diagnostico_interno(SIEMBRA_PISADA)
+    assert agente_service._es_diagnostico_interno(
+        "AGENTE_API_KEY vacía para correr en modo catálogo"
+    )
+    # La forma del título manda: el detalle de una recomendación real puede nombrar
+    # la siembra elegida sin que la recomendación sea un diagnóstico.
+    assert not agente_service._es_diagnostico_interno(
+        "Adelantar la siembra del maíz",
+        "La siembra elegida (2026-11-21) cae fuera de la ventana térmica.",
+        "El maíz necesita 12 °C de suelo.",
+    )
+
+
 def test_la_misma_recomendacion_por_cultivo_se_muestra_una_vez(
     cliente_autenticado: TestClient, db_session: Session
 ) -> None:

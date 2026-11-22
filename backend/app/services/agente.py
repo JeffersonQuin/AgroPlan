@@ -9,6 +9,7 @@ from __future__ import annotations
 import math
 import re
 import time
+import unicodedata
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -1185,17 +1186,20 @@ def _ajustes_motor(
     return ajustes
 
 
-# Marcas de diagnóstico interno del pipeline: hablan de cómo se configuró el agente o
-# de qué hizo el backend con la entrada, no de qué le conviene al usuario (S5).
-_MARCAS_DIAGNOSTICO_INTERNO = (
-    "agente_modo",
-    "catálogo interno",
-    "catalogo interno",
-    "credenciales del modelo",
-    "modo del agente",
-    "siembra elegida",
-    "fecha elegida",
+# Forma de los diagnósticos que escribe ``ejecutar_corrida`` en el título de la fila
+# (el ``mensaje`` de la advertencia). Se clasifica por esa forma y no por una marca
+# suelta: una recomendación real puede nombrar la siembra elegida en su detalle (S5).
+_FRASES_DIAGNOSTICO_INTERNO = (
+    ("la corrida se resolvio con el catalogo interno",),
+    (
+        "se uso la siembra elegida",
+        "en lugar de la que propuso el agente",
+    ),
 )
+
+# Variables de entorno del pipeline: si el título las nombra, es un diagnóstico del
+# agente y no algo que le convenga al usuario.
+_VARIABLES_ENTORNO_AGENTE = ("agente_modo", "agente_api_key")
 
 
 def _texto_comparable(texto: str) -> str:
@@ -1204,20 +1208,33 @@ def _texto_comparable(texto: str) -> str:
     return " ".join(texto.split()).casefold().rstrip(".")
 
 
-def _es_diagnostico_interno(*textos: str | None) -> bool:
-    """Si el texto habla de la configuración interna del pipeline, no del usuario.
+def _texto_sin_tildes(texto: str) -> str:
+    return "".join(
+        letra
+        for letra in unicodedata.normalize("NFD", texto)
+        if unicodedata.category(letra) != "Mn"
+    )
 
-    Se clasifica por contenido y no comparando el mensaje completo: un diagnóstico
-    puede cambiar de redacción sin dejar de ser interno (S5).
+
+def _es_diagnostico_interno(*textos: str | None) -> bool:
+    """Si el título habla de la configuración interna del pipeline, no del usuario.
+
+    Sólo se mira el título (el primer texto): los diagnósticos de ``ejecutar_corrida``
+    son las frases del pipeline o nombran ``AGENTE_MODO``/``AGENTE_API_KEY``. El
+    detalle y la justificación de una recomendación real pueden mencionar la siembra
+    elegida sin que la recomendación sea un diagnóstico (S5).
     """
 
-    for texto in textos:
-        if not texto:
-            continue
-        normalizado = _texto_comparable(texto)
-        if any(marca in normalizado for marca in _MARCAS_DIAGNOSTICO_INTERNO):
-            return True
-    return False
+    titulo = textos[0] if textos else None
+    if not titulo:
+        return False
+    normalizado = _texto_sin_tildes(_texto_comparable(titulo))
+    if any(variable in normalizado for variable in _VARIABLES_ENTORNO_AGENTE):
+        return True
+    return any(
+        all(fragmento in normalizado for fragmento in frase)
+        for frase in _FRASES_DIAGNOSTICO_INTERNO
+    )
 
 
 def _sin_repetir(

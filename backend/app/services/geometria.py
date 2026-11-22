@@ -380,28 +380,141 @@ def punto_en_poligono(
     return dentro
 
 
-def punto_interior(puntos: Sequence[Punto]) -> Punto:
-    """Punto seguro dentro del polígono para colgar el cabezal o una válvula.
+def _distancia_al_contorno(punto: Punto, puntos: Sequence[Punto]) -> float:
+    return min(
+        _distancia_a_segmento(punto, a, puntos[(indice + 1) % len(puntos)])
+        for indice, a in enumerate(puntos)
+    )
 
-    El centroide sirve para formas convexas; en una forma cóncava puede caer en el
-    hueco, así que se prueba el centro de la caja y, por último, el punto medio del
-    tramo horizontal más ancho a la altura del centroide.
+
+def _estrictamente_dentro(
+    punto: Punto, puntos: Sequence[Punto], margen: float = 1e-6
+) -> bool:
+    """Dentro del polígono y a más de ``margen`` del borde (no sobre una arista)."""
+
+    return punto_en_poligono(punto, puntos, tolerancia=0.0) and (
+        _distancia_al_contorno(punto, puntos) > margen
+    )
+
+
+def _alturas_candidatas(puntos: Sequence[Punto]) -> list[float]:
+    """Alturas donde buscar un tramo horizontal interior, en orden de preferencia."""
+
+    alturas = [centroide(puntos)[1]]
+    alturas.extend(punto[1] for punto in puntos)
+    alturas.extend(
+        (puntos[indice][1] + puntos[(indice + 1) % len(puntos)][1]) / 2.0
+        for indice in range(len(puntos))
+    )
+    vistas: list[float] = []
+    for altura in alturas:
+        if not any(abs(altura - vista) <= 1e-12 for vista in vistas):
+            vistas.append(altura)
+    return vistas
+
+
+def _punto_por_alturas(puntos: Sequence[Punto]) -> Punto | None:
+    """Punto medio del tramo horizontal interior más ancho de alguna altura."""
+
+    for altura in _alturas_candidatas(puntos):
+        tramos = segmentos_horizontales(puntos, altura)
+        if not tramos:
+            continue
+        inicio, fin = max(tramos, key=lambda tramo: distancia(tramo[0], tramo[1]))
+        medio = ((inicio[0] + fin[0]) / 2.0, altura)
+        if _estrictamente_dentro(medio, puntos):
+            return medio
+    return None
+
+
+def _punto_por_subdivision(puntos: Sequence[Punto]) -> Punto | None:
+    """Centroide del recorte de mayor área al subdividir la caja del polígono."""
+
+    x_min, y_min, x_max, y_max = caja(puntos)
+    for divisiones in (4, 8, 16, 32):
+        ancho = (x_max - x_min) / divisiones
+        alto = (y_max - y_min) / divisiones
+        if ancho <= 0 or alto <= 0:
+            continue
+        mejor: tuple[float, Punto] | None = None
+        for fila in range(divisiones):
+            for columna in range(divisiones):
+                celda = (
+                    x_min + columna * ancho,
+                    y_min + fila * alto,
+                    x_min + (columna + 1) * ancho,
+                    y_min + (fila + 1) * alto,
+                )
+                recorte = recortar_rectangulo(puntos, celda)
+                if not recorte:
+                    continue
+                superficie = area_poligono(recorte)
+                if superficie <= AREA_MINIMA:
+                    continue
+                centro = centroide(recorte)
+                if not _estrictamente_dentro(centro, puntos):
+                    continue
+                if mejor is None or superficie > mejor[0]:
+                    mejor = (superficie, centro)
+        if mejor is not None:
+            return mejor[1]
+    return None
+
+
+def _punto_desde_arista(puntos: Sequence[Punto]) -> Punto:
+    """Último recurso: punto medio de una arista desplazado hacia adentro."""
+
+    orientacion = 1.0 if area_firmada(puntos) > 0 else -1.0
+    x_min, y_min, x_max, y_max = caja(puntos)
+    escala = max(hypot(x_max - x_min, y_max - y_min), 1e-6)
+    respaldo: Punto | None = None
+    for indice, a in enumerate(puntos):
+        b = puntos[(indice + 1) % len(puntos)]
+        largo = distancia(a, b)
+        if largo <= 1e-12:
+            continue
+        medio = ((a[0] + b[0]) / 2.0, (a[1] + b[1]) / 2.0)
+        # Normal interior: a la izquierda del recorrido si el anillo es antihorario.
+        normal_x = -(b[1] - a[1]) / largo * orientacion
+        normal_y = (b[0] - a[0]) / largo * orientacion
+        for fraccion in (1e-3, 1e-2, 0.05, 0.1, 0.25):
+            paso = min(largo, escala) * fraccion
+            candidato = (medio[0] + normal_x * paso, medio[1] + normal_y * paso)
+            if _estrictamente_dentro(candidato, puntos):
+                return candidato
+        if respaldo is None:
+            respaldo = medio
+    return respaldo if respaldo is not None else centroide(puntos)
+
+
+def punto_interior(puntos: Sequence[Punto]) -> Punto:
+    """Punto estrictamente dentro del polígono para colgar el cabezal o una válvula.
+
+    El centroide sirve para formas convexas; en una cóncava puede caer en el hueco y
+    en una franja partida puede quedar sobre la costura. Por eso se prueban primero
+    el centroide y el centro de la caja, después el tramo horizontal interior más
+    ancho a la altura del centroide, de los vértices y de los puntos medios, luego el
+    centroide del recorte de mayor área de una subdivisión de la caja y, por último,
+    el punto medio de una arista desplazado hacia adentro. Con área despreciable no
+    hay interior: se devuelve un punto finito de la huella para no romper el motor.
     """
 
-    centro = centroide(puntos)
-    if punto_en_poligono(centro, puntos):
-        return centro
+    if area_poligono(puntos) <= AREA_MINIMA:
+        return centroide(puntos)
 
-    centro_cajita = centro_caja(puntos)
-    if punto_en_poligono(centro_cajita, puntos):
-        return centro_cajita
+    for candidato in (centroide(puntos), centro_caja(puntos)):
+        if _estrictamente_dentro(candidato, puntos):
+            return candidato
 
-    tramos = segmentos_horizontales(puntos, centro[1])
-    if tramos:
-        inicio, fin = max(tramos, key=lambda tramo: distancia(tramo[0], tramo[1]))
-        return ((inicio[0] + fin[0]) / 2.0, centro[1])
+    punto = _punto_por_alturas(puntos)
+    if punto is not None:
+        return punto
 
-    return centro
+    punto = _punto_por_subdivision(puntos)
+    if punto is not None:
+        return punto
+
+    return _punto_desde_arista(puntos)
 
 
 def _cortes(puntos: Sequence[Punto], indice: int, valor: float) -> list[float]:
