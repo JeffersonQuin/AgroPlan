@@ -541,3 +541,31 @@ def test_el_body_lleva_las_restricciones_del_paso_3(
         "tanque_l": 5000,
         "presupuesto_bs": 1500,
     }
+
+
+def test_si_el_motor_no_genera_la_red_la_corrida_no_queda_aplicada(
+    cliente_autenticado: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """S8: sin red no hay informe, pero el usuario tiene que poder reintentar."""
+    from app.services import riego as riego_service
+
+    def fallar(_db, _proyecto):
+        raise riego_service.RiegoServiceError(
+            422, "El terreno no tiene área suficiente para repartir"
+        )
+
+    monkeypatch.setattr(riego_service, "generar", fallar)
+    proyecto_id = _proyecto_con_cultivos(cliente_autenticado)
+    corrida = _iniciar(cliente_autenticado, proyecto_id)
+
+    aplicar = cliente_autenticado.post(
+        f"/proyectos/{proyecto_id}/agente/corridas/{corrida['corrida_id']}/aplicar"
+    )
+
+    assert aplicar.status_code == 409, aplicar.text
+    assert "no pudo generar la red de riego" in aplicar.text
+    # No quedó en el callejón sin salida: el reintento no responde "ya está aplicada".
+    reintento = cliente_autenticado.post(
+        f"/proyectos/{proyecto_id}/agente/corridas/{corrida['corrida_id']}/aplicar"
+    )
+    assert "ya está aplicada" not in reintento.text
