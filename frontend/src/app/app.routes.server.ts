@@ -10,6 +10,7 @@ export const serverRoutes: ServerRoute[] = [
   { path: 'projects', renderMode: RenderMode.Client },
   { path: 'proyectos/:proyectoId/terreno', renderMode: RenderMode.Client },
   { path: 'proyectos/:proyectoId/cultivos', renderMode: RenderMode.Client },
+  { path: 'proyectos/:proyectoId/riego', renderMode: RenderMode.Client },
   {
     path: '**',
     renderMode: RenderMode.Prerender,
