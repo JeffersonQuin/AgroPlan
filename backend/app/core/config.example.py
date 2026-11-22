@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     AGENTE_BASE_URL: str = "https://opencode.ai/inference/go/v1"
     AGENTE_API_KEY: str = ""
     AGENTE_MODELO: str = "deepseek-v4.1-flash"
-    AGENTE_TIMEOUT_S: int = 45
+    AGENTE_TIMEOUT_S: int = 240
     AGENTE_REINTENTOS: int = 1
     # Presupuesto de búsquedas web por corrida: el agente investiga un producto
     # fuera del catálogo con este techo de consultas.

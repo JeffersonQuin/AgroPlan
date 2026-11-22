@@ -330,7 +330,14 @@ def _propuesta_llm(contexto: ContextoAgente) -> tuple[PropuestaAgente, int | Non
             # no duplicar el costo de la llamada.
             ultimo_error = exc
 
-    raise ErrorAgente(f"El modelo no devolvió una propuesta válida: {ultimo_error}")
+    detalle = str(ultimo_error)
+    if "json_invalid" in detalle or "Invalid JSON" in detalle:
+        detalle += (
+            " | La respuesta llegó cortada o vacía: casi siempre es el timeout del "
+            f"modelo ({settings.AGENTE_TIMEOUT_S} s) antes de terminar el JSON. "
+            "Subí AGENTE_TIMEOUT_S en el entorno (por ejemplo 240)."
+        )
+    raise ErrorAgente(f"El modelo no devolvió una propuesta válida: {detalle}"[:2000])
 
 
 # --------------------------------------------------------------------------- #

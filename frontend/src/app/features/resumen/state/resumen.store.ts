@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { InjectionToken, Service, computed, inject, signal } from '@angular/core';
 import { Subscription, forkJoin, of, throwError, timer } from 'rxjs';
-import { catchError, exhaustMap, takeWhile } from 'rxjs/operators';
+import { catchError, exhaustMap, takeUntil, takeWhile } from 'rxjs/operators';
 import { CultivosApi } from '../../cultivos/cultivos.api';
 import {
   AdvertenciaApi,
@@ -43,6 +43,15 @@ const CORRIDA_TERMINAL: readonly string[] = ['ok', 'error', 'descartada'];
  * Es un token para que los tests no esperen dos segundos reales por cada sondeo; en
  * producción vale 2 s (S2: el botón dispara, el usuario ve el progreso).
  */
+/** Tope de espera del sondeo: pasado este tiempo se le dice al usuario qué pasa. */
+export const MAX_ESPERA_CORRIDA_MS = 5 * 60 * 1000;
+
+/** Inyectable para que los tests no tengan que esperar cinco minutos. */
+export const RESUMEN_MAX_ESPERA_MS = new InjectionToken<number>('RESUMEN_MAX_ESPERA_MS', {
+  providedIn: 'root',
+  factory: () => MAX_ESPERA_CORRIDA_MS,
+});
+
 export const RESUMEN_POLL_MS = new InjectionToken<number>('RESUMEN_POLL_MS', {
   factory: () => 2000,
 });
@@ -76,6 +85,7 @@ export class ResumenStore {
   private readonly terrainApi = inject(TerrainApi);
   private readonly borrador = inject(WizardDraftStore);
   private readonly pollMs = inject(RESUMEN_POLL_MS);
+  private readonly maxEsperaMs = inject(RESUMEN_MAX_ESPERA_MS);
 
   private readonly _proyectoId = signal('');
   private readonly _nombreProyecto = signal('');
@@ -310,11 +320,30 @@ export class ResumenStore {
       .pipe(
         exhaustMap(() => this.cultivosApi.obtenerCorrida(proyectoId, corridaId)),
         takeWhile((detalle) => !CORRIDA_TERMINAL.includes(detalle.estado), true),
+        takeUntil(timer(this.maxEsperaMs)),
       )
       .subscribe({
         next: (detalle) => this.alTerminarCorrida(detalle, proyectoId, corridaId),
         error: (error: HttpErrorResponse) => this.fallar(error),
+        complete: () => this.alAgotarLaEspera(),
       });
+  }
+
+  /**
+   * Se acabó el tiempo de espera sin estado terminal.
+   *
+   * El agente puede tardar minutos y el usuario no tiene que quedarse mirando un
+   * spinner eterno creyendo que la app se colgó: se le dice qué pasa y qué puede hacer.
+   */
+  private alAgotarLaEspera(): void {
+    const estado = this._estadoCorrida();
+    if (estado !== null && CORRIDA_TERMINAL.includes(estado)) return;
+    this._estado.set('error');
+    this._error.set(
+      `El agente tardó más de ${Math.round(this.maxEsperaMs / 60000)} minutos y ` +
+        'todavía no terminó. Puede seguir trabajando en el servidor: recargá la página ' +
+        'en un rato o generá el informe de nuevo.',
+    );
   }
 
   private alTerminarCorrida(
