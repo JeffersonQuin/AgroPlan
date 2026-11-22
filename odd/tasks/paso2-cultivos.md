@@ -49,3 +49,52 @@ sobre `dev`. Rama nueva `feat/paso2-cultivos`.
 **L4** — T1-T3 entregados: encabezado compartido en `features/wizard/`, y la capa de datos
 del paso 2 con 6 tests nuevos (116 en total). La UI del paso 2 queda para el turno
 siguiente.
+
+---
+
+# Cambio de lógica del paso 2: productos → agente → reparto
+
+**S4** — Pedido del usuario, textual: *"El usuario lo unico que tiene entrar por input es los
+productos, ya sea los productos predeterminados o elegir un nuevo producto (por ejemplo: yuca).
+Lo que debera hacer el sistema es donde muestra la distribucion por defecto mostrara el input
+anterior osea lo que dibujo el cliente en el paso 1. Y cuando el cliente termina de agregar los
+productos … habra un boton de generar y este boton lo que hara es mandar toda la informacion de
+los productos al Agente y lo que hara el agente es buscar la manera mas eficiente de ordenar
+todos los productos dentro de area que ingreso el cliente"*
+
+**S5** — *"cuando el agente tenga toda esa informacion debe pintar en el area (ya predefinida)
+todo las areas que contendra, si hay 4 productos entonces el area del cleinte se dividira en 4"*
+
+**S6** — *"La fecha de la siembra por defecto es el mismo dia que lo configura … y la fecha de
+cosecha lo tendra que devolver el agente"*.
+
+**S7** — *"en el balance de area la parte de demanda total igual debe devolver el agente o el
+backend de acuerdo a los datos que da el agente"* y *"en cultivos configurados si puedes aumentar
+datos segun lo que devuelve el agente"*.
+
+**S8** — Decisiones del usuario al cerrar: *"El agente reparte área, el motor dibuja"*; *"el
+usuario solo podra generar una sola vez, por eso debemos poner un modal que le advierta"*; *"Se
+permite fecha pasada, cosecha posterior"*; *"se puede ajustar y regenerar pero aca si se necesita
+un plan premium"*.
+
+- T7 — `POST /proyectos/{id}/agente` acepta `{productos, siembra}`; el intake sale de la lista y
+  no de bloques previos. **f940b17**
+- T8 — La siembra pisa la del modelo; la cosecha queda después; el reparto cubre el área entera
+  (`AREA_COMPLETADA`). **f940b17**
+- T9 — Fichas curadas de yuca, arroz, maní y plátano. **f940b17**
+- T10 — UI del paso 2: productos, siembra, Generar con confirmación, sondeo, aplicar, croquis con
+  el terreno por defecto y modal premium. **f1a4c7f**
+
+**L5** — Smoke contra la API: papa + yuca con siembra 2026-11-22 → corrida `ok`, reparto de
+2100 m² entre los dos productos, `aplicar` 200, balance `correcto` con 4410 L/d y 0 m²
+disponibles.
+
+**L6** — El reparto geométrico lo hace el motor: el agente sólo decide **cuánta área** va a cada
+producto. Respeta el invariante del contrato (la IA nunca devuelve coordenadas).
+
+**L7** — Las fichas nuevas (yuca, arroz, maní, plátano) son valores de arranque con criterio
+agronómico general; se ajustan editando el JSON.
+
+**L8** — Sin `AGENTE_API_KEY` un producto sin ficha curada responde 422 con el motivo real ("no
+hay ficha curada y la búsqueda web no está disponible"): el sistema no inventa datos agronómicos.
+Por eso los productos que el usuario va a escribir a mano necesitan ficha.
