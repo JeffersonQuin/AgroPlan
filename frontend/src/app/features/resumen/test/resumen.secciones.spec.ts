@@ -62,6 +62,7 @@ function terreno(pendiente: number | null) {
     suelo_codigo: 'franco_arenado',
     fuente_agua: 'pozo',
     pendiente_pct: pendiente,
+    // Vértices del terreno del paso 1; el plano los usa para el contorno (S4).
     geometria: {
       vertices: [
         { x: 0, y: 0 },
@@ -513,6 +514,35 @@ describe('ResumenPage (paso 4: secciones del informe)', () => {
     );
     const posicion = advertencias.compareDocumentPosition(secciones);
     expect(posicion & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('dibuja el terreno guardado, las zonas con su nombre y color y los sectores (S4)', async () => {
+    const pagina = await montar(resultadoCompleto());
+    const plano = html('[data-plano-red]', pagina);
+    const svg = plano.querySelector('[data-plano-svg]') as SVGSVGElement;
+
+    // El polígono del terreno llega desde el store, no se inventa en el plano.
+    const terreno = svg.querySelector('[data-plano-terreno]') as SVGPolygonElement;
+    expect(terreno).not.toBeNull();
+    expect((terreno.getAttribute('points') ?? '').trim().split(/\s+/).length).toBe(4);
+
+    // Un relleno por bloque con el color del payload y su etiqueta legible.
+    const zonas = Array.from(svg.querySelectorAll<SVGPolygonElement>('[data-zona]'));
+    expect(zonas.map((zona) => zona.getAttribute('fill'))).toEqual(['#8D6E63', '#4CAF50']);
+    const etiquetas = Array.from(
+      svg.querySelectorAll<SVGTextElement>('[data-zona-etiqueta]'),
+    ).map((texto) => texto.textContent?.trim() ?? '');
+    expect(etiquetas[0]).toContain('Papa');
+    expect(etiquetas[1]).toContain('Lechuga');
+
+    // Los sectores y la red siguen arriba, con su propia etiqueta.
+    expect(svg.querySelectorAll('[data-sector]').length).toBe(2);
+    expect(
+      Array.from(svg.querySelectorAll<SVGTextElement>('[data-sector-etiqueta]')).map((texto) =>
+        texto.textContent?.trim(),
+      ),
+    ).toEqual(['Papa', 'Lechuga']);
+    expect(svg.querySelectorAll('polyline').length).toBe(2);
   });
 
   it('muestra "no informado" con un resultado mínimo y no rompe', async () => {

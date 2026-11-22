@@ -193,6 +193,8 @@ export class ResumenStore {
                     ?.label ?? '',
                 caudalM3h: terreno.caudal_efectivo_m3h,
                 pendientePct: terreno.pendiente_pct,
+                // La geometría se guarda tal cual: el plano del informe dibuja el borde real.
+                geometria: terreno.geometria ?? { vertices: [] },
               },
         );
 
