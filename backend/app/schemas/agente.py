@@ -56,6 +56,9 @@ class EntradaAgente(BaseModel):
     caudal_origen: OrigenCaudal
     zona: str | None = Field(default=None, max_length=120)
     pendiente_pct: float = Field(default=0, ge=0, le=30)
+    # Día en que el usuario siembra: el agente devuelve la cosecha a partir de este
+    # dato y del ciclo que investiga. Opcional para no invalidar corridas viejas.
+    siembra: date | None = None
 
     def huella(self) -> str:
         """SHA-256 canónico del intake, para ``agente_corridas.intake_hash``.
@@ -229,6 +232,29 @@ class CorridaDetalleOut(CorridaOut):
     entrada: dict
     salida: PropuestaAgente | None = None
     fuentes: list[FuenteOut] = Field(default_factory=list)
+
+
+class ProductoSolicitado(BaseModel):
+    """Un producto que el usuario agregó en el paso 2.
+
+    Llega por código de catálogo o como texto libre; en el segundo caso el backend lo
+    investiga antes de armar el intake (ficha curada primero, web como respaldo).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    cultivo_codigo: str | None = Field(default=None, min_length=2, max_length=30)
+    producto_texto: str | None = Field(default=None, min_length=2, max_length=60)
+    prioridad: int | None = Field(default=None, ge=1, le=9)
+
+
+class CorridaIniciarIn(BaseModel):
+    """Cuerpo opcional del disparo del agente."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    productos: list[ProductoSolicitado] = Field(default_factory=list, max_length=8)
+    siembra: date | None = None
 
 
 class CorridaIniciadaOut(BaseModel):

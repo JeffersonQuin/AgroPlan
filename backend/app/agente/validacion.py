@@ -156,9 +156,21 @@ def _corregir_fechas(
     cultivo: CultivoRecomendado,
     ciclo: int,
     advertencias: list[Advertencia],
+    siembra_elegida: date | None = None,
 ) -> tuple[date | None, date | None]:
-    siembra = cultivo.siembra_sugerida
+    # La fecha de siembra la elige el usuario: pisa lo que proponga el modelo.
+    siembra = siembra_elegida or cultivo.siembra_sugerida
     cosecha = cultivo.cosecha_sugerida
+
+    if siembra_elegida is not None and cultivo.siembra_sugerida != siembra_elegida:
+        advertencias.append(
+            _advertencia(
+                "FECHAS_AJUSTADAS",
+                f"Se usó la siembra elegida ({siembra_elegida.isoformat()}) en lugar de "
+                f"la que propuso el agente.",
+                campo="siembra_sugerida",
+            )
+        )
 
     if siembra is None and cosecha is not None:
         advertencias.append(
@@ -170,13 +182,17 @@ def _corregir_fechas(
         )
         return None, None
 
+    if siembra is not None and cosecha is None:
+        # Sin fecha del agente la cosecha se deriva del ciclo investigado.
+        return siembra, siembra + timedelta(days=max(ciclo, 1))
+
     if siembra is not None and cosecha is not None and cosecha <= siembra:
         nueva = siembra + timedelta(days=max(ciclo, 1))
         advertencias.append(
             _advertencia(
                 "FECHAS_AJUSTADAS",
-                f"La cosecha de {cultivo.cultivo_codigo} era anterior a la siembra: "
-                f"se movió a {nueva.isoformat()}.",
+                f"La cosecha de {cultivo.cultivo_codigo} era anterior o igual a la "
+                f"siembra: se movió a {nueva.isoformat()}.",
                 campo="cosecha_sugerida",
             )
         )
@@ -275,6 +291,7 @@ def corregir(
     catalogo: dict[str, dict[str, Any]],
     area_m2: float,
     total_fuentes: int,
+    siembra: date | None = None,
 ) -> PropuestaAgente:
     """Devuelve la propuesta corregida y con las advertencias acumuladas.
 
@@ -303,7 +320,9 @@ def corregir(
         ciclo_catalogo = referencia.get("ciclo_dias")
         ciclo = int(cultivo.ciclo_dias or ciclo_catalogo or CICLO_POR_DEFECTO)
         ciclo = int(_limitar(ciclo, 1, 730))
-        siembra, cosecha = _corregir_fechas(cultivo, ciclo, advertencias)
+        siembra_cultivo, cosecha = _corregir_fechas(
+            cultivo, ciclo, advertencias, siembra
+        )
         justificacion = (cultivo.justificacion or "").strip() or JUSTIFICACION_POR_DEFECTO
 
         if codigo in cultivos:
@@ -319,7 +338,7 @@ def corregir(
                 cultivo, referencia.get("demanda_agua_l_m2_dia"), advertencias
             ),
             ciclo_dias=ciclo,
-            siembra_sugerida=siembra,
+            siembra_sugerida=siembra_cultivo,
             cosecha_sugerida=cosecha,
             justificacion=justificacion[:600],
             fuente_ids=_corregir_fuentes(
@@ -336,13 +355,17 @@ def corregir(
     areas = [sumadas[codigo] for codigo in cultivos]
     total = sum(areas)
     escala = 1.0
-    if total > area_m2:
+    if area_m2 > 0 and abs(total - area_m2) > 0.01:
+        # El reparto tiene que cubrir el terreno completo: si sobra o falta área, se
+        # escala en el sentido que haga falta y se avisa.
         escala = area_m2 / total
+        codigo_alerta = "AREA_AJUSTADA" if total > area_m2 else "AREA_COMPLETADA"
         advertencias.append(
             _advertencia(
-                "AREA_AJUSTADA",
-                f"El reparto propuesto ({total:.2f} m²) superaba el terreno "
-                f"({area_m2:.2f} m²): se escaló al {escala * 100:.1f}%.",
+                codigo_alerta,
+                f"El reparto propuesto ({total:.2f} m²) "
+                + ("superaba" if total > area_m2 else "no cubría")
+                + f" el terreno ({area_m2:.2f} m²): se ajustó al {escala * 100:.1f}%.",
                 campo="area_m2",
             )
         )
@@ -363,6 +386,18 @@ def corregir(
 
     if not corregidos:
         raise PropuestaInvalida("Todas las áreas propuestas quedaron por debajo del mínimo")
+
+    # La cuantización deja un resto menor a una celda de la grilla; se le suma al
+    # cultivo más grande para que el reparto cubra el terreno exacto y el balance
+    # cierre en 100% en vez de quedar "ajustado" por 0,21 m².
+    total_corregido = sum(_dec(cultivo.area_m2) for cultivo in corregidos)
+    resto = _dec(area_m2) - total_corregido
+    quantum = _dec(area_m2) / 10000 if area_m2 > 0 else _dec(0)
+    if quantum > 0 and _dec(0) < resto < quantum * 2:
+        mayor = max(range(len(corregidos)), key=lambda indice: corregidos[indice].area_m2)
+        corregidos[mayor] = corregidos[mayor].model_copy(
+            update={"area_m2": float(_dec(corregidos[mayor].area_m2) + resto)}
+        )
 
     return PropuestaAgente(
         cultivos=corregidos,

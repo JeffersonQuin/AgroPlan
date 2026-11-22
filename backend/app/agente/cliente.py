@@ -14,6 +14,7 @@ En ambos casos la propuesta pasa por ``validacion.corregir`` y por el contrato r
 from __future__ import annotations
 
 import math
+import uuid
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
@@ -65,6 +66,10 @@ class ContextoAgente:
     suelo: dict[str, Any] | None = None
     riego_actual: dict[str, Any] | None = None
     bloques: int = 0
+    # El gateway OpenAI-compatible de OpenCode enruta por sesión: sin este id responde
+    # 400 "missing x-opencode-session". Se usa el id de la corrida, que además sirve
+    # para rastrear qué llamada produjo qué propuesta.
+    sesion: str = field(default_factory=lambda: str(uuid.uuid4()))
 
 
 @dataclass(slots=True)
@@ -207,8 +212,12 @@ def _propuesta_catalogo(contexto: ContextoAgente) -> tuple[PropuestaAgente, list
             Advertencia(
                 codigo=MODO_CATALOGO_ADVERTENCIA,
                 mensaje=(
-                    "La corrida se resolvió con el catálogo interno: no hay credenciales "
-                    "del modelo configuradas (AGENTE_API_KEY)."
+                    "La corrida se resolvió con el catálogo interno: "
+                    + (
+                        "AGENTE_MODO está en 'catalogo'."
+                        if settings.AGENTE_MODO == "catalogo"
+                        else "no hay credenciales del modelo configuradas."
+                    )
                 ),
                 campo="modelo",
             )
@@ -260,6 +269,13 @@ def _propuesta_llm(contexto: ContextoAgente) -> tuple[PropuestaAgente, int | Non
         api_key=settings.AGENTE_API_KEY,
         base_url=settings.AGENTE_BASE_URL,
         timeout=settings.AGENTE_TIMEOUT_S,
+        # Razonamiento bajo: el reparto se valida del lado del backend, no hace falta
+        # que el modelo "piense" de más ni que gaste tokens en eso.
+        reasoning_effort=settings.AGENTE_RAZONAMIENTO,
+        default_headers={
+            "x-opencode-session": contexto.sesion,
+            "User-Agent": "agroplan-agente/1.0",
+        },
     )
     agente = Agent(
         model=modelo,
@@ -325,7 +341,9 @@ def ejecutar(contexto: ContextoAgente) -> ResultadoAgente:
         str(cultivo["codigo"]): cultivo for cultivo in contexto.catalogo
     }
 
-    if settings.AGENTE_API_KEY:
+    usar_modelo = settings.AGENTE_MODO == "llm" and bool(settings.AGENTE_API_KEY)
+
+    if usar_modelo:
         propuesta, tokens_entrada, tokens_salida = _propuesta_llm(contexto)
         fuentes = [
             FuenteRecuperada(
@@ -350,6 +368,7 @@ def ejecutar(contexto: ContextoAgente) -> ResultadoAgente:
             catalogo=catalogo_por_codigo,
             area_m2=float(contexto.entrada.area_m2),
             total_fuentes=len(fuentes),
+            siembra=contexto.entrada.siembra,
         )
     except PropuestaInvalida as exc:
         raise ErrorAgente(str(exc)) from exc

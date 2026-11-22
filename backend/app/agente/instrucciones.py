@@ -36,6 +36,7 @@ def construir_mensaje(
 
     contexto = {
         "intake": entrada.model_dump(mode="json", exclude_none=True),
+        "siembra": entrada.siembra.isoformat() if entrada.siembra else None,
         "catalogo_cultivos": catalogo,
         "suelo": suelo,
         "bloques_existentes": bloques,
@@ -54,5 +55,15 @@ def construir_mensaje(
         "- ``separacion_laterales_m`` ∈ [0.5, 10]; ``num_sectores`` ∈ [1, 8].\n"
         "- Citá en ``fuente_ids`` solo índices de las fuentes recuperadas en esta "
         "corrida; el backend reemplaza lo que no exista.\n"
+        "- Repartí **toda** el área del terreno entre los productos pedidos: la suma de "
+        "`area_m2` tiene que dar el área del terreno, no menos.\n"
+        "- El reparto tiene que ser el más eficiente para esos productos juntos "
+        "(demanda de agua, profundidad de raíz, compatibilidad y rotación).\n"
+        "- Investigá cada producto que no esté en el catálogo y devolvé su demanda de "
+        "agua, su ciclo y una fecha aproximada de cosecha.\n"
+        "- `siembra_sugerida` es la fecha de siembra del intake; `cosecha_sugerida` se "
+        "calcula sumando el ciclo a esa siembra.\n"
+        "- Citá en `fuentes` la información agronómica que usaste; si no hay fuente, "
+        "no inventes el dato.\n"
         "- Justificá cada cultivo en menos de 600 caracteres, con criterio agronómico."
     )

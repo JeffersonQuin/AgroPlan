@@ -43,6 +43,36 @@
       "veredicto": "apto",
       "motivo": "Buena reserva de agua para el ciclo.",
       "fuente": "Ficha curada AgroPlan"
+    },
+    "franco_arenoso": {
+      "veredicto": "apto",
+      "motivo": "Buen perfil para el sistema radical.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "franco_arcilloso": {
+      "veredicto": "apto",
+      "motivo": "Retiene agua para el ciclo largo.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "salino": {
+      "veredicto": "condicionado",
+      "motivo": "Tolera algo de sal, con rendimiento menor.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "calcareo": {
+      "veredicto": "condicionado",
+      "motivo": "Vigilar zinc y hierro.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "pedregoso": {
+      "veredicto": "condicionado",
+      "motivo": "Raíz profunda: piedras en el perfil limitan.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "organico": {
+      "veredicto": "apto",
+      "motivo": "Buena fertilidad; cuidado con el exceso de nitrógeno.",
+      "fuente": "Ficha curada AgroPlan"
     }
   }
 }

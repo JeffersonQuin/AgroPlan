@@ -43,6 +43,36 @@
       "veredicto": "condicionado",
       "motivo": "Buena retención pero se compacta: cuidar laboreo.",
       "fuente": "Ficha curada AgroPlan"
+    },
+    "franco_arenoso": {
+      "veredicto": "apto",
+      "motivo": "Suelto y con buen drenaje: ideal para el tubérculo.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "franco_arcilloso": {
+      "veredicto": "condicionado",
+      "motivo": "Retiene mucho: cuidar el riego para evitar pudrición.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "salino": {
+      "veredicto": "no_apto",
+      "motivo": "La papa es sensible a la salinidad del suelo.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "calcareo": {
+      "veredicto": "condicionado",
+      "motivo": "pH alto: puede faltar zinc y fósforo disponible.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "pedregoso": {
+      "veredicto": "no_apto",
+      "motivo": "Las piedras deforman el tubérculo en la cosecha.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "organico": {
+      "veredicto": "apto",
+      "motivo": "Buena fertilidad y estructura para el cultivo.",
+      "fuente": "Ficha curada AgroPlan"
     }
   }
 }

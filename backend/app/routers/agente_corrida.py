@@ -24,6 +24,7 @@ from app.models.usuario import Usuario
 from app.schemas.agente import (
     CorridaDetalleOut,
     CorridaIniciadaOut,
+    CorridaIniciarIn,
     CorridaOut,
     ResultadoProyectoOut,
 )
@@ -38,9 +39,15 @@ def _iniciar(
     background: BackgroundTasks,
     response: Response,
     db: Session,
+    cuerpo: CorridaIniciarIn | None = None,
 ) -> CorridaIniciadaOut:
     try:
-        inicio = agente_service.iniciar_corrida(db, proyecto)
+        inicio = agente_service.iniciar_corrida(
+            db,
+            proyecto,
+            productos=cuerpo.productos if cuerpo is not None else None,
+            siembra=cuerpo.siembra if cuerpo is not None else None,
+        )
     except AgenteServiceError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
 
@@ -67,10 +74,11 @@ def _iniciar(
 def iniciar_corrida(
     background: BackgroundTasks,
     response: Response,
+    cuerpo: CorridaIniciarIn | None = None,
     proyecto: Proyecto = Depends(get_proyecto_actual),
     db: Session = Depends(get_db),
 ) -> CorridaIniciadaOut:
-    return _iniciar(proyecto, background, response, db)
+    return _iniciar(proyecto, background, response, db, cuerpo)
 
 
 @router.post(
@@ -81,10 +89,11 @@ def iniciar_corrida(
 def iniciar_corrida_por_corridas(
     background: BackgroundTasks,
     response: Response,
+    cuerpo: CorridaIniciarIn | None = None,
     proyecto: Proyecto = Depends(get_proyecto_actual),
     db: Session = Depends(get_db),
 ) -> CorridaIniciadaOut:
-    return _iniciar(proyecto, background, response, db)
+    return _iniciar(proyecto, background, response, db, cuerpo)
 
 
 @router.get("/proyectos/{proyecto_id}/agente/corridas", response_model=list[CorridaOut])

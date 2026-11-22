@@ -1,0 +1,78 @@
+{
+  "codigo": "zanahoria",
+  "nombre": "Zanahoria",
+  "icono": "Z",
+  "color": "#EF6C00",
+  "demanda_agua_l_m2_dia": 1.4,
+  "ciclo_dias": 90,
+  "meses_siembra": [
+    2,
+    3,
+    8,
+    9
+  ],
+  "kc": 1.05,
+  "densidad_plantas_m2": 100,
+  "profundidad_raiz_cm": 30,
+  "notas": "Raíz pivotante: necesita suelo suelto y sin piedras para no deformarse.",
+  "aptitud_suelo": {
+    "franco": {
+      "veredicto": "apto",
+      "motivo": "Suelo ideal para la raíz.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "arenoso": {
+      "veredicto": "apto",
+      "motivo": "Suelto: raíces rectas y parejas.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "arcilloso": {
+      "veredicto": "no_apto",
+      "motivo": "Duro y pesado: deforma la raíz.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "limoso": {
+      "veredicto": "condicionado",
+      "motivo": "Se compacta y deforma la raíz.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "franco_arenoso": {
+      "veredicto": "apto",
+      "motivo": "Excelente para raíz pivotante.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "franco_arcilloso": {
+      "veredicto": "condicionado",
+      "motivo": "Puede deformar; cuidar la preparación.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "salino": {
+      "veredicto": "condicionado",
+      "motivo": "Sensible; vigilar el desarrollo.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "calcareo": {
+      "veredicto": "condicionado",
+      "motivo": "Puede faltar boro y fósforo.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "pedregoso": {
+      "veredicto": "no_apto",
+      "motivo": "Las piedras deforman la raíz comercial.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "organico": {
+      "veredicto": "apto",
+      "motivo": "Suelto y fértil; evitar estiércol fresco.",
+      "fuente": "Ficha curada AgroPlan"
+    }
+  },
+  "fuentes": [
+    {
+      "tipo": "manual",
+      "titulo": "Ficha técnica curada AgroPlan",
+      "url": null,
+      "fragmento": "Demanda, ciclo y aptitud de suelo de arranque"
+    }
+  ]
+}

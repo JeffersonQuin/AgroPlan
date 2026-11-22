@@ -151,6 +151,23 @@ describe('ProjectsStore', () => {
     expect(store.visibleProjects()[0].name).toBe('Los Olivos');
   });
 
+  it('explains a FastAPI validation error field by field', () => {
+    store.cargar();
+    http.expectOne('http://localhost:8000/proyectos').flush(
+      {
+        detail: [
+          { loc: ['body', 'caudal_disponible_m3h'], msg: 'Input should be greater than 0' },
+          { loc: ['body', 'vertices'], msg: 'List should have at least 3 items' },
+        ],
+      },
+      { status: 422, statusText: 'Unprocessable Content' },
+    );
+
+    expect(store.error()).toBe(
+      'Revisá estos datos → caudal_disponible_m3h: tiene que ser mayor que 0 · vertices: List should have at least 3 items',
+    );
+  });
+
   it('reports a readable error when the backend is down', () => {
     store.cargar();
     http

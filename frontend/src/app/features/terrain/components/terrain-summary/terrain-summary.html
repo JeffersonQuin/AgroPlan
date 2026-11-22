@@ -100,7 +100,14 @@
 <span class="text-[10px] text-blue-700 font-bold bg-blue-50 px-1.5 py-0.5 rounded">Para Paso 3</span>
 </div>
 <div class="relative">
-<input class="w-full text-xs font-semibold rounded border-slate-300 py-1.5 pr-14" id="caudal-disp"
+<input
+              class="w-full text-xs font-semibold rounded py-1.5 pr-14 focus:ring-1 focus:ring-agro-500"
+              [class]="
+                store.erroresCampo()['caudal_disponible_m3h']
+                  ? 'border-error ring-1 ring-error bg-error-container/20'
+                  : 'border-slate-300'
+              "
+              id="caudal-disp"
                 step="0.1"
                 type="number"
                 [value]="store.flowM3h()"
@@ -108,6 +115,9 @@
               />
 <span class="absolute right-2 top-2 text-[10px] font-bold text-slate-400">m³/hora</span>
 </div>
+@if (store.erroresCampo()['caudal_disponible_m3h']; as error) {
+  <p class="text-[10px] text-error font-semibold mt-1" role="alert">{{ error }}</p>
+}
 <div class="mt-2 flex items-center justify-between text-[11px] text-slate-500">
   <span>Caudal efectivo:</span>
   <span class="font-bold text-slate-700 bg-white px-2 py-0.5 border border-slate-200 rounded">
@@ -120,13 +130,23 @@
 <div>
 <label class="block text-[11px] font-semibold text-slate-700 mb-1" for="nivel-dinamico">Profundidad nivel dinámico</label>
 <div class="relative">
-<input class="w-full text-xs font-semibold rounded border-slate-300 py-1.5 pr-8" id="nivel-dinamico"
+<input
+                class="w-full text-xs font-semibold rounded py-1.5 pr-8 focus:ring-1 focus:ring-agro-500"
+                [class]="
+                  store.erroresCampo()['profundidad_nivel_dinamico_m']
+                    ? 'border-error ring-1 ring-error bg-error-container/20'
+                    : 'border-slate-300'
+                "
+                id="nivel-dinamico"
                 type="number"
                 [value]="store.staticLevelM()"
                 (input)="onLevel($event)"
               />
 <span class="absolute right-2 top-2 text-[10px] font-bold text-slate-400">m</span>
 </div>
+@if (store.erroresCampo()['profundidad_nivel_dinamico_m']; as error) {
+  <p class="text-[10px] text-error font-semibold mt-1" role="alert">{{ error }}</p>
+}
 </div>
 </section>
 @if (store.alertas().length > 0) {

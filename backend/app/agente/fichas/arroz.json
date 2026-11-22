@@ -1,0 +1,76 @@
+{
+  "codigo": "arroz",
+  "nombre": "Arroz",
+  "icono": "A",
+  "color": "#D4C9A8",
+  "demanda_agua_l_m2_dia": 4.0,
+  "ciclo_dias": 130,
+  "meses_siembra": [
+    11,
+    12
+  ],
+  "kc": 1.1,
+  "densidad_plantas_m2": 250,
+  "profundidad_raiz_cm": 30,
+  "notas": "En Bolivia se cultiva en Santa Cruz y Beni; tolera anegamiento temporal.",
+  "aptitud_suelo": {
+    "franco": {
+      "veredicto": "apto",
+      "motivo": "Suelo ideal para el cultivo.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "arenoso": {
+      "veredicto": "condicionado",
+      "motivo": "Pierde agua rápido: más riego.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "arcilloso": {
+      "veredicto": "apto",
+      "motivo": "Retiene el agua que el cultivo necesita.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "limoso": {
+      "veredicto": "apto",
+      "motivo": "Buena retención y laboreo.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "franco_arenoso": {
+      "veredicto": "condicionado",
+      "motivo": "Requiere riegos más frecuentes.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "franco_arcilloso": {
+      "veredicto": "apto",
+      "motivo": "Retención adecuada para el ciclo.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "salino": {
+      "veredicto": "condicionado",
+      "motivo": "Moderadamente tolerante en germinación.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "calcareo": {
+      "veredicto": "condicionado",
+      "motivo": "Vigilar zinc y fósforo.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "pedregoso": {
+      "veredicto": "no_apto",
+      "motivo": "Daña la siembra y el manejo del agua.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "organico": {
+      "veredicto": "condicionado",
+      "motivo": "Exceso de nitrógeno provoca vuelco.",
+      "fuente": "Ficha curada AgroPlan"
+    }
+  },
+  "fuentes": [
+    {
+      "tipo": "manual",
+      "titulo": "Ficha técnica curada AgroPlan",
+      "url": null,
+      "fragmento": "Demanda, ciclo y aptitud de suelo de arranque"
+    }
+  ]
+}

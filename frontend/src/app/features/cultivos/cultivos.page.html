@@ -1,0 +1,129 @@
+<div class="bg-agro-surface text-slate-800 font-sans min-h-screen flex flex-col antialiased">
+  <app-wizard-header
+    [paso]="2"
+    [nombreProyecto]="store.nombreProyecto()"
+    [estadoGuardado]="borrador.cantidad() > 0 ? 'Productos guardados' : 'Sin productos'"
+  />
+
+  <main
+    class="flex-1 p-4 grid grid-cols-1 lg:grid-cols-[300px_1fr_320px] gap-4 max-w-[1920px] mx-auto w-full items-start overflow-hidden"
+  >
+    <app-cultivo-form />
+
+    <div class="flex flex-col gap-3 min-h-[460px]">
+      <!-- Cabecera del proyecto -->
+      <div
+        class="bg-white rounded-xl border border-agro-border px-4 py-2.5 shadow-sm flex items-center justify-between gap-3"
+      >
+        <div class="flex items-center gap-2 min-w-0">
+          <span class="material-symbols-outlined text-[18px] text-agro-600" aria-hidden="true"
+            >location_on</span
+          >
+          <span class="text-xs font-bold text-slate-800 truncate">
+            {{ store.nombreProyecto() }} ({{ store.areaM2() }} m²)
+          </span>
+        </div>
+        <div class="text-[11px] text-slate-500 shrink-0">
+          Capacidad hidráulica de referencia:
+          <strong class="text-slate-800">{{ store.caudalM3h() }} m³/h</strong>
+          @if (store.sueloCodigo()) {
+            · suelo <strong class="text-slate-800">{{ store.sueloCodigo() }}</strong>
+          }
+        </div>
+      </div>
+
+      <!-- Productos elegidos: ocupan el centro, con el detalle diferido al resumen -->
+      @if (borrador.vacio()) {
+        <div
+          class="flex-1 min-h-[360px] rounded-xl border-2 border-dashed border-slate-300 bg-white/60 flex flex-col items-center justify-center text-center p-8"
+        >
+          <span class="material-symbols-outlined text-[40px] text-slate-300" aria-hidden="true"
+            >potted_plant</span
+          >
+          <p class="text-sm font-bold text-slate-700 mt-2">Todavía no elegiste productos</p>
+          <p class="text-[11px] text-slate-500 mt-1 max-w-sm">
+            Agregalos desde el panel de la izquierda: los que están en el catálogo o
+            escribiendo uno nuevo. El agente los investiga al generar el resumen.
+          </p>
+        </div>
+      } @else {
+        <div class="flex-1 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 content-start">
+          @for (producto of borrador.productos(); track producto.etiqueta; let i = $index) {
+            <article
+              class="bg-white rounded-xl border border-agro-border p-4 shadow-sm flex flex-col gap-2"
+            >
+              <div class="flex items-start justify-between gap-2">
+                <div class="flex items-center gap-2 min-w-0">
+                  <span
+                    class="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold shrink-0"
+                    [style.background]="producto.color"
+                  >
+                    {{ producto.etiqueta.charAt(0).toUpperCase() }}
+                  </span>
+                  <p class="text-sm font-bold text-slate-800 truncate" [title]="producto.etiqueta">
+                    {{ producto.etiqueta }}
+                  </p>
+                </div>
+                <button
+                  class="p-1 rounded text-slate-400 hover:text-error hover:bg-error-container/30 shrink-0"
+                  type="button"
+                  [attr.aria-label]="'Quitar ' + producto.etiqueta"
+                  (click)="borrador.quitarProducto(i)"
+                >
+                  <span class="material-symbols-outlined text-[16px]" aria-hidden="true">close</span>
+                </button>
+              </div>
+
+              <span
+                class="inline-flex w-fit items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border"
+                [class]="
+                  producto.codigo === null
+                    ? 'text-amber-700 bg-amber-50 border-amber-200'
+                    : 'text-emerald-700 bg-emerald-50 border-emerald-200'
+                "
+              >
+                {{ producto.codigo === null ? 'Nuevo · se investiga' : 'Del catálogo' }}
+              </span>
+
+              <p class="text-[11px] text-slate-500 leading-snug">
+                Área asignada, demanda de agua y fecha de cosecha se calculan en el
+                <strong class="text-slate-700">resumen final</strong>.
+              </p>
+            </article>
+          }
+
+          <div
+            class="rounded-xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center p-4 text-center min-h-[140px]"
+          >
+            <span class="material-symbols-outlined text-[22px] text-slate-300" aria-hidden="true"
+              >add_circle</span
+            >
+            <p class="text-[11px] text-slate-500 mt-1">Agregá otro producto a la izquierda</p>
+          </div>
+        </div>
+      }
+
+      <!-- Navegación del wizard -->
+      <div class="flex items-center justify-between gap-3">
+        <a
+          class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-slate-300 text-slate-700 text-xs font-semibold hover:bg-slate-50"
+          [routerLink]="['/proyectos', proyectoId(), 'terreno']"
+        >
+          <span class="material-symbols-outlined text-[16px]" aria-hidden="true">arrow_back</span>
+          Volver a Terreno
+        </a>
+        <button
+          class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-slate-200 text-slate-500 text-xs font-semibold cursor-not-allowed"
+          type="button"
+          title="Paso 3 (Sistema): próximamente"
+          disabled
+        >
+          A Sistema
+          <span class="material-symbols-outlined text-[16px]" aria-hidden="true">arrow_forward</span>
+        </button>
+      </div>
+    </div>
+
+    <app-cultivos-panel />
+  </main>
+</div>
