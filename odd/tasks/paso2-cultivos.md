@@ -125,3 +125,27 @@ no deterministas). `conftest.py` fija `AGENTE_API_KEY=""`, así los tests van a 
 por catálogo (determinístico, gratis) o con el modelo, sin tocar la clave. La investigación de
 un producto fuera del catálogo **no** depende del modo: ocurre igual en los dos, porque sin ella
 el producto no se puede usar. Catálogo no busca para repartir; si el producto falta, busca.
+
+---
+
+# El paso 2 sólo recoge datos; el agente corre una vez, al final
+
+**S9** — Pedido del usuario, textual: *"ya que no queremos que en cada paso hagamos una peticion
+a la api. … lo unico que hara los pasos es pedir informacion, porque en el paso 4 sera el resumen
+es decir el informe final que entregara el agente (distribucion de todo en el area, el sistema de
+riego adecaudo, etc). asi que este paso lo unico que debe pedir es productos, fecha de siembra y
+cultivos configurados si no tienes informacion que diga que espere hasta el final en el resumen
+para ver todo a detalle. … asi no gastamos muchos tokens solo un prompt final para el agente"*
+
+- T11 — `WizardDraftStore`: borrador de los pasos (productos + siembra), en memoria y
+  `localStorage` por proyecto, con el payload listo para el disparo del paso 4. **f928bd4**
+- T12 — El paso 2 queda de recolección: nada de generar, sondear ni aplicar. El panel dice que
+  el detalle llega en el resumen final. **f928bd4**
+- T13 — Se quita el sondeo, los modales de generación y las escrituras del paso 2; la API del
+  agente queda para el paso 4. **f928bd4**
+
+**L12** — Consecuencia: el costo del agente queda en **un solo prompt por proyecto**, al generar
+el resumen. Los pasos 1-3 sólo hacen lecturas (`GET`), que no cuestan tokens.
+
+**L13** — Pendiente para el paso 4: disparar con `WizardDraftStore.aPayload()`, sondear, aplicar y
+renderizar el informe (distribución, demanda, cosechas, sistema de riego, fuentes).
