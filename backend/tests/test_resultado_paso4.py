@@ -873,3 +873,28 @@ def test_la_advertencia_del_informe_reemplaza_la_de_la_corrida(
     assert len(avisos) == 1
     assert "500.00" in avisos[0]["mensaje"]
     assert avisos[0]["campo"] == "presupuesto_bs"
+
+
+def test_corrida_vieja_sin_claves_de_imagen_usa_la_de_la_ficha(
+    cliente_autenticado: TestClient, db_session: Session
+) -> None:
+    """S4: una corrida anterior a T3 (sin claves de imagen) no deja el bloque sin foto."""
+    cultivo = db_session.get(Cultivo, "papa")
+    assert cultivo is not None
+    cultivo.imagen_url = "https://fichas.example/papa-curada.jpg"
+    cultivo.imagen_credito = "Foto: Ficha curada AgroPlan, CC BY-SA 4.0"
+    db_session.commit()
+
+    salida = _salida()
+    for clave in ("imagen_url", "imagen_fuente_url"):
+        salida["cultivos"][0].pop(clave, None)
+        salida["sistema"].pop(clave, None)
+
+    pid = _proyecto(cliente_autenticado)
+    corrida = _corrida(pid, db_session, salida)
+    bloque = _aplicar(cliente_autenticado, pid, corrida.id)["diseno"]["bloques"][0]
+
+    assert bloque["imagen_url"] == "https://fichas.example/papa-curada.jpg"
+    assert bloque["imagen_credito"] == "Foto: Ficha curada AgroPlan, CC BY-SA 4.0"
+    detalle = cliente_autenticado.get(f"/proyectos/{pid}/agente/corridas/{corrida.id}")
+    assert detalle.status_code == 200, detalle.text

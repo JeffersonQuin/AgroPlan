@@ -242,3 +242,37 @@ def test_el_catalogo_expone_la_imagen_del_cultivo(
     )
     assert papa["imagen_url"] == IMAGEN_CATALOGO
     assert papa["imagen_credito"] == CREDITO_FICHA
+
+
+def test_un_cultivo_nuevo_desde_ficha_curada_hereda_la_imagen(
+    cliente_autenticado: TestClient,
+) -> None:
+    """S4: dar de alta un producto que tiene ficha curada no puede perder la foto."""
+    proyecto = cliente_autenticado.post("/proyectos", json={"nombre": "P", "zona": "Cuyo"})
+    pid = proyecto.json()["id"]
+    assert cliente_autenticado.put(
+        f"/proyectos/{pid}/terreno",
+        json={
+            "nombre_parcela": "L1",
+            "forma": "rectangulo",
+            "vertices": [
+                {"x": 0, "y": 0},
+                {"x": 10, "y": 0},
+                {"x": 10, "y": 20},
+                {"x": 0, "y": 20},
+            ],
+            "suelo_codigo": "franco",
+            "pendiente_pct": 2,
+            "fuente_agua": "pozo",
+        },
+    ).status_code == 200
+
+    bloque = cliente_autenticado.post(
+        f"/proyectos/{pid}/cultivos", json={"producto_texto": "arroz", "porcentaje": 100}
+    )
+    assert bloque.status_code == 201, bloque.text
+
+    catalogo = cliente_autenticado.get("/catalogos/cultivos").json()
+    arroz = next(cultivo for cultivo in catalogo if cultivo["codigo"] == "arroz")
+    assert arroz["imagen_url"].startswith("https://upload.wikimedia.org/")
+    assert arroz["imagen_credito"]

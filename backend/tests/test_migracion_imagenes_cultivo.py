@@ -172,3 +172,10 @@ def test_downgrade_y_upgrade_conservan_las_filas(migracion, ficha_con_imagen) ->
     command.downgrade(configuracion, REVISION_COLUMNAS)
     assert _imagen(ruta, "papa") == (IMAGEN, FUENTE, CREDITO)
     assert len(_filas(ruta, "codigo")) == 8
+
+
+def test_el_esquema_migrado_no_tiene_operaciones_pendientes(migracion) -> None:
+    """Modelo y migraciones no pueden desincronizarse sin que un test lo grite."""
+    configuracion, _ = migracion
+    command.upgrade(configuracion, "head")
+    command.check(configuracion)
