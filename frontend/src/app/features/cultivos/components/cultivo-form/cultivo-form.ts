@@ -1,5 +1,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { NgIcon, provideIcons } from '@ng-icons/core';
+import { matAddOutline, matPottedPlantOutline } from '@ng-icons/material-symbols/outline';
 import { WizardDraftStore } from '../../../wizard/state/wizard-draft.store';
 import { CultivosStore } from '../../state/cultivos.store';
 
@@ -11,7 +13,8 @@ import { CultivosStore } from '../../state/cultivos.store';
  */
 @Component({
   selector: 'app-cultivo-form',
-  imports: [FormsModule],
+  imports: [FormsModule, NgIcon],
+  viewProviders: [provideIcons({ matAddOutline, matPottedPlantOutline })],
   templateUrl: './cultivo-form.html',
 })
 export class CultivoForm {
@@ -27,8 +30,7 @@ export class CultivoForm {
     this.store
       .opcionesCultivo()
       .filter(
-        (opcion) =>
-          !this.borrador.productos().some((producto) => producto.codigo === opcion.value),
+        (opcion) => !this.borrador.productos().some((producto) => producto.codigo === opcion.value),
       ),
   );
 

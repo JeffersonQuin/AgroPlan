@@ -1,9 +1,7 @@
 <aside class="flex flex-col gap-4 overflow-y-auto max-h-[calc(100vh-9rem)] pr-1">
   <div class="bg-white rounded-xl border border-agro-border p-4 shadow-sm">
     <div class="flex items-center gap-2 pb-3 mb-3 border-b border-slate-100">
-      <span class="material-symbols-outlined text-[20px] text-agro-600" aria-hidden="true"
-        >potted_plant</span
-      >
+      <ng-icon class="text-agro-600" name="matPottedPlantOutline" size="20" aria-hidden="true" />
       <div>
         <h2 class="text-sm font-bold text-slate-800">Productos a sembrar</h2>
         <p class="text-[11px] text-slate-400">Paso 2: qué querés producir</p>
@@ -37,9 +35,7 @@
         [disabled]="!puedeAgregarCatalogo()"
         (click)="agregarDelCatalogo()"
       >
-        <span class="material-symbols-outlined text-[16px] align-middle" aria-hidden="true"
-          >add</span
-        >
+        <ng-icon class="align-middle" name="matAddOutline" size="16" aria-hidden="true" />
       </button>
     </div>
 

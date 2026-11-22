@@ -23,6 +23,15 @@ export interface ProjectNextStep {
   step?: number;
 }
 
+/**
+ * Icons the card draws next to the project name and in its status row.
+ *
+ * These are the keys of the map `ProjectCard` resolves to the real `@ng-icons`
+ * constants; the icons themselves are declared in that component.
+ */
+export type ProjectCardIcon =
+  'verified' | 'pending' | 'check_circle' | 'edit_note' | 'tune' | 'settings';
+
 export interface Project {
   id: string;
   name: string;
@@ -31,11 +40,11 @@ export interface Project {
   modifiedAt: string;
   status: ProjectStatus;
   statusLabel: string;
-  statusIcon: string;
+  statusIcon: ProjectCardIcon;
   /** Colour token for the status icon, e.g. text-secondary. */
   statusTone: string;
   /** Icon shown next to the project name in the card header. */
-  headerIcon: string;
+  headerIcon: ProjectCardIcon;
   /** Colour token for the header icon. */
   headerTone: string;
   /** Tooltip of the header icon. */

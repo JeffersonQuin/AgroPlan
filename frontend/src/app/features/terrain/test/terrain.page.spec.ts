@@ -51,4 +51,27 @@ describe('TerrainPage', () => {
     expect(html.textContent).toContain('Guardar y continuar a Cultivos');
     expect(html.textContent).toContain('Sin guardar');
   });
+
+  it('renders an inline SVG for every validation row icon', async () => {
+    const harness = await RouterTestingHarness.create('/proyectos/p-1/terreno');
+
+    http.expectOne('http://localhost:8000/proyectos/p-1').flush(PROYECTO);
+    http
+      .expectOne('http://localhost:8000/proyectos/p-1/terreno')
+      .flush(
+        { detail: 'El proyecto todavía no tiene terreno' },
+        { status: 404, statusText: 'Not Found' },
+      );
+    http.expectOne('http://localhost:8000/catalogos/suelos').flush([]);
+    await harness.fixture.whenStable();
+
+    const html = harness.routeNativeElement as HTMLElement;
+    const seccion = Array.from(html.querySelectorAll('section')).find((section) =>
+      section.textContent?.includes('Validaciones técnicas'),
+    )!;
+    const iconos = Array.from(seccion.querySelectorAll('li ng-icon') as NodeListOf<HTMLElement>);
+
+    expect(iconos.length).toBeGreaterThan(0);
+    expect(iconos.filter((icon) => icon.querySelector('svg') === null).length).toBe(0);
+  });
 });

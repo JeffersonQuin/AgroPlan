@@ -10,11 +10,11 @@
   aria-modal="true"
   aria-labelledby="new-project-title"
 >
-  <div class="flex items-center justify-between px-space-lg py-space-md border-b border-outline-variant/40">
+  <div
+    class="flex items-center justify-between px-space-lg py-space-md border-b border-outline-variant/40"
+  >
     <div class="flex items-center gap-2">
-      <span class="material-symbols-outlined text-[20px] text-primary" aria-hidden="true"
-        >add_location_alt</span
-      >
+      <ng-icon class="text-primary" name="matAddLocationAltOutline" size="20" aria-hidden="true" />
       <h2 id="new-project-title" class="text-headline-md text-on-surface">
         Nuevo proyecto agrícola
       </h2>
@@ -25,7 +25,7 @@
       aria-label="Cerrar ventana"
       (click)="close.emit()"
     >
-      <span class="material-symbols-outlined text-[20px]" aria-hidden="true">close</span>
+      <ng-icon name="matCloseOutline" size="20" aria-hidden="true" />
     </button>
   </div>
 
@@ -35,9 +35,7 @@
         <label class="text-label-md text-on-surface" for="projectName">
           Nombre del proyecto / parcela
         </label>
-        <span class="text-label-sm text-outline">
-          {{ nameLength() }} / {{ nameMaxLength }}
-        </span>
+        <span class="text-label-sm text-outline"> {{ nameLength() }} / {{ nameMaxLength }} </span>
       </div>
       <input
         id="projectName"
@@ -62,11 +60,12 @@
     <div class="space-y-1">
       <label class="text-label-md text-on-surface" for="projectLocation">Ubicación / Zona</label>
       <div class="relative">
-        <span
-          class="material-symbols-outlined absolute left-3 top-2.5 text-outline text-[20px]"
+        <ng-icon
+          class="absolute left-3 top-2.5 text-outline"
+          name="matLocationOnOutline"
+          size="20"
           aria-hidden="true"
-          >location_on</span
-        >
+        />
         <input
           id="projectLocation"
           type="text"
@@ -113,9 +112,12 @@
     </div>
 
     <div class="flex items-start gap-space-xs bg-surface-container-low rounded-lg p-space-sm">
-      <span class="material-symbols-outlined text-[18px] text-tertiary-container" aria-hidden="true"
-        >lightbulb</span
-      >
+      <ng-icon
+        class="text-tertiary-container"
+        name="matLightbulbOutline"
+        size="18"
+        aria-hidden="true"
+      />
       <p class="text-body-sm text-on-surface-variant">
         Después del alta vas al
         <strong class="text-on-surface">Paso 1 (Terreno)</strong> para ingresar las coordenadas,
@@ -147,7 +149,7 @@
         [disabled]="submitting()"
       >
         {{ submitting() ? 'Creando…' : 'Crear y pasar al Terreno (Paso 1)' }}
-        <span class="material-symbols-outlined text-[18px]" aria-hidden="true">arrow_forward</span>
+        <ng-icon name="matArrowForwardOutline" size="18" aria-hidden="true" />
       </button>
     </div>
   </form>

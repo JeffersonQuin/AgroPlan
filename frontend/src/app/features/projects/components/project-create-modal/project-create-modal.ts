@@ -1,6 +1,14 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, output, signal } from '@angular/core';
 import { FormField, form, maxLength, required } from '@angular/forms/signals';
+import { NgIcon, provideIcons } from '@ng-icons/core';
+import {
+  matAddLocationAltOutline,
+  matArrowForwardOutline,
+  matCloseOutline,
+  matLightbulbOutline,
+  matLocationOnOutline,
+} from '@ng-icons/material-symbols/outline';
 import { CreateProjectInput, UnitSystem } from '../../models/project.model';
 import { ProjectsStore, mensajeDeError } from '../../state/projects.store';
 
@@ -12,7 +20,16 @@ const NAME_MAX_LENGTH = 60;
  */
 @Component({
   selector: 'app-project-create-modal',
-  imports: [FormField],
+  imports: [FormField, NgIcon],
+  viewProviders: [
+    provideIcons({
+      matAddLocationAltOutline,
+      matArrowForwardOutline,
+      matCloseOutline,
+      matLightbulbOutline,
+      matLocationOnOutline,
+    }),
+  ],
   templateUrl: './project-create-modal.html',
   host: {
     class: 'fixed inset-0 z-50 flex items-center justify-center p-4',

@@ -1,4 +1,13 @@
 import { Component, inject } from '@angular/core';
+import { NgIcon, provideIcons } from '@ng-icons/core';
+import {
+  matEventOutline,
+  matGridViewOutline,
+  matInfoOutline,
+  matValveOutline,
+  matVerifiedOutline,
+  matWaterDropOutline,
+} from '@ng-icons/material-symbols/outline';
 import { WizardDraftStore } from '../../../wizard/state/wizard-draft.store';
 import { CultivosStore } from '../../state/cultivos.store';
 
@@ -10,6 +19,17 @@ import { CultivosStore } from '../../state/cultivos.store';
  */
 @Component({
   selector: 'app-cultivos-panel',
+  imports: [NgIcon],
+  viewProviders: [
+    provideIcons({
+      matEventOutline,
+      matGridViewOutline,
+      matInfoOutline,
+      matValveOutline,
+      matVerifiedOutline,
+      matWaterDropOutline,
+    }),
+  ],
   templateUrl: './cultivos-panel.html',
 })
 export class CultivosPanel {

@@ -1,5 +1,14 @@
 import { Component, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
+import { NgIcon, provideIcons } from '@ng-icons/core';
+import {
+  matAddCircleOutline,
+  matArrowBackOutline,
+  matArrowForwardOutline,
+  matCloseOutline,
+  matLocationOnOutline,
+  matPottedPlantOutline,
+} from '@ng-icons/material-symbols/outline';
 import { WizardDraftStore } from '../wizard/state/wizard-draft.store';
 import { WizardHeader } from '../wizard/components/wizard-header/wizard-header';
 import { CultivoForm } from './components/cultivo-form/cultivo-form';
@@ -15,7 +24,17 @@ import { CultivosStore } from './state/cultivos.store';
  */
 @Component({
   selector: 'app-cultivos-page',
-  imports: [RouterLink, WizardHeader, CultivoForm, CultivosPanel],
+  imports: [RouterLink, WizardHeader, CultivoForm, CultivosPanel, NgIcon],
+  viewProviders: [
+    provideIcons({
+      matAddCircleOutline,
+      matArrowBackOutline,
+      matArrowForwardOutline,
+      matCloseOutline,
+      matLocationOnOutline,
+      matPottedPlantOutline,
+    }),
+  ],
   templateUrl: './cultivos.page.html',
 })
 export class CultivosPage {

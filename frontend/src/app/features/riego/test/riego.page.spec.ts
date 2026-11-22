@@ -165,4 +165,19 @@ describe('RiegoPage (paso 3: sólo restricciones)', () => {
     ]);
     expect(html.textContent).toContain('No tiene');
   });
+
+  it('renders an inline SVG for every energy option icon', async () => {
+    const harness = await montar();
+    const html = harness.routeNativeElement as HTMLElement;
+    const opciones = Array.from(
+      html.querySelectorAll('button[data-energia]') as NodeListOf<HTMLElement>,
+    );
+
+    expect(opciones.length).toBeGreaterThan(1);
+    for (const opcion of opciones) {
+      const icono = opcion.querySelector('ng-icon');
+      expect(icono).not.toBeNull();
+      expect(icono!.querySelector('svg')).not.toBeNull();
+    }
+  });
 });

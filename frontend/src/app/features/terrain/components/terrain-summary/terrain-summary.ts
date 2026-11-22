@@ -1,16 +1,48 @@
 import { Component, computed, inject } from '@angular/core';
+import { NgIcon, provideIcons } from '@ng-icons/core';
+import {
+  matCheckCircleOutline,
+  matErrorOutline,
+  matInfoOutline,
+  matVerifiedOutline,
+} from '@ng-icons/material-symbols/outline';
 import { WATER_SOURCE_OPTIONS, WaterSource } from '../../models/terrain.model';
 import { TerrainStore } from '../../state/terrain.store';
+
+/**
+ * The registry name of the icon each validation state renders.
+ *
+ * `provideIcons({ matCheckCircleOutline })` registers that name as the key and the SVG as the
+ * value, so the name `[name]` receives must be the string, never the SVG constant.
+ */
+const VALIDACION_ICONS: Record<'ok' | 'warning', string> = {
+  ok: 'matCheckCircleOutline',
+  warning: 'matErrorOutline',
+};
 
 /** Right rail of the terrain step: geometry summary, validations and water. */
 @Component({
   selector: 'app-terrain-summary',
+  imports: [NgIcon],
+  viewProviders: [
+    provideIcons({
+      matCheckCircleOutline,
+      matErrorOutline,
+      matInfoOutline,
+      matVerifiedOutline,
+    }),
+  ],
   templateUrl: './terrain-summary.html',
 })
 export class TerrainSummary {
   protected readonly store = inject(TerrainStore);
 
   protected readonly waterOptions = WATER_SOURCE_OPTIONS;
+
+  /** Resolves the dynamic validation state to the constant declared in `provideIcons`. */
+  protected iconoValidacion(ok: boolean): string {
+    return ok ? VALIDACION_ICONS.ok : VALIDACION_ICONS.warning;
+  }
 
   protected readonly areaCalculada = computed(() =>
     Math.round(this.store.areaCalculadaM2()).toLocaleString('es-AR'),
