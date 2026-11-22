@@ -152,7 +152,7 @@ def test_corrida_termina_ok_y_congela_el_snapshot(cliente_autenticado: TestClien
     assert detalle["duracion_ms"] is not None
     assert detalle["terminado_en"] is not None
     assert detalle["error_detalle"] is None
-    assert detalle["prompt_version"] == "v1"
+    assert detalle["prompt_version"] == "v3"
     assert detalle["motor_version"]
 
     propuesta = PropuestaAgente.model_validate(detalle["salida"])
@@ -513,3 +513,31 @@ def test_entrada_huella_es_del_intake_no_de_la_salida() -> None:
 
     assert entrada.huella() == entrada.huella()
     assert entrada.huella() != otra.huella()
+
+
+def test_el_body_lleva_las_restricciones_del_paso_3(
+    cliente_autenticado: TestClient,
+) -> None:
+    """S5: las restricciones del paso 3 llegan a la entrada congelada de la corrida."""
+    proyecto_id = _proyecto_con_cultivos(cliente_autenticado)
+
+    respuesta = cliente_autenticado.post(
+        f"/proyectos/{proyecto_id}/agente",
+        json={
+            "restricciones": {
+                "energia": "solar",
+                "tanque_l": 5000,
+                "presupuesto_bs": 1500,
+            }
+        },
+    )
+    assert respuesta.status_code == 202, respuesta.text
+
+    detalle = _detalle(
+        cliente_autenticado, proyecto_id, respuesta.json()["corrida_id"]
+    )
+    assert detalle["entrada"]["restricciones"] == {
+        "energia": "solar",
+        "tanque_l": 5000,
+        "presupuesto_bs": 1500,
+    }

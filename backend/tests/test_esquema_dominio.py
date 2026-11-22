@@ -31,6 +31,7 @@ TABLAS_NUEVAS = {
     "agente_fuentes",
     "agente_recomendaciones",
     "cultivos",
+    "materiales_precio",
     "proyecto_cultivos",
     "proyectos",
     "red_nodos",
@@ -164,7 +165,7 @@ def test_ddl_postgresql_portable(tmp_path, monkeypatch):  # S9
     with salida.open("w") as destino, contextlib.redirect_stdout(destino):
         command.upgrade(_cfg(), "head", sql=True)
     sql = salida.read_text()
-    assert sql.count("CREATE TABLE") == 15
+    assert sql.count("CREATE TABLE") == 16
     assert "JSONB" in sql and "UUID" in sql
     assert "ARRAY" not in sql and "gen_random_uuid" not in sql
 
