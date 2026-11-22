@@ -1,0 +1,77 @@
+{
+  "codigo": "platano",
+  "nombre": "Plátano",
+  "icono": "P",
+  "color": "#F9A825",
+  "demanda_agua_l_m2_dia": 3.5,
+  "ciclo_dias": 300,
+  "meses_siembra": [
+    9,
+    10,
+    11
+  ],
+  "kc": 1.1,
+  "densidad_plantas_m2": 0.2,
+  "profundidad_raiz_cm": 80,
+  "notas": "Exigente en agua y fertilidad; muy común en Yungas y trópico de Cochabamba.",
+  "aptitud_suelo": {
+    "franco": {
+      "veredicto": "apto",
+      "motivo": "Suelo ideal para el cultivo.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "arenoso": {
+      "veredicto": "condicionado",
+      "motivo": "Requiere riego y materia orgánica frecuentes.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "arcilloso": {
+      "veredicto": "condicionado",
+      "motivo": "Riesgo de pudrición de la cepa.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "limoso": {
+      "veredicto": "condicionado",
+      "motivo": "Vigilar drenaje y compactación.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "franco_arenoso": {
+      "veredicto": "apto",
+      "motivo": "Buen drenaje con fertilidad manejada.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "franco_arcilloso": {
+      "veredicto": "condicionado",
+      "motivo": "Cuidar drenaje para no pudrir la cepa.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "salino": {
+      "veredicto": "condicionado",
+      "motivo": "Sensible; puede frenar el crecimiento.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "calcareo": {
+      "veredicto": "condicionado",
+      "motivo": "Puede faltar zinc y boro.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "pedregoso": {
+      "veredicto": "condicionado",
+      "motivo": "Limita el desarrollo de la cepa.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "organico": {
+      "veredicto": "apto",
+      "motivo": "Alta fertilidad, ideal para el cultivo.",
+      "fuente": "Ficha curada AgroPlan"
+    }
+  },
+  "fuentes": [
+    {
+      "tipo": "manual",
+      "titulo": "Ficha técnica curada AgroPlan",
+      "url": null,
+      "fragmento": "Demanda, ciclo y aptitud de suelo de arranque"
+    }
+  ]
+}

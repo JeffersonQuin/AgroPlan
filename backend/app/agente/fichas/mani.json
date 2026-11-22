@@ -1,0 +1,77 @@
+{
+  "codigo": "mani",
+  "nombre": "Maní",
+  "icono": "M",
+  "color": "#C8A165",
+  "demanda_agua_l_m2_dia": 2.5,
+  "ciclo_dias": 120,
+  "meses_siembra": [
+    10,
+    11,
+    12
+  ],
+  "kc": 1.0,
+  "densidad_plantas_m2": 30,
+  "profundidad_raiz_cm": 40,
+  "notas": "Necesita suelo suelto para enterrar la semilla; cosecha en Chaco y valles.",
+  "aptitud_suelo": {
+    "franco": {
+      "veredicto": "apto",
+      "motivo": "Suelo ideal para el clavado y la cosecha.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "arenoso": {
+      "veredicto": "apto",
+      "motivo": "Suelto: facilita la cosecha de la vaina.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "arcilloso": {
+      "veredicto": "no_apto",
+      "motivo": "Duro para el clavado y la extracción.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "limoso": {
+      "veredicto": "condicionado",
+      "motivo": "Se compacta y complica la cosecha.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "franco_arenoso": {
+      "veredicto": "apto",
+      "motivo": "Excelente para la vaina.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "franco_arcilloso": {
+      "veredicto": "condicionado",
+      "motivo": "Puede trabar el clavado.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "salino": {
+      "veredicto": "condicionado",
+      "motivo": "Sensible en emergencia.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "calcareo": {
+      "veredicto": "apto",
+      "motivo": "Tolera suelos calcáreos, cuidando el hierro.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "pedregoso": {
+      "veredicto": "condicionado",
+      "motivo": "Complica la cosecha mecánica.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "organico": {
+      "veredicto": "condicionado",
+      "motivo": "Mucho follaje con menor llenado.",
+      "fuente": "Ficha curada AgroPlan"
+    }
+  },
+  "fuentes": [
+    {
+      "tipo": "manual",
+      "titulo": "Ficha técnica curada AgroPlan",
+      "url": null,
+      "fragmento": "Demanda, ciclo y aptitud de suelo de arranque"
+    }
+  ]
+}

@@ -41,6 +41,7 @@ from app.schemas.agente import (
     EntradaAgente,
     FuenteOut,
     ProductoDeseado,
+    ProductoSolicitado,
     PropuestaAgente,
     RecomendacionOut,
     RecomendacionUpdate,
@@ -119,6 +120,42 @@ def _productos_desde_bloques(db: Session, proyecto: Proyecto) -> list[ProductoDe
     return productos
 
 
+def _productos_desde_lista(
+    db: Session, proyecto: Proyecto, productos: list[ProductoSolicitado]
+) -> list[ProductoDeseado]:
+    """Resuelve la lista que armó el usuario: código de catálogo o producto nuevo.
+
+    Un producto que no está en el catálogo se investiga acá mismo (ficha curada
+    primero, web de respaldo) y queda dado de alta, igual que en el paso 2 anterior.
+    """
+
+    resueltos: list[ProductoDeseado] = []
+    for indice, pedido in enumerate(productos):
+        prioridad = pedido.prioridad or indice + 1
+
+        if pedido.cultivo_codigo:
+            cultivo = cultivo_repo.get_by_codigo(db, pedido.cultivo_codigo)
+            if cultivo is None or not cultivo.activo:
+                raise AgenteServiceError(
+                    422, f"El cultivo '{pedido.cultivo_codigo}' no existe o está inactivo"
+                )
+            resueltos.append(ProductoDeseado(nombre=cultivo.nombre, prioridad=prioridad))
+            continue
+
+        if not pedido.producto_texto:
+            raise AgenteServiceError(422, "Cada producto necesita un nombre")
+
+        cultivo, advertencias = cultivo_service._resolver_producto(
+            db, pedido.producto_texto
+        )
+        if cultivo is None:
+            mensaje = advertencias[0].mensaje if advertencias else "Producto no reconocido"
+            raise AgenteServiceError(422, mensaje)
+        resueltos.append(ProductoDeseado(nombre=cultivo.nombre, prioridad=prioridad))
+
+    return resueltos
+
+
 @dataclass(slots=True)
 class InicioCorrida:
     """Corrida vigente pedida por el usuario y si hay que ejecutarla ahora."""
@@ -140,19 +177,34 @@ def _corrida_vigente(
     return None
 
 
-def iniciar_corrida(db: Session, proyecto: Proyecto) -> InicioCorrida:
+def iniciar_corrida(
+    db: Session,
+    proyecto: Proyecto,
+    *,
+    productos: list[ProductoSolicitado] | None = None,
+    siembra=None,
+) -> InicioCorrida:
     """Crea la corrida del intake actual o devuelve la vigente, sin ejecutarla.
+
+    ``productos`` es la lista que armó el usuario en el paso 2: el agente reparte el
+    área entre esos productos. Si no llega, se usan los bloques ya asignados (camino
+    anterior). La siembra viaja al agente para que devuelva la cosecha.
 
     La ejecución la dispara el router como tarea de fondo: el request nunca espera al
     modelo. Repetir el pedido con el mismo intake no gasta otra llamada.
     """
 
     terreno = _terreno_requerido(db, proyecto)
-    productos = _productos_desde_bloques(db, proyecto)
+    pedidos = productos or []
+    elegidos = (
+        _productos_desde_lista(db, proyecto, pedidos)
+        if pedidos
+        else _productos_desde_bloques(db, proyecto)
+    )
 
     entrada = EntradaAgente(
         proyecto_id=proyecto.id,
-        productos=productos,
+        productos=elegidos,
         area_m2=float(terreno.area_m2),
         suelo_codigo=terreno.suelo_codigo,
         fuente_agua=terreno.fuente_agua,
@@ -160,6 +212,7 @@ def iniciar_corrida(db: Session, proyecto: Proyecto) -> InicioCorrida:
         caudal_origen=terreno.caudal_origen,
         zona=proyecto.zona,
         pendiente_pct=float(terreno.pendiente_pct),
+        siembra=siembra,
     )
     huella = entrada.huella()
 

@@ -350,6 +350,7 @@ def ejecutar(contexto: ContextoAgente) -> ResultadoAgente:
             catalogo=catalogo_por_codigo,
             area_m2=float(contexto.entrada.area_m2),
             total_fuentes=len(fuentes),
+            siembra=contexto.entrada.siembra,
         )
     except PropuestaInvalida as exc:
         raise ErrorAgente(str(exc)) from exc
