@@ -48,8 +48,8 @@ Branch: `feat/paso4-resumen` (base `dev`). Entrega en **5 cortes**, cada uno con
 - [x] **T1** Contrato del agente: `EntradaAgente` con las fichas completas, terreno y restricciones; `PropuestaAgente` con cifras, materiales con precios y fuentes, recomendaciones e imágenes; prompt actualizado — S4, S5, S6 (contrato) — commit `fce6fec`
 - [x] **T2** Motor se ajusta y resultado extendido: aplicar las cifras del agente, recalibrar sectores/red, grabar y exponer los ajustes; caché de precios en la base; `ResultadoProyectoOut` con S9; leer recomendaciones y fuentes — S3, S6 (persistencia), S7, S9 — commits `bafaa1e`, `2e22b8c`
 - [x] **T3** Imágenes: `cultivos.imagen_url` + `imagen` en las fichas, URLs sembradas para el catálogo, atribución por fuente y fallback — S4 — commits `07b926b`, `5ae1603`, `6e76353` (PR #26)
-- [ ] **T4** Pantalla del paso 4: ruta, tienda, modal de resumen previo, corrida con estados, y todas las secciones del prototipo con el plano desde `red` — S1, S2, S9 (consumo)
-- [ ] **T5** PDF del informe en el backend y botones conectados — S8
+- [x] **T4** Pantalla del paso 4: ruta, tienda, modal de resumen previo, corrida con estados, y todas las secciones del prototipo con el plano desde `red` — S1, S2, S9 (consumo) — commits `d050d15`, `614c385`, `4a7a4c9` (PR #29)
+- [x] **T5** PDF del informe en el backend y botones conectados — S8 — commit `24ed8ad` (PR #30)
 
 ## Log
 
@@ -86,3 +86,6 @@ Branch: `feat/paso4-resumen` (base `dev`). Entrega en **5 cortes**, cada uno con
 - **L16** (entrega) Los cortes 1 y 2 se publicaron como PRs encadenados: #22 `feat/paso4-contrato` → `dev` (T1) y #23 `feat/paso4-motor` → #22 (T2). Los cortes 3-5 se encadenan sobre `feat/paso4-motor`.
 - **L17** (verificación T3) S4 en `pass` sin blockers. Migraciones probadas en cadena: `upgrade head` (+no-op), `alembic check` sin pendientes y `downgrade` conservando las 8 filas del catálogo con hash idéntico. Atribución de las 14 fotos comprobada contra Commons. Hallazgo corregido: el alta de un cultivo desde ficha curada (`arroz` escrito a mano) creaba la fila del catálogo sin imagen ni crédito.
 - **L18** (entrega) PRs mergeados a `dev`: #22 (contrato, `176d92c`), #23 (motor y resultado, `7d79f54`), #26 (imágenes, `f25de0d`). Quedan los cortes 4 (pantalla) y 5 (PDF).
+- **L19** (verificación T4) S1, S2, S3, S7, S9 y S10 en `pass`. Blocker corregido: el backend entrega la misma advertencia en `resultado.advertencias` y en `diseno.advertencias`, así que el banner la pintaba dos veces y la clave del `@for` se duplicaba; ahora se deduplica por código y mensaje. Advisory corregido: con el terreno caído, el modal mostraba `m²` y `m³/h` sin valor. El prototipo trae cotas, brújula y camino perimetral que la red no modela: no se dibujan para no inventar geometría.
+- **L20** (verificación T5) S8 en `pass` para los dos botones y la marca de agua en todas las páginas. Blockers corregidos: `incluir` aceptaba cualquier clave en silencio y `["plano"]` devolvía un PDF de 2 KB casi vacío; ahora una clave no soportada responde 422 con las válidas, y `incluir: []` devuelve el informe completo. `reportlab 5.1.0` es Python puro, el lock verifica offline y la única transitiva nueva (`pillow`) no se usa: el PDF no descarga imágenes.
+- **L21** (pendiente) El plano 2D no se dibuja dentro del PDF (el documento no embebe geometría). Está declarado como pendiente en `CLAVES_PENDIENTES` y se rechaza explícitamente en `incluir`; si se quiere el plano en el PDF, es trabajo aparte.
