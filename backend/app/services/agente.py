@@ -62,6 +62,7 @@ from app.schemas.proyecto import GeometriaTerreno
 from app.schemas.riego import EmisorIn, SistemaRiegoIn
 from app.services import cultivo as cultivo_service
 from app.services import geometria
+from app.services import precio as precio_service
 from app.services import proyecto as proyecto_service
 from app.services import riego as riego_service
 from app.services import terreno as terreno_service
@@ -453,7 +454,32 @@ def _contexto_desde_corrida(
         ),
         bloques=len(bloque_repo.list_by_proyecto(db, proyecto.id)),
         sesion=str(corrida_id),
+        precios=_precios_contexto(db),
     )
+
+
+def _precios_contexto(db: Session) -> list[dict]:
+    """Precios vigentes que viajan al prompt para no investigarlos otra vez (S6)."""
+
+    ahora = datetime.now(timezone.utc)
+    precios: list[dict] = []
+    for fila in precio_service.vigentes(db):
+        recuperado_en = fila.recuperado_en
+        if recuperado_en.tzinfo is None:
+            recuperado_en = recuperado_en.replace(tzinfo=timezone.utc)
+        precios.append(
+            {
+                "rubro": fila.rubro,
+                "descripcion": fila.descripcion,
+                "unidad": fila.unidad,
+                "moneda": fila.moneda,
+                "precio_unitario_bs": float(fila.precio_unitario_bs),
+                "fuente_url": fila.fuente_url,
+                "recuperado_en": recuperado_en.isoformat(),
+                "dias_desde_recuperado": max((ahora - recuperado_en).days, 0),
+            }
+        )
+    return precios
 
 
 def _persistir_fuentes(
@@ -515,6 +541,44 @@ def _persistir_recomendaciones(
         )
 
 
+def _advertir_presupuesto(propuesta: PropuestaAgente, entrada: EntradaAgente) -> None:
+    """Avisa si el total del cómputo supera el presupuesto del paso 3 (S6).
+
+    El motor no recorta materiales ni cambia el presupuesto por su cuenta: solo
+    informa la diferencia para que el usuario decida. Solo se suman los rubros que
+    tienen total informado; un rubro sin precio no se cuenta como cero.
+    """
+
+    restricciones = entrada.restricciones
+    if restricciones is None or restricciones.presupuesto_bs is None:
+        return
+
+    totales = [
+        float(material.total_bs)
+        for material in propuesta.materiales
+        if material.total_bs is not None
+    ]
+    if not totales:
+        return
+
+    total = sum(totales)
+    presupuesto = float(restricciones.presupuesto_bs)
+    if total <= presupuesto:
+        return
+
+    propuesta.advertencias.append(
+        Advertencia(
+            codigo="PRESUPUESTO_EXCEDIDO",
+            mensaje=(
+                f"El cómputo de materiales estimado ({total:.2f} Bs) supera el "
+                f"presupuesto del paso 3 ({presupuesto:.2f} Bs). No se recortaron "
+                "materiales ni se cambió el presupuesto."
+            )[:300],
+            campo="presupuesto_bs",
+        )
+    )
+
+
 def ejecutar_corrida(db: Session, corrida_id: uuid.UUID, proyecto_id: uuid.UUID) -> None:
     """Corre el agente y congela el resultado. Pensada como tarea de fondo.
 
@@ -550,17 +614,48 @@ def ejecutar_corrida(db: Session, corrida_id: uuid.UUID, proyecto_id: uuid.UUID)
         agente_corrida_repo.update(db, corrida)
         return
 
-    corrida.salida = resultado.propuesta.model_dump(mode="json")
-    corrida.modelo = resultado.modelo
-    corrida.tokens_entrada = resultado.tokens_entrada
-    corrida.tokens_salida = resultado.tokens_salida
-    corrida.duracion_ms = int((time.monotonic() - inicio) * 1000)
-    corrida.terminado_en = datetime.now(timezone.utc)
-    corrida.estado = EstadoCorrida.OK.value
-    corrida = agente_corrida_repo.update(db, corrida)
+    propuesta = resultado.propuesta
 
-    _persistir_fuentes(db, corrida, resultado.fuentes)
-    _persistir_recomendaciones(db, corrida, resultado.propuesta)
+    # Nada de lo que pasa de acá en adelante puede dejar la corrida en "corriendo":
+    # guardar precios o persistir fuentes puede fallar por la base y el usuario tiene
+    # que recibir un error explicable, no un polling eterno.
+    try:
+        # S6: lo que el agente investigó se guarda una vez por material y se reutiliza
+        # mientras siga vigente; después se completa el total con cantidad × precio y
+        # se contrasta contra el presupuesto del paso 3.
+        precio_service.reutilizar(
+            db, propuesta.materiales, precio_service.VIGENCIA_DIAS
+        )
+        precio_service.completar_totales(propuesta.materiales)
+        precio_service.guardar(db, propuesta.materiales)
+        _advertir_presupuesto(propuesta, entrada)
+
+        corrida.salida = propuesta.model_dump(mode="json")
+        corrida.modelo = resultado.modelo
+        corrida.tokens_entrada = resultado.tokens_entrada
+        corrida.tokens_salida = resultado.tokens_salida
+        corrida.duracion_ms = int((time.monotonic() - inicio) * 1000)
+        corrida.terminado_en = datetime.now(timezone.utc)
+        corrida.estado = EstadoCorrida.OK.value
+        corrida = agente_corrida_repo.update(db, corrida)
+
+        _persistir_fuentes(db, corrida, resultado.fuentes)
+        _persistir_recomendaciones(db, corrida, propuesta)
+    except Exception as exc:  # noqa: BLE001 - una corrida rota no cae el proceso
+        # La transacción quedó rota (por ejemplo un IntegrityError): se descarta
+        # antes de escribir el estado de error. El estado "corriendo" ya estaba
+        # commiteado, así que la corrida se vuelve a leer.
+        db.rollback()
+        corrida = agente_corrida_repo.get_by_id(db, corrida_id, proyecto_id)
+        if corrida is None:
+            return
+        corrida.estado = EstadoCorrida.ERROR.value
+        corrida.error_detalle = (
+            f"No se pudo guardar el resultado de la corrida: {exc}"
+        )[:2000] or exc.__class__.__name__
+        corrida.duracion_ms = int((time.monotonic() - inicio) * 1000)
+        corrida.terminado_en = datetime.now(timezone.utc)
+        agente_corrida_repo.update(db, corrida)
 
 
 def _punto_conexion(terreno: Terreno) -> Punto:
@@ -1118,6 +1213,65 @@ def _recomendaciones_informe(
     return recomendaciones
 
 
+def _presupuesto_informe(
+    corrida: AgenteCorrida | None, propuesta: PropuestaAgente | None
+) -> tuple[float | None, float | None, bool | None]:
+    """Presupuesto del paso 3, costo del cómputo y si lo supera (S6).
+
+    El presupuesto sale de la entrada congelada de la corrida; el costo, de la suma
+    de los ``total_bs`` informados. Un rubro sin precio no suma y no se cuenta como
+    cero. Sin presupuesto o sin ningún precio la comparación es ``None`` (no
+    informada), nunca ``False`` disfrazado de "no excedido".
+    """
+
+    presupuesto: float | None = None
+    if corrida is not None and corrida.entrada:
+        try:
+            entrada = EntradaAgente.model_validate(corrida.entrada)
+        except ValueError:
+            entrada = None
+        if entrada is not None and entrada.restricciones is not None:
+            presupuesto = entrada.restricciones.presupuesto_bs
+
+    totales = [
+        float(material.total_bs)
+        for material in (propuesta.materiales if propuesta is not None else [])
+        if material.total_bs is not None
+    ]
+    costo_total = round(sum(totales), 2) if totales else None
+    excedido = (
+        None
+        if presupuesto is None or costo_total is None
+        else costo_total > float(presupuesto)
+    )
+    return (float(presupuesto) if presupuesto is not None else None, costo_total, excedido)
+
+
+def _advertencia_presupuesto(
+    presupuesto: float | None,
+    costo_total: float | None,
+) -> Advertencia | None:
+    """Advertencia del informe cuando el cómputo supera el presupuesto (S6).
+
+    No se recorta el cómputo ni se cambia el presupuesto. Si la corrida ya trajo la
+    misma advertencia, el informe la reemplaza: el aviso de la corrida no menciona el
+    excedente y el del informe sí.
+    """
+
+    if presupuesto is None or costo_total is None or costo_total <= presupuesto:
+        return None
+
+    excedente = round(costo_total - presupuesto, 2)
+    return Advertencia(
+        codigo="PRESUPUESTO_EXCEDIDO",
+        mensaje=(
+            f"El cómputo de materiales estimado ({costo_total:.2f} Bs) supera el "
+            f"presupuesto del paso 3 ({presupuesto:.2f} Bs) en {excedente:.2f} Bs."
+        )[:300],
+        campo="presupuesto_bs",
+    )
+
+
 def resultado_proyecto(db: Session, proyecto: Proyecto) -> ResultadoProyectoOut:
     try:
         diseno = riego_service.obtener_diseno(db, proyecto)
@@ -1183,7 +1337,10 @@ def resultado_proyecto(db: Session, proyecto: Proyecto) -> ResultadoProyectoOut:
         for bloque in bloques_db
     ]
 
-    return ResultadoProyectoOut(
+    presupuesto_bs, costo_total_bs, presupuesto_excedido = _presupuesto_informe(
+        corrida, propuesta
+    )
+    resultado = ResultadoProyectoOut(
         proyecto_id=proyecto.id,
         nombre=proyecto.nombre,
         estado=proyecto.estado,
@@ -1203,6 +1360,9 @@ def resultado_proyecto(db: Session, proyecto: Proyecto) -> ResultadoProyectoOut:
             materiales=(
                 list(propuesta.materiales) if propuesta is not None else []
             ),
+            presupuesto_bs=presupuesto_bs,
+            costo_total_bs=costo_total_bs,
+            presupuesto_excedido=presupuesto_excedido,
             recomendaciones=_recomendaciones_informe(db, corrida, propuesta),
             fuentes=(
                 [
@@ -1214,8 +1374,28 @@ def resultado_proyecto(db: Session, proyecto: Proyecto) -> ResultadoProyectoOut:
             ),
             ajustes=_ajustes_motor(propuesta, diseno, cifras, bloques),
         ),
-        advertencias=diseno.advertencias,
+        advertencias=list(diseno.advertencias),
     )
+
+    # La comparación contra el presupuesto del paso 3 se muestra en el informe, no
+    # solo en la corrida cruda. Si la salida congelada ya la trae, no se duplica.
+    alerta_presupuesto = _advertencia_presupuesto(presupuesto_bs, costo_total_bs)
+    if alerta_presupuesto is not None:
+        existente = next(
+            (
+                alerta
+                for alerta in resultado.advertencias
+                if alerta.codigo == alerta_presupuesto.codigo
+            ),
+            None,
+        )
+        if existente is None:
+            resultado.advertencias.append(alerta_presupuesto)
+        else:
+            # El aviso de la corrida no trae montos; el del informe sí.
+            existente.mensaje = alerta_presupuesto.mensaje
+            existente.campo = alerta_presupuesto.campo
+    return resultado
 
 
 # --------------------------------------------------------------------------- #

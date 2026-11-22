@@ -11,7 +11,7 @@ from typing import Any
 
 from app.schemas.agente import EntradaAgente
 
-PROMPT_VERSION = "v2"
+PROMPT_VERSION = "v3"
 
 INSTRUCCIONES = [
     "Sos un agrónomo especialista en suelos, selección de cultivos y riego por goteo.",
@@ -39,6 +39,7 @@ def construir_mensaje(
     suelo: dict[str, Any] | None,
     riego_actual: dict[str, Any] | None,
     bloques: int,
+    precios: list[dict[str, Any]] | None = None,
 ) -> str:
     """Arma el mensaje con el intake congelado y el catálogo disponible."""
 
@@ -70,6 +71,9 @@ def construir_mensaje(
         "suelo": suelo,
         "bloques_existentes": bloques,
         "riego_actual": riego_actual,
+        # Precios ya investigados y todavía vigentes (S6): si el material está acá,
+        # no hace falta volver a buscarlo en la web.
+        "precios_conocidos": precios or [],
     }
     return (
         "Analizá este proyecto de AgroPlan y armá el informe del paso 4: reparto de "
@@ -106,6 +110,9 @@ def construir_mensaje(
         "unitario y total en Bs y ``fuente_url``: la fuente tiene que ser una URL "
         "http(s) real de donde sacaste el precio. Si no encontrás precio, el campo "
         "queda en null; nunca lo inventes.\n"
+        "- Si ``precios_conocidos`` trae un precio vigente para un material, usá ese "
+        "precio, esa ``fuente_url`` y esa ``recuperado_en`` y no lo vuelvas a "
+        "investigar; si no está o está vencido, buscalo en la web.\n"
         "- Completá ``recomendaciones`` con título, detalle y justificación, usando "
         "también las fichas y las restricciones (energía, tanque y presupuesto).\n"
         "- En cada cultivo y en el equipo de cabecera devolvé ``imagen_url`` e "

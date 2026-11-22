@@ -131,12 +131,16 @@ def _proyecto(cliente: TestClient) -> str:
 
 
 def _corrida(pid: str, db_session: Session, salida: dict, *, estado: str = "ok",
-             con_fuentes: bool = False, con_recomendaciones: bool = False) -> AgenteCorrida:
+             con_fuentes: bool = False, con_recomendaciones: bool = False,
+             restricciones: dict | None = None) -> AgenteCorrida:
+    entrada = dict(ENTRADA, proyecto_id=pid)
+    if restricciones is not None:
+        entrada["restricciones"] = restricciones
     corrida = AgenteCorrida(
         proyecto_id=uuid.UUID(pid),
         usuario_id=db_session.get(Proyecto, uuid.UUID(pid)).usuario_id,
         estado=estado,
-        entrada=dict(ENTRADA, proyecto_id=pid),
+        entrada=entrada,
         salida=salida,
         intake_hash=f"hash-{uuid.uuid4()}",
         motor_version="m1",
@@ -658,3 +662,152 @@ def test_el_borde_de_la_tolerancia_no_es_un_ajuste() -> None:
 
     assert agente_service._difiere(1.5, 1.55, 0.05) is False
     assert agente_service._difiere(1.5, 1.56, 0.05) is True
+
+
+# --------------------------------------------------------------------------- #
+# S6 — el informe compara el cómputo contra el presupuesto del paso 3
+# --------------------------------------------------------------------------- #
+
+MATERIALES_CORTOS = [
+    {
+        "rubro": "Tubería principal",
+        "descripcion": "PVC 32 mm",
+        "cantidad": 10.0,
+        "unidad": "m",
+        "precio_unitario_bs": 8.0,
+        "total_bs": 80.0,
+        "fuente_url": "https://precios.example/tuberia",
+    },
+    {
+        # Sin precio: no suma al cómputo y no se cuenta como cero.
+        "rubro": "Filtro de anillas",
+        "descripcion": "Filtro 2 pulgadas",
+        "cantidad": 1.0,
+        "unidad": "u",
+        "precio_unitario_bs": None,
+        "total_bs": None,
+    },
+]
+
+
+def _alertas(cuerpo: dict) -> list[dict]:
+    return [
+        alerta
+        for alerta in cuerpo["advertencias"]
+        if alerta["codigo"] == "PRESUPUESTO_EXCEDIDO"
+    ]
+
+
+def test_el_informe_muestra_el_computo_dentro_del_presupuesto(
+    cliente_autenticado: TestClient, db_session: Session
+) -> None:
+    cliente = cliente_autenticado
+    pid = _proyecto(cliente)
+    corrida = _corrida(
+        pid,
+        db_session,
+        _salida(materiales=MATERIALES_CORTOS),
+        restricciones={"presupuesto_bs": 1000.0},
+    )
+
+    cuerpo = _aplicar(cliente, pid, corrida.id)
+    diseno = cuerpo["diseno"]
+
+    assert diseno["presupuesto_bs"] == pytest.approx(1000.0)
+    assert diseno["costo_total_bs"] == pytest.approx(80.0)
+    assert diseno["presupuesto_excedido"] is False
+    assert _alertas(cuerpo) == []
+
+
+def test_el_informe_advierte_cuando_el_computo_supera_el_presupuesto(
+    cliente_autenticado: TestClient, db_session: Session
+) -> None:
+    cliente = cliente_autenticado
+    pid = _proyecto(cliente)
+    corrida = _corrida(
+        pid,
+        db_session,
+        _salida(
+            materiales=[
+                {
+                    "rubro": "Tanque",
+                    "descripcion": "Tanque de 5000 L",
+                    "cantidad": 1.0,
+                    "unidad": "u",
+                    "precio_unitario_bs": 1500.0,
+                    "total_bs": 1500.0,
+                    "fuente_url": "https://precios.example/tanque",
+                }
+            ]
+        ),
+        restricciones={"presupuesto_bs": 1000.0},
+    )
+
+    cuerpo = _aplicar(cliente, pid, corrida.id)
+    diseno = cuerpo["diseno"]
+
+    assert diseno["presupuesto_bs"] == pytest.approx(1000.0)
+    assert diseno["costo_total_bs"] == pytest.approx(1500.0)
+    assert diseno["presupuesto_excedido"] is True
+
+    alertas = _alertas(cuerpo)
+    assert len(alertas) == 1
+    assert "1500.00" in alertas[0]["mensaje"]
+    assert "1000.00" in alertas[0]["mensaje"]
+    assert "500.00" in alertas[0]["mensaje"]
+    assert alertas[0]["campo"] == "presupuesto_bs"
+    # No se recortó ningún material ni se cambió el presupuesto.
+    assert diseno["materiales"][0]["total_bs"] == pytest.approx(1500.0)
+
+
+def test_sin_presupuesto_no_hay_comparacion_inventada(
+    cliente_autenticado: TestClient, db_session: Session
+) -> None:
+    cliente = cliente_autenticado
+    pid = _proyecto(cliente)
+    corrida = _corrida(pid, db_session, _salida(materiales=MATERIALES_CORTOS))
+
+    cuerpo = _aplicar(cliente, pid, corrida.id)
+    diseno = cuerpo["diseno"]
+
+    assert diseno["presupuesto_bs"] is None
+    assert diseno["costo_total_bs"] == pytest.approx(80.0)
+    assert diseno["presupuesto_excedido"] is None
+    assert _alertas(cuerpo) == []
+
+
+def test_la_advertencia_del_informe_reemplaza_la_de_la_corrida(
+    cliente_autenticado: TestClient, db_session: Session
+) -> None:
+    """S6: el aviso que se muestra trae los montos, no el texto escueto de la corrida."""
+    pid = _proyecto(cliente_autenticado)
+    salida = _salida(
+        materiales=[
+            {
+                "rubro": "Tanque",
+                "descripcion": "Tanque 5.000 L",
+                "cantidad": 1.0,
+                "unidad": "u",
+                "precio_unitario_bs": 1500.0,
+                "total_bs": 1500.0,
+            }
+        ]
+    )
+    salida["advertencias"] = [
+        {"codigo": "PRESUPUESTO_EXCEDIDO", "mensaje": "El cómputo supera el presupuesto."}
+    ]
+    corrida = _corrida(
+        pid, db_session, salida, restricciones={"energia": "solar", "presupuesto_bs": 1000}
+    )
+    resultado = _aplicar(cliente_autenticado, pid, corrida.id)
+    diseno = resultado["diseno"]
+
+    assert diseno["presupuesto_excedido"] is True
+    avisos = [
+        alerta
+        for alerta in resultado["advertencias"]
+        if alerta["codigo"] == "PRESUPUESTO_EXCEDIDO"
+    ]
+    assert len(avisos) == 1
+    assert "500.00" in avisos[0]["mensaje"]
+    assert avisos[0]["campo"] == "presupuesto_bs"

@@ -66,6 +66,9 @@ class ContextoAgente:
     suelo: dict[str, Any] | None = None
     riego_actual: dict[str, Any] | None = None
     bloques: int = 0
+    # Precios que ya investigó otra corrida y siguen vigentes (S6): viajan al prompt
+    # para no gastar tokens buscándolos de nuevo.
+    precios: list[dict[str, Any]] = field(default_factory=list)
     # El gateway OpenAI-compatible de OpenCode enruta por sesión: sin este id responde
     # 400 "missing x-opencode-session". Se usa el id de la corrida, que además sirve
     # para rastrear qué llamada produjo qué propuesta.
@@ -294,6 +297,7 @@ def _propuesta_llm(contexto: ContextoAgente) -> tuple[PropuestaAgente, int | Non
         suelo=contexto.suelo,
         riego_actual=contexto.riego_actual,
         bloques=contexto.bloques,
+        precios=contexto.precios,
     )
 
     intentos = 1 + max(settings.AGENTE_REINTENTOS, 0)

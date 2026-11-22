@@ -225,6 +225,11 @@ class MaterialAgente(BaseModel):
 
     El motor sigue siendo quien calcula las cantidades; el agente aporta el precio y
     la fuente. Un precio vencido o ausente se reporta, no se inventa.
+
+    ``recuperado_en`` es la fecha en que el agente obtuvo el precio (la fecha de la
+    fuente). Si el precio salió de la caché de la base, el backend la completa con la
+    fecha del precio original y marca ``reutilizado`` en ``True``, para que el informe
+    pueda decir "precio de hace 43 días, reutilizado".
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -237,6 +242,8 @@ class MaterialAgente(BaseModel):
     precio_unitario_bs: float | None = None
     total_bs: float | None = None
     fuente_url: str | None = Field(default=None, max_length=1000)
+    recuperado_en: datetime | None = None
+    reutilizado: bool = False
 
 
 class RecomendacionFinal(BaseModel):
@@ -404,6 +411,11 @@ class DisenoGenerado(BaseModel):
     eficiencia_pct: float | None = None
     calendario: list[CalendarioBloque] = Field(default_factory=list)
     materiales: list[MaterialAgente] = Field(default_factory=list)
+    # Comparación del cómputo contra el presupuesto del paso 3 (S6). ``None`` es "no
+    # informado": sin presupuesto o sin ningún precio no se inventa un cero.
+    presupuesto_bs: float | None = None
+    costo_total_bs: float | None = None
+    presupuesto_excedido: bool | None = None
     recomendaciones: list[RecomendacionInforme] = Field(default_factory=list)
     fuentes: list[FuenteOut] = Field(default_factory=list)
     ajustes: list[AjusteMotor] = Field(default_factory=list)
