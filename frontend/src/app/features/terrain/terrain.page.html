@@ -1,9 +1,14 @@
 <div class="bg-agro-surface text-slate-800 font-sans min-h-screen flex flex-col antialiased select-none">
-  <app-wizard-header />
+  <app-wizard-header
+    [paso]="1"
+    [nombreProyecto]="store.nombreProyecto()"
+    [estadoGuardado]="store.guardadoLabel()"
+    (guardar)="store.guardar()"
+  />
   <main
     class="flex-1 p-4 grid grid-cols-1 lg:grid-cols-[300px_1fr_320px] gap-4 max-w-[1920px] mx-auto w-full items-start overflow-hidden"
   >
-    <app-terrain-form />
+    <app-terrain-form (continuar)="onContinuar()" />
     <app-terrain-canvas />
     <app-terrain-summary />
   </main>

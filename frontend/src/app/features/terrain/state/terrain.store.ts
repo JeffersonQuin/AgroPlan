@@ -273,13 +273,14 @@ export class TerrainStore {
   }
 
   /** Saves the terrain: `PUT` the first time, `PATCH` afterwards. */
-  guardar(): void {
+  guardar() {
     const proyectoId = this._proyectoId();
-    if (proyectoId === null || this.guardando()) return;
+    if (proyectoId === null || this.guardando()) return null;
 
+    const peticion = this.api.guardar(proyectoId, this.aPayload(), this._guardado() !== null);
     this._estado.set('guardando');
     this._error.set(null);
-    this.api.guardar(proyectoId, this.aPayload(), this._guardado() !== null).subscribe({
+    peticion.subscribe({
       next: (terreno) => {
         this._guardado.set(terreno);
         this._estado.set('guardado');
@@ -289,6 +290,7 @@ export class TerrainStore {
         this._estado.set('error');
       },
     });
+    return peticion;
   }
 
   setName(name: string): void {

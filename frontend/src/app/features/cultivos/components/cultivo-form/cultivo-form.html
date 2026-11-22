@@ -1,0 +1,166 @@
+<aside class="flex flex-col gap-4 overflow-y-auto max-h-[calc(100vh-9rem)] pr-1">
+  <div class="bg-white rounded-xl border border-agro-border p-4 shadow-sm">
+    <div class="flex items-center gap-2 pb-3 mb-3 border-b border-slate-100">
+      <span class="material-symbols-outlined text-[20px] text-agro-600" aria-hidden="true">
+        {{ editando() ? 'edit' : 'potted_plant' }}
+      </span>
+      <div>
+        <h2 class="text-sm font-bold text-slate-800">
+          {{ editando() ? 'Editar cultivo' : 'Parámetros técnicos de cultivo' }}
+        </h2>
+        <p class="text-[11px] text-slate-400">Paso 2: distribución agronómica</p>
+      </div>
+    </div>
+
+    <!-- Especie -->
+    <div class="mb-3">
+      <label class="block text-xs font-semibold text-slate-700 mb-1.5" for="especie">
+        Especie agronómica
+      </label>
+      @if (editando()) {
+        <p class="text-xs font-bold text-slate-800 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+          {{ editando()!.cultivo_codigo }}
+        </p>
+      } @else {
+        <select
+          class="w-full text-xs font-medium rounded-lg border-slate-300 focus:border-agro-500 focus:ring-1 focus:ring-agro-500 py-2 bg-white"
+          id="especie"
+          [ngModel]="codigo() || opciones()[0]?.value"
+          (ngModelChange)="codigo.set($event)"
+        >
+          @for (opcion of opciones(); track opcion.value) {
+            <option [value]="opcion.value">{{ opcion.label }}</option>
+          }
+        </select>
+        @if (opciones().length === 0) {
+          <p class="text-[11px] text-amber-600 mt-1">
+            Ya asignaste todos los cultivos del catálogo.
+          </p>
+        }
+      }
+    </div>
+
+    <!-- Ficha técnica: la da el catálogo, no se edita -->
+    @if (ficha(); as ficha) {
+      <dl class="grid grid-cols-3 gap-2 bg-slate-50 border border-slate-200 rounded-lg p-2.5 mb-3">
+        <div>
+          <dt class="text-[10px] text-slate-500 font-semibold">Consumo</dt>
+          <dd class="text-xs font-bold text-slate-800">{{ ficha.demanda }} L/m²/día</dd>
+        </div>
+        <div>
+          <dt class="text-[10px] text-slate-500 font-semibold">Ciclo</dt>
+          <dd class="text-xs font-bold text-slate-800">{{ ficha.ciclo }} días</dd>
+        </div>
+        <div>
+          <dt class="text-[10px] text-slate-500 font-semibold">Kc pico</dt>
+          <dd class="text-xs font-bold text-slate-800">
+            {{ ficha.kc === null ? 'sin dato' : ficha.kc }}
+          </dd>
+        </div>
+      </dl>
+    }
+
+    <!-- Asignación -->
+    <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-2.5">
+      <div class="flex items-center justify-between">
+        <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+          Área asignada
+        </span>
+        <button
+          class="text-[10px] font-bold text-agro-700 hover:underline"
+          type="button"
+          (click)="usarDisponible()"
+        >
+          Usar {{ disponibles() }}% disponible
+        </button>
+      </div>
+      <div class="relative">
+        <input
+          class="w-full text-xs font-semibold text-slate-800 pr-7 rounded border-slate-300 py-1.5"
+          id="porcentaje"
+          max="100"
+          min="0"
+          step="0.5"
+          type="number"
+          [value]="porcentaje() ?? ''"
+          (input)="onNumero($any($event.target).value)"
+        />
+        <span class="absolute right-2 top-2 text-[10px] font-bold text-slate-400">%</span>
+      </div>
+      <p class="text-[10px] text-slate-500">
+        Disponible: <strong>{{ disponibles() }}%</strong> de {{ store.areaM2() }} m² ·
+        Asignado: <strong>{{ store.asignadoPct() }}%</strong>
+      </p>
+
+      <div>
+        <label class="block text-[10px] text-slate-500 font-semibold mb-0.5" for="etiqueta">
+          Zona (opcional)
+        </label>
+        <input
+          class="w-full text-xs rounded border-slate-300 py-1.5"
+          id="etiqueta"
+          placeholder="Zona A"
+          type="text"
+          [value]="etiqueta()"
+          (input)="etiqueta.set($any($event.target).value)"
+        />
+      </div>
+
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="block text-[10px] text-slate-500 font-semibold mb-0.5" for="siembra">
+            Siembra
+          </label>
+          <input
+            class="w-full text-xs rounded border-slate-300 py-1.5"
+            id="siembra"
+            type="date"
+            [value]="siembra()"
+            (input)="siembra.set($any($event.target).value)"
+          />
+        </div>
+        <div>
+          <label class="block text-[10px] text-slate-500 font-semibold mb-0.5" for="cosecha">
+            Cosecha
+          </label>
+          <input
+            class="w-full text-xs rounded border-slate-300 py-1.5"
+            id="cosecha"
+            type="date"
+            [value]="cosecha()"
+            (input)="cosecha.set($any($event.target).value)"
+          />
+        </div>
+      </div>
+    </div>
+
+    <div class="pt-3 mt-3 border-t border-slate-100 flex flex-col gap-2">
+      <button
+        class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-agro-500 hover:bg-agro-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg text-xs font-bold shadow-md shadow-emerald-800/10 transition-colors"
+        type="button"
+        [disabled]="!puedeAgregar() || store.guardando()"
+        (click)="agregar()"
+      >
+        <span class="material-symbols-outlined text-[18px]" aria-hidden="true">
+          {{ editando() ? 'save' : 'add_circle' }}
+        </span>
+        {{ editando() ? 'Guardar cambios' : 'Agregar cultivo' }}
+      </button>
+      @if (editando()) {
+        <button
+          class="w-full text-center py-1.5 text-[11px] font-semibold text-slate-500 hover:text-slate-800"
+          type="button"
+          (click)="limpiar()"
+        >
+          Cancelar edición
+        </button>
+      }
+    </div>
+
+    @if (store.error(); as mensaje) {
+      <p class="text-[11px] text-error bg-error-container/40 border border-error/30 rounded-lg px-2 py-1.5 mt-2" role="alert">
+        {{ mensaje }}
+      </p>
+    }
+  </div>
+</aside>

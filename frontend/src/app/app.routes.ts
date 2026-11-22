@@ -29,5 +29,12 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./features/terrain/terrain.page').then((m) => m.TerrainPage),
   },
+  {
+    path: 'proyectos/:proyectoId/cultivos',
+    title: 'Cultivos · AgroPlan',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/cultivos/cultivos.page').then((m) => m.CultivosPage),
+  },
   { path: '**', redirectTo: 'login' },
 ];

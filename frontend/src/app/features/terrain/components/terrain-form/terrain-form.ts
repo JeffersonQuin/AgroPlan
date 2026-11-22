@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, output } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ParcelShape, SHAPE_OPTIONS, SoilType, TerrainDimensions } from '../../models/terrain.model';
 import { TerrainStore } from '../../state/terrain.store';
@@ -11,6 +11,9 @@ import { TerrainStore } from '../../state/terrain.store';
 })
 export class TerrainForm {
   protected readonly store = inject(TerrainStore);
+
+  /** Guardar y seguir al paso 2: la página guarda y navega. */
+  readonly continuar = output<void>();
 
   protected readonly shapeOptions = SHAPE_OPTIONS;
 
@@ -46,7 +49,7 @@ export class TerrainForm {
   }
 
   protected guardar(): void {
-    this.store.guardar();
+    this.continuar.emit();
   }
 
   /** El usuario dice que conoce la pendiente: se revela el control. */
