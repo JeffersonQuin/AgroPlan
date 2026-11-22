@@ -774,15 +774,19 @@ def aplicar_corrida(
         riego_service.upsert_config(db, proyecto, configuracion)
         riego_service.generar(db, proyecto)
     except riego_service.RiegoServiceError as exc:
-        # El sistema de riego es válido aunque el motor no pueda cerrar la red: la
-        # propuesta aplicada se conserva y el motivo se reporta como advertencia.
-        propuesta.advertencias.append(
-            Advertencia(
-                codigo="RED_NO_GENERADA",
-                mensaje=exc.detail[:300],
-                campo="riego",
-            )
-        )
+        # Sin red no hay informe: `resultado_proyecto` no puede armar el documento. Si
+        # igual marcáramos la corrida como aplicada, el usuario quedaría en un callejón
+        # sin salida (el reintento responde 409 "ya está aplicada") y sin poder ver ni
+        # corregir nada. Se corta acá, con el motivo del motor, y la corrida sigue
+        # disponible para reintentar cuando el usuario corrija lo que falte.
+        raise AgenteServiceError(
+            409,
+            (
+                "El reparto se guardó, pero el motor no pudo generar la red de riego: "
+                f"{exc.detail[:300]} Corregí los datos del terreno o de la "
+                "configuración y volvé a generar."
+            ),
+        ) from exc
 
     ahora = datetime.now(timezone.utc)
     for recomendacion in agente_recomendacion_repo.list_by_corrida(db, corrida.id):
@@ -793,13 +797,7 @@ def aplicar_corrida(
     proyecto.corrida_actual_id = corrida.id
     proyecto_repo.update(db, proyecto)
 
-    resultado = resultado_proyecto(db, proyecto)
-    resultado.advertencias.extend(
-        alerta
-        for alerta in propuesta.advertencias
-        if alerta.codigo == "RED_NO_GENERADA"
-    )
-    return resultado
+    return resultado_proyecto(db, proyecto)
 
 
 def listar_corridas(db: Session, proyecto: Proyecto) -> list[CorridaOut]:
