@@ -30,7 +30,7 @@ import { ProjectsStore } from '../../state/projects.store';
       </div>
 
       <div class="flex items-center flex-wrap gap-space-sm shrink-0">
-        <div class="flex items-center bg-surface-bright p-1 rounded-lg">
+        <div class="flex flex-wrap items-center bg-surface-bright p-1 rounded-lg">
           @for (tab of tabs(); track tab.value) {
             <button
               class="px-3 py-1 rounded-md text-label-sm transition-colors"
@@ -45,7 +45,7 @@ import { ProjectsStore } from '../../state/projects.store';
         </div>
 
         <div
-          class="flex items-center gap-1.5 bg-surface-bright px-3 py-2 rounded-lg text-on-surface"
+          class="w-full sm:w-auto flex items-center gap-1.5 bg-surface-bright px-3 py-2 rounded-lg text-on-surface"
         >
           <ng-icon
             class="text-on-surface-variant"
@@ -54,7 +54,7 @@ import { ProjectsStore } from '../../state/projects.store';
             aria-hidden="true"
           />
           <select
-            class="bg-transparent text-label-sm text-on-surface focus:outline-none cursor-pointer"
+            class="w-full min-w-0 bg-transparent text-label-sm text-on-surface focus:outline-none cursor-pointer"
             aria-label="Ordenar proyectos"
             [value]="store.sort()"
             (change)="onSort($event)"

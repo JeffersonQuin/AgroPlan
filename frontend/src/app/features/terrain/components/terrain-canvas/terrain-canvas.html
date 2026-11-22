@@ -54,13 +54,13 @@
         {{ zoomLabel() }}
       </span>
     </div>
-    <span class="text-[10px] font-semibold text-slate-400">
+    <span class="hidden md:inline text-[10px] font-semibold text-slate-400">
       Arrastrá un vértice para ajustar las cotas · el fondo mueve la vista
     </span>
   </div>
 
   <!-- Croquis -->
-  <div class="relative flex-1 min-h-[420px] bg-white">
+  <div class="relative flex-1 min-h-[300px] sm:min-h-[420px] bg-white">
     <svg
       #lienzo
       class="w-full h-full touch-none cursor-move"
