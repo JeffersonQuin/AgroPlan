@@ -98,3 +98,25 @@ agronómico general; se ajustan editando el JSON.
 **L8** — Sin `AGENTE_API_KEY` un producto sin ficha curada responde 422 con el motivo real ("no
 hay ficha curada y la búsqueda web no está disponible"): el sistema no inventa datos agronómicos.
 Por eso los productos que el usuario va a escribir a mano necesitan ficha.
+
+**L9** — Prueba con el modelo real (clave del usuario). Bloqueantes encontrados y corregidos:
+
+- `agno` no estaba instalado: se declaró `agno[openai]>=3.2,<4` (pyproject + lock). Sin el
+  extra `openai` el modelo OpenAI-compatible no arranca.
+- El gateway de OpenCode exige la cabecera `x-opencode-session`; sin ella responde 400
+  "cannot be routed efficiently". Ahora viaja el id de la corrida.
+- `AGENTE_RAZONAMIENTO="low"` se pasa a `OpenAILike(reasoning_effort=...)`.
+
+Resultados medidos con `deepseek-v4.1-flash`:
+
+| Prueba | Tokens | Tiempo |
+|---|---|---|
+| Llamada directa (`ejecutar`) | 2.195 / 2.196 | 15,8 s |
+| Pipeline completo por API | 2.500 / 4.053 | 30,8 s |
+
+Reparto real: papa 1260 m² + lechuga 840 m² = 2100 exacto (el modelo eligió 60/40, no
+50/50); siembra 2026-11-22 con cosecha 2027-03-22 y 2027-01-26; aplicar 200; balance
+`correcto` con 3780 L/d.
+
+**L10** — La suite forzaba la clave real: 6 tests llamaban al modelo (8 minutos, resultados
+no deterministas). `conftest.py` fija `AGENTE_API_KEY=""`, así los tests van a modo catálogo.
