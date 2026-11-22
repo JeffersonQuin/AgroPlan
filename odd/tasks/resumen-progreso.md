@@ -23,9 +23,9 @@ Branch: `feat/resumen-progreso` (base `dev`).
 
 ## Tasks
 
-- [ ] **T1** Backend: columnas `fase` y `fase_desde` en `agente_corridas` (migración), actualización
-  en cada paso de `ejecutar_corrida`, y exposición en `CorridaOut`/`CorridaDetalleOut` — S1
-- [ ] **T2** Frontend: stepper de fases con checks y cronómetro, mensaje de espera larga y error con
+- [x] **T1** Backend: columnas `fase` y `fase_desde` en `agente_corridas` (migración), actualización
+  en cada paso de `ejecutar_corrida`, y exposición en `CorridaOut`/`CorridaDetalleOut` — S1 — commit `20eb1ba`
+- [x] **T2** Frontend: stepper de fases con checks y cronómetro, mensaje de espera larga y error con
   la fase donde quedó — S2, S3, S4
 
 ## Log
@@ -39,3 +39,5 @@ Branch: `feat/resumen-progreso` (base `dev`).
   esta bien dejarlo asi". No se toca el contrato del agente ni el modelo.
 - **L4** (evidencia) Corrida real exitosa: `deepseek-v4.1-flash`, **88,5 s**, 15.954 tokens de
   entrada y 9.712 de salida. La fase del modelo es la que domina la espera.
+- **L5** (evidencia) T1: 238 tests de backend, migración probada `upgrade` → `downgrade -1` (sin perder filas) → `upgrade`. La fase se commitea al empezarla para que el polling la vea, y un fallo conserva la fase donde se rompió.
+- **L6** (evidencia) T2: 181 tests de frontend y `ng build` en 0. El cronómetro se calcula desde `fase_desde` del servidor con reloj y tick inyectables: los fake timers de vitest no llegan al componente en modo zoneless, así que el test mueve el reloj por token en vez de fingir el `Date`.

@@ -16,6 +16,7 @@ import { SueloApi, WATER_SOURCE_OPTIONS } from '../../terrain/models/terrain.mod
 import { TerrainApi } from '../../terrain/terrain.api';
 import { ENERGIA_OPTIONS, PRESUPUESTO_MINIMO_BS } from '../../wizard/models/restricciones.model';
 import { WizardDraftStore } from '../../wizard/state/wizard-draft.store';
+import { mensajeDeFallo } from '../fases-corrida';
 import { ResumenApi } from '../resumen.api';
 import { descargarBlob, nombreDeArchivo } from '../descarga-pdf';
 import {
@@ -97,6 +98,8 @@ export class ResumenStore {
   private readonly _error = signal<string | null>(null);
   private readonly _corridaId = signal<string | null>(null);
   private readonly _estadoCorrida = signal<string | null>(null);
+  private readonly _faseCorrida = signal<string | null>(null);
+  private readonly _faseDesdeCorrida = signal<string | null>(null);
   private readonly _descargandoPdf = signal(false);
   private readonly _errorPdf = signal<string | null>(null);
 
@@ -109,6 +112,15 @@ export class ResumenStore {
   readonly error = this._error.asReadonly();
   readonly corridaId = this._corridaId.asReadonly();
   readonly estadoCorrida = this._estadoCorrida.asReadonly();
+
+  /**
+   * Fase real de la corrida y desde cuándo (S1, S2, S4).
+   *
+   * Las corridas viejas llegan sin fase: la pantalla muestra entonces la espera de
+   * siempre, sin stepper ni cronómetro.
+   */
+  readonly faseCorrida = this._faseCorrida.asReadonly();
+  readonly faseDesdeCorrida = this._faseDesdeCorrida.asReadonly();
   readonly descargandoPdf = this._descargandoPdf.asReadonly();
   readonly errorPdf = this._errorPdf.asReadonly();
 
@@ -252,6 +264,8 @@ export class ResumenStore {
     if (regenerar) this._resultado.set(null);
     this._estado.set('generando');
     this._estadoCorrida.set(null);
+    this._faseCorrida.set(null);
+    this._faseDesdeCorrida.set(null);
     this._corridaId.set(null);
 
     this.cultivosApi
@@ -352,12 +366,13 @@ export class ResumenStore {
     corridaId: string,
   ): void {
     this._estadoCorrida.set(detalle.estado);
+    this._faseCorrida.set(detalle.fase ?? null);
+    this._faseDesdeCorrida.set(detalle.fase_desde ?? null);
     if (!CORRIDA_TERMINAL.includes(detalle.estado)) return;
 
     if (detalle.estado !== 'ok') {
-      this._error.set(
-        detalle.error_detalle ?? 'El agente no pudo generar el informe. Probá de nuevo.',
-      );
+      // El mensaje dice en qué fase quedó, no un genérico (S3).
+      this._error.set(mensajeDeFallo(detalle.fase, detalle.error_detalle));
       this._estado.set('error');
       return;
     }
@@ -394,6 +409,8 @@ export class ResumenStore {
     this._modalAbierto.set(false);
     this._error.set(null);
     this._estadoCorrida.set(null);
+    this._faseCorrida.set(null);
+    this._faseDesdeCorrida.set(null);
     this._corridaId.set(null);
     this._estado.set('informe');
   }

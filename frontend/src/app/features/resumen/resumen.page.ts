@@ -25,6 +25,7 @@ import { FuentesInforme } from './components/fuentes-informe/fuentes-informe';
 import { ModoCatalogoInforme } from './components/modo-catalogo-informe/modo-catalogo-informe';
 import { CODIGO_MODO_CATALOGO, esModoCatalogo } from './formato-informe';
 import { PlanoRed } from './components/plano-red/plano-red';
+import { ProgresoCorrida } from './components/progreso-corrida/progreso-corrida';
 import { RecomendacionesInforme } from './components/recomendaciones-informe/recomendaciones-informe';
 import { TecnologiaInforme } from './components/tecnologia-informe/tecnologia-informe';
 import { TerrenoInforme } from './components/terreno-informe/terreno-informe';
@@ -52,6 +53,7 @@ import { ResumenStore } from './state/resumen.store';
     FuentesInforme,
     ModoCatalogoInforme,
     PlanoRed,
+    ProgresoCorrida,
     RecomendacionesInforme,
     TecnologiaInforme,
     TerrenoInforme,

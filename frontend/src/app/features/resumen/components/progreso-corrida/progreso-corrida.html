@@ -1,0 +1,66 @@
+<div class="flex flex-col gap-3" data-progreso-corrida>
+  <!-- Fases reales en orden: check en las cumplidas, animación en la actual (S2) -->
+  <ol class="flex flex-wrap items-center gap-x-3 gap-y-1.5" aria-label="Fases de la corrida">
+    @for (item of fases; track item.fase; let i = $index) {
+      <li
+        class="inline-flex items-center gap-1 text-[10px] font-semibold"
+        [attr.data-fase]="item.fase"
+        [attr.data-estado-fase]="estadoDe(i)"
+      >
+        @switch (estadoDe(i)) {
+          @case ('cumplida') {
+            <ng-icon
+              class="text-emerald-600"
+              data-icono="check"
+              name="matCheckCircleOutline"
+              size="14"
+              aria-hidden="true"
+            />
+            <span class="text-slate-700">{{ item.etiqueta }}</span>
+          }
+          @case ('actual') {
+            <ng-icon
+              class="text-agro-600 animate-spin"
+              data-icono="actual"
+              name="matProgressActivityOutline"
+              size="14"
+              aria-hidden="true"
+            />
+            <span class="text-agro-700">{{ item.etiqueta }}</span>
+          }
+          @default {
+            <ng-icon
+              class="text-slate-300"
+              data-icono="pendiente"
+              name="matRadioButtonUncheckedOutline"
+              size="14"
+              aria-hidden="true"
+            />
+            <span class="text-slate-400">{{ item.etiqueta }}</span>
+          }
+        }
+      </li>
+    }
+  </ol>
+
+  <!-- Cronómetro de la fase actual, contado desde `fase_desde` del servidor (S4) -->
+  @if (indiceActual() >= 0) {
+    <p class="text-[11px] text-slate-600" role="status">
+      <span class="font-semibold text-slate-800">{{ etiquetaActual() }}</span>
+      <span class="text-slate-400">·</span>
+      <span class="font-bold tabular-nums" data-cronometro>{{ cronometro() }}</span>
+      en esta fase
+    </p>
+  }
+
+  @if (esperaLarga()) {
+    <p
+      class="bg-agro-50 border border-agro-200 rounded-lg px-3 py-2 text-[11px] text-slate-700 leading-snug"
+      data-espera-larga
+      role="status"
+    >
+      El modelo puede tardar uno o dos minutos: en la última corrida tardó unos
+      {{ segundosDeEspera }} segundos. La corrida sigue viva, no cierres esta pantalla.
+    </p>
+  }
+</div>
