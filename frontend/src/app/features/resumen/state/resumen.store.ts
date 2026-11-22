@@ -17,6 +17,7 @@ import { TerrainApi } from '../../terrain/terrain.api';
 import { ENERGIA_OPTIONS, PRESUPUESTO_MINIMO_BS } from '../../wizard/models/restricciones.model';
 import { WizardDraftStore } from '../../wizard/state/wizard-draft.store';
 import { ResumenApi } from '../resumen.api';
+import { descargarBlob, nombreDeArchivo } from '../descarga-pdf';
 import {
   ProductoResumen,
   RestriccionesResumen,
@@ -86,6 +87,8 @@ export class ResumenStore {
   private readonly _error = signal<string | null>(null);
   private readonly _corridaId = signal<string | null>(null);
   private readonly _estadoCorrida = signal<string | null>(null);
+  private readonly _descargandoPdf = signal(false);
+  private readonly _errorPdf = signal<string | null>(null);
 
   private sondeo: Subscription | null = null;
 
@@ -96,6 +99,8 @@ export class ResumenStore {
   readonly error = this._error.asReadonly();
   readonly corridaId = this._corridaId.asReadonly();
   readonly estadoCorrida = this._estadoCorrida.asReadonly();
+  readonly descargandoPdf = this._descargandoPdf.asReadonly();
+  readonly errorPdf = this._errorPdf.asReadonly();
 
   readonly nombreProyecto = computed(() => {
     const terreno = this._terreno();
@@ -240,6 +245,35 @@ export class ResumenStore {
         this.sondear(proyectoId, inicio.corrida_id);
       },
       error: (error: HttpErrorResponse) => this.fallar(error),
+    });
+  }
+
+  /**
+   * Descarga el informe en PDF del proyecto actual (S8).
+   *
+   * El backend arma el documento; acá sólo se baja el `Blob`. Un fallo se muestra
+   * junto al botón y no cambia el estado del informe: la pantalla sigue igual.
+   */
+  descargarPdf(): void {
+    const proyectoId = this._proyectoId();
+    if (proyectoId === '' || this._descargandoPdf()) return;
+
+    this._descargandoPdf.set(true);
+    this._errorPdf.set(null);
+    this.api.pdf(proyectoId).subscribe({
+      next: (respuesta) => {
+        const blob = respuesta.body;
+        if (blob === null) {
+          this._errorPdf.set('El backend no devolvió el informe en PDF.');
+        } else {
+          descargarBlob(blob, nombreDeArchivo(respuesta, proyectoId));
+        }
+        this._descargandoPdf.set(false);
+      },
+      error: () => {
+        this._errorPdf.set('No se pudo descargar el informe. Reintentá en unos segundos.');
+        this._descargandoPdf.set(false);
+      },
     });
   }
 

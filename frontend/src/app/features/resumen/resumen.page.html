@@ -360,6 +360,15 @@
                 Informe generado
               </span>
               <button
+                class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-agro-500 hover:bg-agro-600 text-white text-xs font-semibold shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
+                type="button"
+                (click)="store.descargarPdf()"
+                [disabled]="store.descargandoPdf()"
+              >
+                <ng-icon name="matDownloadOutline" size="16" aria-hidden="true" />
+                Descargar Informe Técnico Completo
+              </button>
+              <button
                 class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-slate-200 text-slate-500 text-xs font-semibold cursor-not-allowed"
                 type="button"
                 title="Plan premium"
@@ -369,6 +378,16 @@
               </button>
             </div>
           </header>
+
+          @if (store.errorPdf(); as errorPdf) {
+            <p
+              class="bg-red-50 border border-red-200 rounded-xl px-4 py-2 text-[11px] font-semibold text-red-700"
+              role="alert"
+              data-error-pdf
+            >
+              {{ errorPdf }}
+            </p>
+          }
 
           <!-- Advertencias arriba de todo: un ajuste del motor no va al pie (S3) -->
           <app-advertencias-informe [advertencias]="advertenciasInforme()" />
