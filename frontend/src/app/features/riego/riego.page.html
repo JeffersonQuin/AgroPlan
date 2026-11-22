@@ -126,15 +126,13 @@
           <ng-icon name="matArrowBackOutline" size="16" aria-hidden="true" />
           Volver a Cultivos
         </a>
-        <button
-          class="inline-flex w-full sm:w-auto items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-slate-200 text-slate-500 text-xs font-semibold cursor-not-allowed"
-          type="button"
-          title="Paso 4 (Resultado): próximamente"
-          disabled
+        <a
+          class="inline-flex w-full sm:w-auto items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-agro-500 hover:bg-agro-600 text-white text-xs font-semibold shadow-sm shadow-emerald-700/20"
+          [routerLink]="['/proyectos', proyectoId(), 'resultado']"
         >
           Continuar a Resultado
           <ng-icon name="matArrowForwardOutline" size="16" aria-hidden="true" />
-        </button>
+        </a>
       </div>
     </div>
 

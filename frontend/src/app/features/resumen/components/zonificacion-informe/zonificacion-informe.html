@@ -1,0 +1,98 @@
+<section
+  class="bg-white rounded-xl border border-agro-border p-4 shadow-sm flex flex-col gap-3"
+  data-seccion-zonificacion
+>
+  <div class="flex items-center justify-between gap-2">
+    <h2 class="text-sm font-bold text-slate-800">Zonificación Agronómica</h2>
+    <span
+      class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-agro-50 text-agro-800 border border-agro-200"
+    >
+      {{ bloques().length }} {{ bloques().length === 1 ? 'bloque' : 'bloques' }}
+    </span>
+  </div>
+
+  @if (bloques().length === 0) {
+    <p class="text-[11px] text-slate-500" data-zonificacion-vacia>
+      Zonificación: <span class="text-slate-400">no informado</span>.
+    </p>
+  } @else {
+    <div class="flex flex-col gap-2.5">
+      @for (bloque of bloques(); track bloque.id) {
+        <article
+          class="p-2.5 rounded-xl border border-slate-200 bg-slate-50/60 flex items-start gap-3"
+          data-bloque
+        >
+          <div class="flex flex-col items-center gap-1 shrink-0 w-14">
+            @if (bloque.imagen_url !== null) {
+              <img
+                class="w-12 h-12 rounded-lg object-cover border border-slate-200 shadow-sm"
+                [src]="bloque.imagen_url"
+                [alt]="'Imagen de ' + nombre(bloque)"
+                width="48"
+                height="48"
+              />
+            } @else {
+              <span
+                class="w-12 h-12 rounded-lg flex items-center justify-center text-sm font-bold text-white shadow-sm"
+                [style.background-color]="bloque.color"
+                aria-hidden="true"
+              >
+                {{ inicial(bloque) }}
+              </span>
+            }
+            @if (bloque.imagen_credito !== null) {
+              <span class="text-[8px] leading-tight text-slate-400 text-center w-14 truncate">
+                {{ bloque.imagen_credito }}
+              </span>
+            }
+          </div>
+
+          <div class="flex flex-col min-w-0 flex-1">
+            <div class="flex items-center justify-between gap-2">
+              <span class="font-bold text-[11px] text-slate-800 truncate">
+                {{ nombre(bloque) }}
+              </span>
+              <span
+                class="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-white border border-slate-200 text-slate-700 shrink-0"
+                data-bloque-porcentaje
+              >
+                @if (bloque.porcentaje !== null) {
+                  {{ formatearNumero(bloque.porcentaje) }}%
+                } @else {
+                  <span class="text-slate-400 font-normal">no informado</span>
+                }
+              </span>
+            </div>
+
+            <div class="flex items-center justify-between gap-2 text-[10.5px] text-slate-600 mt-1">
+              <span>
+                Área:
+                <strong class="text-slate-800">{{ formatearNumero(bloque.area_m2) }} m²</strong>
+              </span>
+              <span>
+                @if (bloque.ciclo_dias !== null) {
+                  Ciclo: {{ formatearNumero(bloque.ciclo_dias) }} d
+                } @else {
+                  Ciclo: <span class="text-slate-400">no informado</span>
+                }
+              </span>
+            </div>
+
+            <div class="text-[10.5px] text-slate-600 mt-0.5">
+              @if (bloque.demanda_pico_l_dia !== null) {
+                Demanda pico: {{ formatearNumero(bloque.demanda_pico_l_dia) }} L/día
+              } @else {
+                Demanda pico: <span class="text-slate-400">no informado</span>
+              }
+            </div>
+
+            <div class="flex flex-wrap gap-x-3 text-[10px] text-slate-500 mt-1">
+              <span>Siembra: {{ formatearFecha(bloque.siembra) }}</span>
+              <span>Cosecha: {{ formatearFecha(bloque.cosecha) }}</span>
+            </div>
+          </div>
+        </article>
+      }
+    </div>
+  }
+</section>
