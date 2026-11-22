@@ -541,6 +541,28 @@ describe('ResumenPage (paso 4: secciones del informe)', () => {
     expect(html('[data-seccion-fuentes]', secciones).textContent).toContain('no informado');
     expect(pagina.querySelector('[data-error-informe]')).toBeNull();
   });
+  it('no repite el mismo texto en título, detalle y justificación (S5)', async () => {
+    const resultado = resultadoCompleto();
+    const texto = 'La corrida se resolvió con el catálogo interno.';
+    (resultado['diseno'] as Record<string, unknown>)['recomendaciones'] = [
+      {
+        id: 'r-repetida',
+        tipo: 'final',
+        titulo: texto,
+        detalle: texto,
+        justificacion: texto,
+        aplicada: null,
+      },
+    ];
+
+    const pagina = await montar(resultado);
+    const seccion = html('[data-seccion-recomendaciones]', pagina);
+    const apariciones = seccion.textContent?.split(texto).length ?? 1;
+
+    expect(apariciones - 1).toBe(1);
+    expect(seccion.textContent).not.toContain('Justificación:');
+  });
+
   it('no repite una advertencia que viene en el resultado y en el diseño', async () => {
     const resultado = resultadoCompleto();
     const aviso = {

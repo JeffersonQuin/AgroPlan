@@ -62,18 +62,19 @@ def _poligono_porcentaje(
     existentes: list[ProyectoCultivo],
     excluir_id: uuid.UUID | None = None,
 ) -> tuple[dict, float]:
-    """Dibuja una franja horizontal cuya área es ``porcentaje`` del terreno."""
+    """Dibuja una franja horizontal recortada al terreno con el área pedida.
+
+    La franja se apila sobre las zonas ya asignadas y se corta contra el polígono: en
+    un trapecio, cada zona sigue el contorno en vez de usar la caja envolvente.
+    """
 
     try:
         puntos = geometria.normalizar_vertices(terreno.geometria.get("vertices", []))
     except (KeyError, TypeError, ValueError) as exc:
         raise CultivoServiceError(422, "El terreno no tiene geometría válida") from exc
 
-    x_min, y_min, x_max, y_max = geometria.caja(puntos)
-    ancho = x_max - x_min
-    alto = y_max - y_min
     area_terreno = float(terreno.area_m2)
-    if ancho <= 0 or alto <= 0 or area_terreno <= 0:
+    if geometria.area_poligono(puntos) <= geometria.AREA_MINIMA or area_terreno <= 0:
         raise CultivoServiceError(422, "El terreno no tiene una superficie utilizable")
 
     area_objetivo = area_terreno * porcentaje / 100.0
@@ -82,21 +83,31 @@ def _poligono_porcentaje(
         for bloque in existentes
         if excluir_id is None or bloque.id != excluir_id
     )
-
-    y_inicio = y_min + (area_ocupada / area_terreno) * alto
-    if y_inicio >= y_max - 1e-6:
+    if area_ocupada >= area_terreno - geometria.AREA_MINIMA:
         raise CultivoServiceError(
             422, "No queda superficie libre para asignar otro bloque"
         )
 
-    alto_bloque = min(area_objetivo / ancho, y_max - y_inicio)
-    if alto_bloque <= 1e-6:
+    # El área acumulada del terreno se invierte por bisección: así la zona cubre
+    # exactamente el porcentaje pedido aunque su alto varíe con la forma. El ``min``
+    # cierra el 100 % con la superficie que queda, sin salirse del polígono.
+    _, y_min, _, y_max = geometria.caja(puntos)
+    y_inicio = geometria.corte_por_area(puntos, "y", y_min, area_ocupada)
+    if y_inicio >= y_max - 1e-6:
+        raise CultivoServiceError(
+            422, "No queda superficie libre para asignar otro bloque"
+        )
+    objetivo = min(area_ocupada + area_objetivo, area_terreno)
+    y_fin = geometria.corte_por_area(puntos, "y", y_min, objetivo)
+
+    franja = geometria.recortar_franja(puntos, "y", y_inicio, y_fin)
+    area = geometria.area_poligono(franja) if franja else 0.0
+    if area <= geometria.AREA_MINIMA:
         raise CultivoServiceError(
             422, "El porcentaje solicitado no cabe en la superficie disponible"
         )
 
-    franja = geometria.rectangulo(x_min, y_inicio, x_max, y_inicio + alto_bloque)
-    return geometria.poligono_dict(franja), geometria.area_poligono(franja)
+    return geometria.poligono_dict(franja), area
 
 
 def _poligono_desde_entrada(poligono) -> tuple[dict, float]:
