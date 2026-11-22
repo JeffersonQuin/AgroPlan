@@ -9,6 +9,20 @@
 
 export const NO_INFORMADO = 'no informado';
 
+/** Marca del agente cuando la corrida se resolvió sin credenciales (S3). */
+export const CODIGO_MODO_CATALOGO = 'AGENTE_SIN_CREDENCIALES';
+
+/**
+ * `true` cuando la corrida se resolvió con el catálogo interno.
+ *
+ * La marca `AGENTE_SIN_CREDENCIALES` es la que deja el agente en sus advertencias;
+ * con ella las cifras, precios y fuentes del modelo vienen vacías a propósito, así
+ * que el informe lo explica una vez en vez de repetir "no informado" por tarjeta.
+ */
+export function esModoCatalogo(advertencias: readonly { codigo: string }[]): boolean {
+  return advertencias.some((advertencia) => advertencia.codigo === CODIGO_MODO_CATALOGO);
+}
+
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
 /** Número listo para mostrar; `null` es "no informado". */

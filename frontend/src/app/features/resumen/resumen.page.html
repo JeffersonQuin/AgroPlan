@@ -393,6 +393,11 @@
           <!-- Advertencias arriba de todo: un ajuste del motor no va al pie (S3) -->
           <app-advertencias-informe [advertencias]="advertenciasInforme()" />
 
+          <!-- Modo catálogo: una sola explicación de producto, nunca una pared de "no informado" (S3) -->
+          @if (modoCatalogo()) {
+            <app-modo-catalogo-informe />
+          }
+
           @if (store.resultado(); as informe) {
             <div
               class="grid grid-cols-1 xl:grid-cols-[280px_minmax(0,1fr)_320px] gap-3 items-start"
@@ -426,18 +431,23 @@
                   [cifrasAgente]="informe.diseno.cifras_agente"
                   [eficiencia]="informe.diseno.eficiencia_pct"
                   [ajustes]="informe.diseno.ajustes"
+                  [modoCatalogo]="modoCatalogo()"
                 />
                 <app-computo-informe
                   [materiales]="informe.diseno.materiales"
                   [costoTotalBs]="informe.diseno.costo_total_bs"
                   [presupuestoBs]="informe.diseno.presupuesto_bs"
                   [presupuestoExcedido]="informe.diseno.presupuesto_excedido"
+                  [modoCatalogo]="modoCatalogo()"
                 />
                 <app-calendario-informe [calendario]="informe.diseno.calendario" />
                 <app-recomendaciones-informe
                   [recomendaciones]="informe.diseno.recomendaciones"
                 />
-                <app-fuentes-informe [fuentes]="informe.diseno.fuentes" />
+                <app-fuentes-informe
+                  [fuentes]="informe.diseno.fuentes"
+                  [modoCatalogo]="modoCatalogo()"
+                />
               </aside>
             </div>
           }

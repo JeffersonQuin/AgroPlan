@@ -178,6 +178,36 @@ function puntosDe(elemento: Element): number {
   return (elemento.getAttribute('points') ?? '').trim().split(/\s+/).filter(Boolean).length;
 }
 
+/** Red con muchos laterales: el caso del usuario (una parrilla de goteo densa). */
+function redConLaterales(total: number): RedInformeApi {
+  const tramos: RedInformeApi['tramos'] = [
+    {
+      id: 't-1',
+      sector_id: null,
+      tipo: 'principal',
+      diametro_mm: 32,
+      longitud_m: 40,
+      caudal_m3h: 1.8,
+      orden: 1,
+      puntos: [[-5, 40], [0, 40], [0, 0]],
+    },
+  ];
+  for (let indice = 0; indice < total; indice++) {
+    const y = (indice % 40) + 0.5;
+    tramos.push({
+      id: `t-lat-${indice}`,
+      sector_id: 'sec-1',
+      tipo: 'lateral',
+      diametro_mm: 12,
+      longitud_m: 30,
+      caudal_m3h: 1.2,
+      orden: indice + 2,
+      puntos: [[0, y], [30, y]],
+    });
+  }
+  return { nodos: RED.nodos, tramos, emisores: [] };
+}
+
 describe('PlanoRed (plano del informe)', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
@@ -185,7 +215,7 @@ describe('PlanoRed (plano del informe)', () => {
     }).compileComponents();
   });
 
-  function montar(red: RedInformeApi): HTMLElement {
+  function montarConFixture(red: RedInformeApi) {
     const fixture = TestBed.createComponent(PlanoRed);
     fixture.componentRef.setInput('red', red);
     fixture.componentRef.setInput('bloques', BLOQUES);
@@ -193,7 +223,11 @@ describe('PlanoRed (plano del informe)', () => {
     fixture.componentRef.setInput('sistema', SISTEMA);
     fixture.componentRef.setInput('terreno', TERRENO);
     fixture.detectChanges();
-    return fixture.nativeElement as HTMLElement;
+    return { fixture, plano: fixture.nativeElement as HTMLElement };
+  }
+
+  function montar(red: RedInformeApi): HTMLElement {
+    return montarConFixture(red).plano;
   }
 
   it('dibuja terreno, zonas de cultivo y sectores debajo de la red (S4)', () => {
@@ -231,9 +265,11 @@ describe('PlanoRed (plano del informe)', () => {
     ).map((texto) => texto.textContent?.trim() ?? '');
     expect(etiquetasSector).toEqual(['Sector 1', 'Sector 2']);
 
-    // 4. La red sigue arriba: un trazo por tramo y un punto por emisor del payload.
+    // 4. La red sigue arriba: un trazo por tramo. Los emisores son ruido y no se
+    //    dibujan por defecto: se encienden desde su control (S4).
     expect(svg.querySelectorAll('polyline').length).toBe(RED.tramos.length);
-    expect(svg.querySelectorAll('[data-emisor]').length).toBe(6);
+    expect(svg.querySelectorAll('[data-emisor]').length).toBe(0);
+    expect(plano.querySelector('[data-toggle-emisores]')).not.toBeNull();
 
     // 5. Orden de lectura: terreno → zonas → sectores → red → emisores → nodos, y las
     //    etiquetas al final para que la red nunca las tape.
@@ -277,20 +313,68 @@ describe('PlanoRed (plano del informe)', () => {
     expect(renglonesLateral[0].textContent).toContain('20');
   });
 
-  it('baja el ruido de los goteros sin cambiar la cifra del payload (S4)', () => {
-    const plano = montar(redDensa(14000));
+  it('no dibuja emisores por defecto y los enciende desde el control (S4)', () => {
+    const { fixture, plano } = montarConFixture(redDensa(14000));
     const svg = plano.querySelector('[data-plano-svg]') as SVGSVGElement;
+
+    // Con el plano en su lectura por defecto no hay ni un punto de emisor.
+    expect(svg.querySelectorAll('[data-emisor]').length).toBe(0);
+
+    // El encabezado sigue mostrando la cifra real del payload, no la dibujada.
+    const encabezado = plano.querySelector('[data-plano-red]') as HTMLElement;
+    expect(encabezado.textContent).toContain('14000 emisores');
+
+    const control = plano.querySelector('[data-toggle-emisores]') as HTMLButtonElement;
+    expect(control.getAttribute('aria-pressed')).toBe('false');
+    control.click();
+    fixture.detectChanges();
 
     const dibujados = svg.querySelectorAll('[data-emisor]').length;
     expect(dibujados).toBeGreaterThan(0);
     expect(dibujados).toBeLessThan(600);
+    expect(control.getAttribute('aria-pressed')).toBe('true');
 
-    // El encabezado y la leyenda dicen la cifra real del payload.
-    const encabezado = plano.querySelector('[data-plano-red]') as HTMLElement;
-    expect(encabezado.textContent).toContain('14000 emisores');
+    // La nota de densidad dice cuántos se dibujan y cuántos usa el cómputo.
     const densidad = plano.querySelector('[data-emisores-densidad]') as HTMLElement;
     expect(densidad.textContent).toContain(String(dibujados));
     expect(densidad.textContent).toContain('14000');
+
+    // Se pueden volver a apagar.
+    control.click();
+    fixture.detectChanges();
+    expect(svg.querySelectorAll('[data-emisor]').length).toBe(0);
+  });
+
+  it('prioriza matriz, secundaria y laterales con zonas de color visible (S4)', () => {
+    const { plano } = montarConFixture(RED);
+    const svg = plano.querySelector('[data-plano-svg]') as SVGSVGElement;
+
+    const principal = svg.querySelector('[data-tramo-tipo="principal"]') as SVGPolylineElement;
+    const lateral = svg.querySelector('[data-tramo-tipo="lateral"]') as SVGPolylineElement;
+    expect(principal).not.toBeNull();
+    expect(lateral).not.toBeNull();
+
+    // La matriz manda: más gruesa que la tubería secundaria y que el lateral.
+    const anchoPrincipal = Number(principal.getAttribute('stroke-width'));
+    const anchoLateral = Number(lateral.getAttribute('stroke-width'));
+    expect(anchoPrincipal).toBeGreaterThan(anchoLateral);
+
+    // El relleno de las zonas deja ver el color del producto (S2, S4).
+    const zona = svg.querySelector('[data-zona]') as SVGPolygonElement;
+    expect(Number(zona.getAttribute('fill-opacity'))).toBeGreaterThanOrEqual(0.5);
+  });
+
+  it('baja la densidad de líneas cuando hay muchísimos laterales (S4)', () => {
+    const { plano } = montarConFixture(redConLaterales(250));
+    const svg = plano.querySelector('[data-plano-svg]') as SVGSVGElement;
+
+    const lateral = svg.querySelector('[data-tramo-tipo="lateral"]') as SVGPolylineElement;
+    expect(lateral).not.toBeNull();
+    expect(Number(lateral.getAttribute('stroke-opacity'))).toBeLessThan(1);
+
+    // La zona y su color siguen visibles debajo de la red densa.
+    const zona = svg.querySelector('[data-zona]') as SVGPolygonElement;
+    expect(Number(zona.getAttribute('fill-opacity'))).toBeGreaterThanOrEqual(0.5);
   });
 
   it('sin red mantiene el mensaje de plano vacío (S4)', () => {
