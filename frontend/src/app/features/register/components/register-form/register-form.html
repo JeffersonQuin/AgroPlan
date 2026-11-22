@@ -1,6 +1,6 @@
-<div class="flex items-center justify-between mb-space-md">
+<div class="flex items-center justify-between gap-space-sm mb-space-md">
   <span class="inline-flex items-center gap-1.5 text-primary">
-    <span class="material-symbols-outlined text-[26px]" aria-hidden="true">agriculture</span>
+    <ng-icon name="matAgricultureOutline" size="26" aria-hidden="true" />
     <span class="text-headline-md">AgroPlan</span>
   </span>
   <app-auth-nav active="register" />
@@ -14,27 +14,29 @@
 </div>
 
 <div class="mb-space-lg">
+  <!-- Google is the primary path: it renders first and is never gated. -->
   <app-google-sign-in (credential)="onCredential($event)" />
-  @if (error()) {
-    <p class="text-label-sm text-error mt-2" role="alert">{{ error() }}</p>
-  }
 
   <div class="relative flex items-center justify-center my-space-md">
     <div class="w-full h-px bg-surface-variant"></div>
-    <span class="absolute px-space-sm bg-surface-container-lowest text-label-sm text-outline">
+    <span
+      class="absolute px-space-sm bg-surface-container-lowest text-label-sm text-outline whitespace-nowrap"
+    >
       o mediante credenciales
     </span>
   </div>
 </div>
 
-<div class="space-y-space-md">
+<form class="flex flex-col gap-space-md" (submit)="onSubmit($event)" novalidate>
   <app-register-field
     inputId="fullName"
     label="Nombre completo y título"
     icon="badge"
     placeholder="ej. Ing. Lucas Ferrero"
     autocomplete="name"
-      />
+    [field]="form.nombre"
+    [error]="nombreError()"
+  />
 
   <app-register-field
     inputId="workEmail"
@@ -43,36 +45,43 @@
     type="email"
     placeholder="lucas.ferrero@agronomia-consulting.com"
     autocomplete="email"
-      />
+    [field]="form.email"
+    [error]="emailError()"
+  />
 
-  <div class="space-y-1">
-    <label class="block text-label-md text-on-surface" for="userRole">
+  <div class="flex flex-col gap-space-xs">
+    <label class="text-label-md text-on-surface" for="userRole">
       Rol o especialidad agronómica
     </label>
-    <div
-      class="relative rounded-lg bg-surface-container-low focus-within:bg-surface-bright focus-within:ring-2 focus-within:ring-primary"
-    >
-      <span
-        class="material-symbols-outlined absolute left-3 top-2.5 text-outline text-[20px]"
+    <div class="relative flex items-center">
+      <ng-icon
+        class="absolute left-3 text-on-surface-variant"
+        name="matEngineeringOutline"
+        size="20"
         aria-hidden="true"
-        >engineering</span
-      >
+      />
       <select
         id="userRole"
-        disabled
-        class="w-full bg-transparent py-2.5 pl-10 pr-10 text-on-surface text-body-md focus:outline-none appearance-none cursor-pointer"
+        [formField]="form.rol"
+        class="w-full pl-10 pr-10 py-2.5 rounded-lg bg-surface text-body-md text-on-surface appearance-none cursor-pointer focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary transition-all"
+        [attr.aria-invalid]="rolError() ? 'true' : null"
+        [attr.aria-describedby]="rolError() ? 'userRole-error' : null"
       >
         <option class="text-outline" disabled value="">Selecciona tu perfil principal...</option>
         @for (option of roleOptions; track option.value) {
           <option [value]="option.value">{{ option.label }}</option>
         }
       </select>
-      <span
-        class="material-symbols-outlined absolute right-3 top-2.5 text-outline pointer-events-none text-[20px]"
+      <ng-icon
+        class="absolute right-3 text-on-surface-variant pointer-events-none"
+        name="matKeyboardArrowDownOutline"
+        size="20"
         aria-hidden="true"
-        >expand_more</span
-      >
+      />
     </div>
+    @if (rolError()) {
+      <p id="userRole-error" class="text-label-sm text-error" role="alert">{{ rolError() }}</p>
+    }
   </div>
 
   <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
@@ -83,7 +92,9 @@
       type="password"
       placeholder="••••••••"
       autocomplete="new-password"
-          />
+      [field]="form.password"
+      [error]="passwordError()"
+    />
 
     <app-register-field
       inputId="confirmPassword"
@@ -92,40 +103,57 @@
       type="password"
       placeholder="••••••••"
       autocomplete="new-password"
-          />
+      [field]="form.confirmPassword"
+      [error]="confirmPasswordError()"
+    />
   </div>
 
+  <app-password-strength-meter [value]="password()" />
 
-  <app-password-strength-meter [value]="''" />
-
-  <div class="flex items-start gap-space-sm pt-space-xs">
-    <div class="flex items-center h-5">
-      <input
-        id="termsCheckbox"
-        type="checkbox"
-        class="w-4 h-4 rounded text-primary-container accent-primary cursor-not-allowed"
-        disabled
-      />
-    </div>
-    <label
-      class="text-body-sm text-on-surface-variant leading-snug cursor-pointer select-none"
-      for="termsCheckbox"
-    >
-      Acepto los
-      <a class="text-primary text-label-sm hover:underline" href="#">términos de servicio</a>,
-      responsabilidades de cálculo y las
-      <a class="text-primary text-label-sm hover:underline" href="#"
-        >políticas de uso agronómico</a
+  <div class="flex flex-col gap-space-xs">
+    <div class="flex items-start gap-space-sm pt-space-xs">
+      <div class="flex items-center h-5">
+        <input
+          id="termsCheckbox"
+          type="checkbox"
+          [formField]="form.terms"
+          class="w-4 h-4 rounded text-primary-container accent-primary cursor-pointer"
+          [attr.aria-invalid]="termsError() ? 'true' : null"
+          [attr.aria-describedby]="termsError() ? 'termsCheckbox-error' : null"
+        />
+      </div>
+      <label
+        class="text-body-sm text-on-surface-variant leading-snug cursor-pointer select-none"
+        for="termsCheckbox"
       >
-      de AgroPlan.
-    </label>
+        Acepto los
+        <a class="text-primary text-label-sm hover:underline" href="#">términos de servicio</a>,
+        responsabilidades de cálculo y las
+        <a class="text-primary text-label-sm hover:underline" href="#"
+          >políticas de uso agronómico</a
+        >
+        de AgroPlan.
+      </label>
+    </div>
+    @if (termsError()) {
+      <p id="termsCheckbox-error" class="text-label-sm text-error" role="alert">
+        {{ termsError() }}
+      </p>
+    }
   </div>
 
-  <div class="rounded-lg bg-surface-container-low px-3 py-2 text-label-sm text-on-surface-variant">
-    El backend todavía no acepta correo y contraseña. Creá tu cuenta con Google.
-  </div>
+  @if (error()) {
+    <p class="text-label-sm text-error" role="alert">{{ error() }}</p>
+  }
 
-</div>
+  <button
+    type="submit"
+    class="w-full inline-flex items-center justify-center gap-space-xs rounded-lg border border-outline-variant/60 px-space-md py-2.5 text-label-md text-on-surface hover:bg-surface-container-low focus:outline-none focus-visible:ring-2 focus-visible:ring-primary transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+    [disabled]="isSubmitting()"
+  >
+    Crear cuenta con correo
+  </button>
+</form>
 
 <div class="mt-space-lg pt-space-md text-center bg-surface-bright/50 rounded-lg py-space-sm">
   <p class="text-body-md text-on-surface-variant">
@@ -135,7 +163,7 @@
       routerLink="/login"
     >
       Iniciar Sesión
-      <span class="material-symbols-outlined text-[16px]" aria-hidden="true">arrow_forward</span>
+      <ng-icon name="matArrowForwardOutline" size="16" aria-hidden="true" />
     </a>
   </p>
 </div>
