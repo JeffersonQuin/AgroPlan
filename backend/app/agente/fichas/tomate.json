@@ -44,6 +44,36 @@
       "veredicto": "condicionado",
       "motivo": "Vigilar compactación y drenaje.",
       "fuente": "Ficha curada AgroPlan"
+    },
+    "franco_arenoso": {
+      "veredicto": "apto",
+      "motivo": "Drenaje rápido, bueno para raíz sensible.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "franco_arcilloso": {
+      "veredicto": "condicionado",
+      "motivo": "Riesgo de encharcamiento y hongos del suelo.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "salino": {
+      "veredicto": "condicionado",
+      "motivo": "Moderadamente tolerante, con manejo.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "calcareo": {
+      "veredicto": "condicionado",
+      "motivo": "pH alto: puede bloquear micronutrientes.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "pedregoso": {
+      "veredicto": "condicionado",
+      "motivo": "Raíz profunda; piedras en el perfil limitan.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "organico": {
+      "veredicto": "apto",
+      "motivo": "Fértil, con buen manejo de humedad.",
+      "fuente": "Ficha curada AgroPlan"
     }
   }
 }

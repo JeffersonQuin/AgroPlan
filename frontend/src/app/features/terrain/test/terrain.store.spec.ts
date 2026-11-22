@@ -275,6 +275,36 @@ describe('TerrainStore contra el backend', () => {
     expect(falla?.texto).toContain('Superficie insuficiente');
   });
 
+  it('sends zero flow and level as "not informed"', () => {
+    cargar(null);
+    store.setFlow(0);
+    store.setStaticLevel(0);
+
+    expect(store.flowM3h()).toBeNull();
+    expect(store.staticLevelM()).toBeNull();
+
+    store.guardar();
+    const peticion = http.expectOne('http://localhost:8000/proyectos/p-1/terreno');
+    expect(peticion.request.body.caudal_disponible_m3h).toBeNull();
+    expect(peticion.request.body.profundidad_nivel_dinamico_m).toBeNull();
+    peticion.flush(TERRENO);
+  });
+
+  it('retries as PATCH when the terrain already existed', () => {
+    cargar(null);
+
+    store.guardar();
+    http
+      .expectOne('http://localhost:8000/proyectos/p-1/terreno')
+      .flush({ detail: 'El proyecto ya tiene terreno; usa PATCH' }, { status: 409, statusText: 'Conflict' });
+
+    const reintento = http.expectOne('http://localhost:8000/proyectos/p-1/terreno');
+    expect(reintento.request.method).toBe('PATCH');
+    reintento.flush(TERRENO);
+
+    expect(store.estado()).toBe('guardado');
+  });
+
   it('reports the save error without losing the form', () => {
     cargar(null);
     store.setName('Parcela Sur');

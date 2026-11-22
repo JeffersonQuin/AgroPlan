@@ -158,6 +158,15 @@
   }
 </div>
 
+@if (store.error(); as mensaje) {
+  <p
+    class="text-[11px] text-error bg-error-container/40 border border-error/30 rounded-lg px-2 py-1.5"
+    role="alert"
+  >
+    {{ mensaje }}
+  </p>
+}
+
 <!-- Form Navigation Actions -->
 <div class="pt-3 border-t border-slate-100 flex flex-col gap-2">
 <button

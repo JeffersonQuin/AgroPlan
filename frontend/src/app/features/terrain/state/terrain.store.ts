@@ -277,15 +277,32 @@ export class TerrainStore {
     const proyectoId = this._proyectoId();
     if (proyectoId === null || this.guardando()) return null;
 
-    const peticion = this.api.guardar(proyectoId, this.aPayload(), this._guardado() !== null);
+    const payload = this.aPayload();
     this._estado.set('guardando');
     this._error.set(null);
+
+    const peticion = this.api.guardar(proyectoId, payload, this._guardado() !== null);
     peticion.subscribe({
       next: (terreno) => {
         this._guardado.set(terreno);
         this._estado.set('guardado');
       },
       error: (error: HttpErrorResponse) => {
+        // 409: el terreno ya existía (otra pestaña, o el GET inicial falló). Se
+        // reintenta como actualización en vez de mostrar un error muerto.
+        if (error.status === 409) {
+          this.api.guardar(proyectoId, payload, true).subscribe({
+            next: (terreno) => {
+              this._guardado.set(terreno);
+              this._estado.set('guardado');
+            },
+            error: (segundo: HttpErrorResponse) => {
+              this._error.set(mensajeDeError(segundo));
+              this._estado.set('error');
+            },
+          });
+          return;
+        }
         this._error.set(mensajeDeError(error));
         this._estado.set('error');
       },
@@ -330,12 +347,19 @@ export class TerrainStore {
     this._state.update((state) => ({ ...state, waterSource }));
   }
 
+  /** Cero no es un caudal ni una profundidad: se guarda como "no informado". */
   setFlow(flowM3h: number | null): void {
-    this._state.update((state) => ({ ...state, flowM3h }));
+    this._state.update((state) => ({
+      ...state,
+      flowM3h: flowM3h !== null && flowM3h > 0 ? flowM3h : null,
+    }));
   }
 
   setStaticLevel(staticLevelM: number | null): void {
-    this._state.update((state) => ({ ...state, staticLevelM }));
+    this._state.update((state) => ({
+      ...state,
+      staticLevelM: staticLevelM !== null && staticLevelM > 0 ? staticLevelM : null,
+    }));
   }
 
   setNombreEditado(): void {

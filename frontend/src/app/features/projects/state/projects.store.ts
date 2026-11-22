@@ -166,6 +166,32 @@ function capitalizar(texto: string): string {
   return texto.charAt(0).toUpperCase() + texto.slice(1);
 }
 
+/** FastAPI devuelve `detail` como texto en los 4xx propios y como lista en los 422. */
+interface ErrorValidacionApi {
+  loc?: (string | number)[];
+  msg?: string;
+}
+
+function detalleDeValidacion(detalle: unknown): string {
+  if (!Array.isArray(detalle)) return '';
+  const campos = (detalle as ErrorValidacionApi[])
+    .map((item) => {
+      const campo = (item.loc ?? []).filter((parte) => parte !== 'body').join('.');
+      return campo && item.msg ? `${campo}: ${traducirValidacion(item.msg)}` : item.msg;
+    })
+    .filter(Boolean);
+  return campos.join(' · ');
+}
+
+/** Los mensajes de pydantic vienen en inglés: los que usamos se traducen. */
+function traducirValidacion(mensaje: string): string {
+  if (mensaje.includes('greater than 0')) return 'tiene que ser mayor que 0';
+  if (mensaje.includes('less than or equal')) return 'está por encima del máximo permitido';
+  if (mensaje.includes('greater than or equal')) return 'está por debajo del mínimo permitido';
+  if (mensaje.includes('String should have at least')) return 'está vacío o es demasiado corto';
+  return mensaje;
+}
+
 /** One readable sentence for the most common backend failures. */
 export function mensajeDeError(error: HttpErrorResponse): string {
   if (error.status === 0) {
@@ -177,8 +203,14 @@ export function mensajeDeError(error: HttpErrorResponse): string {
   if (error.status === 403) {
     return 'No tenés permiso para esa acción.';
   }
-  const detalle = typeof error.error?.detail === 'string' ? error.error.detail : '';
-  return detalle || 'Algo salió mal. Probá de nuevo.';
+
+  const detalle = error.error?.detail;
+  if (typeof detalle === 'string' && detalle) return detalle;
+
+  const validacion = detalleDeValidacion(detalle);
+  if (validacion) return `Revisá estos datos → ${validacion}`;
+
+  return 'Algo salió mal. Probá de nuevo.';
 }
 
 function matches(project: Project, term: string): boolean {

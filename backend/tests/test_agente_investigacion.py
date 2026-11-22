@@ -245,9 +245,9 @@ def test_nombre_con_acentos_produce_slug_valido_y_estable() -> None:
 def test_codigo_que_ya_esta_en_el_catalogo_no_duplica() -> None:
     catalogo = [
         {
-            "codigo": "cebolla",
-            "nombre": "Cebolla",
-            "icono": "C",
+            "codigo": "kale",
+            "nombre": "Kale",
+            "icono": "K",
             "color": "#3949AB",
             "demanda_agua_l_m2_dia": 3.0,
             "ciclo_dias": 150,
@@ -258,16 +258,18 @@ def test_codigo_que_ya_esta_en_el_catalogo_no_duplica() -> None:
     def fake(consulta: str) -> list[dict]:
         return [
             {
-                "url": "https://example.org/cebolla",
+                "url": "https://example.org/kale",
                 "demanda_agua_l_m2_dia": 9.9,
                 "ciclo_dias": 12,
             }
         ]
 
-    resultado = investigar("Cebolla", catalogo=catalogo, busqueda_web=fake, max_busquedas=2)
+    # Kale no tiene ficha curada: el camino es la web, y el código ya existente en el
+    # catálogo manda sobre lo que devuelva la búsqueda.
+    resultado = investigar("Kale", catalogo=catalogo, busqueda_web=fake, max_busquedas=2)
 
-    assert resultado.codigo == "cebolla"
-    assert resultado.nombre == "Cebolla"
+    assert resultado.codigo == "kale"
+    assert resultado.nombre == "Kale"
     assert resultado.demanda_agua_l_m2_dia == 3.0
     assert resultado.ciclo_dias == 150
     assert resultado.color == "#3949AB"

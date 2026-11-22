@@ -43,6 +43,36 @@
       "veredicto": "condicionado",
       "motivo": "Puede volcar con exceso de vigor: manejar densidad.",
       "fuente": "Ficha curada AgroPlan"
+    },
+    "franco_arenoso": {
+      "veredicto": "apto",
+      "motivo": "Se adapta bien a suelos sueltos y pobres.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "franco_arcilloso": {
+      "veredicto": "condicionado",
+      "motivo": "Sensible al exceso de humedad en floración.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "salino": {
+      "veredicto": "apto",
+      "motivo": "Tolera salinidad: es su ambiente típico del Altiplano.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "calcareo": {
+      "veredicto": "apto",
+      "motivo": "Se da bien en suelos calcáreos del Altiplano.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "pedregoso": {
+      "veredicto": "condicionado",
+      "motivo": "Tolera, con menor desarrollo radicular.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "organico": {
+      "veredicto": "condicionado",
+      "motivo": "Exceso de vigor puede provocar vuelco.",
+      "fuente": "Ficha curada AgroPlan"
     }
   }
 }

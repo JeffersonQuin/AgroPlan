@@ -44,6 +44,36 @@
       "veredicto": "apto",
       "motivo": "Alta retención con buen manejo de riego.",
       "fuente": "Ficha curada AgroPlan"
+    },
+    "franco_arenoso": {
+      "veredicto": "apto",
+      "motivo": "Drena bien y permite raíces superficiales sanas.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "franco_arcilloso": {
+      "veredicto": "condicionado",
+      "motivo": "Retiene humedad de más: vigilar hongos.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "salino": {
+      "veredicto": "no_apto",
+      "motivo": "Muy sensible a la salinidad.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "calcareo": {
+      "veredicto": "condicionado",
+      "motivo": "Puede amarillear por falta de hierro.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "pedregoso": {
+      "veredicto": "condicionado",
+      "motivo": "Raíz superficial: molesta en siembra y cosecha.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "organico": {
+      "veredicto": "apto",
+      "motivo": "Alta fertilidad, ideal para hoja.",
+      "fuente": "Ficha curada AgroPlan"
     }
   }
 }

@@ -43,6 +43,36 @@
       "veredicto": "apto",
       "motivo": "Buena retención de agua para el ciclo largo.",
       "fuente": "Ficha curada AgroPlan"
+    },
+    "franco_arenoso": {
+      "veredicto": "apto",
+      "motivo": "Suelto y cálido, bueno para el porte rastrero.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "franco_arcilloso": {
+      "veredicto": "condicionado",
+      "motivo": "Riesgo de encharcamiento.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "salino": {
+      "veredicto": "condicionado",
+      "motivo": "Tolera algo de sal; vigilar desarrollo.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "calcareo": {
+      "veredicto": "condicionado",
+      "motivo": "Puede faltar hierro y zinc.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "pedregoso": {
+      "veredicto": "condicionado",
+      "motivo": "Raíz profunda; piedras limitan el desarrollo.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "organico": {
+      "veredicto": "apto",
+      "motivo": "Muy buen desarrollo con alta fertilidad.",
+      "fuente": "Ficha curada AgroPlan"
     }
   }
 }
