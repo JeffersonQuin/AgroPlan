@@ -126,9 +126,16 @@ class EntradaAgente(BaseModel):
         Si el usuario cambia productos, área, suelo, caudal o zona, la huella cambia y
         la corrida vigente queda marcada como desactualizada sin volver a ejecutar el
         agente.
+
+        ``area_deseada_m2`` queda **fuera** de la huella a propósito: cuando el intake
+        sale de los bloques del proyecto, esas áreas las produjo el motor al aplicar una
+        corrida. Si contaran, aplicar cambiaría la huella y el pedido siguiente gastaría
+        una corrida nueva con el mismo pedido del usuario.
         """
 
         payload = self.model_dump(mode="json", exclude_none=True)
+        for producto in payload.get("productos", []):
+            producto.pop("area_deseada_m2", None)
         normalizado = json.dumps(
             payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False
         )

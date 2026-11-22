@@ -234,17 +234,19 @@ def test_las_zonas_de_cultivo_siguen_el_trapecio_y_cubren_el_terreno(
         assert bloque["area_m2"] == pytest.approx(_area_anillo(anillo), abs=0.01)
         assert all(_dentro(vertice) for vertice in anillo)
 
-    # Las zonas que caen bajo la diagonal acompañan el borde: su lado derecho no
-    # llega a los 60 m de la caja envolvente.
+    # Las zonas que tocan la diagonal del trapecio la acompañan: heredan un vértice
+    # sobre el borde inclinado en vez de cortar contra la caja envolvente de 60 m.
+    def en_la_diagonal(punto: tuple[float, float]) -> bool:
+        x, y = punto
+        return 0.0 < y < 20.0 and abs(x - (30.0 + 1.5 * y)) <= 1e-2
+
     inclinadas = [
-        anillo
-        for anillo in anillos
-        if max(y for _, y in anillo) < 20.0
+        anillo for anillo in anillos if any(en_la_diagonal(p) for p in anillo)
     ]
     assert len(inclinadas) >= 2
     for anillo in inclinadas:
         assert len({round(x, 6) for x, _ in anillo}) >= 3
-        assert max(x for x, _ in anillo) < 60.0
+        assert any(0.0 < x < 60.0 for x, _ in anillo)
 
     balance = cliente.get(f"/proyectos/{proyecto_id}/cultivos/balance").json()
     assert balance["asignado_m2"] == pytest.approx(AREA_TRAPECIO, abs=0.05)

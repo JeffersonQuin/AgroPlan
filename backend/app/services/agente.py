@@ -13,6 +13,7 @@ import unicodedata
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from decimal import Decimal
 
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
@@ -596,6 +597,268 @@ def _advertir_presupuesto(propuesta: PropuestaAgente, entrada: EntradaAgente) ->
     )
 
 
+# --------------------------------------------------------------------------- #
+# Reparto agronómico del área (S1)
+# --------------------------------------------------------------------------- #
+#
+# Criterio (revisable con el equipo agronómico cambiando estas constantes):
+#
+#   W    = caudal_efectivo_m3h × 1000 × HORAS_RIEGO_JORNADA   [L/día disponibles]
+#   d_i  = demanda de agua del cultivo                          [L/m²/día]
+#   p_i  = FACTOR_PRIORIDAD^(n - rango_i)
+#          × (1 + ELASTICIDAD_CICLO    × log2(ciclo_i   / CICLO_REFERENCIA_DIAS))
+#          × (1 + ELASTICIDAD_DENSIDAD × log2(densidad_i / DENSIDAD_REFERENCIA_M2))
+#          × PESO_APTITUD[veredicto_i]
+#   b_i  = p_i / d_i        (superficie que esa cuota de agua riega)
+#   Área_i = A × b_i / Σb_j  (cuantizada al 0,01 % del terreno)
+#
+# Supuestos:
+#
+# * El área se reparte según el agua que cada cultivo consume por metro cuadrado y por
+#   la necesidad de superficie de su ciclo y su densidad de plantas, no en partes
+#   iguales. Un cultivo que pide más agua por m² recibe menos superficie para el mismo
+#   caudal: por eso b_i divide por d_i, y el reparto nunca le da más área a quien más
+#   demanda cuando la prioridad es la misma.
+# * La jornada de riego es de HORAS_RIEGO_JORNADA horas útiles de la fuente. Es un
+#   supuesto de operación, no un dato del terreno: el informe lo usa para el techo.
+# * Prioridad: el usuario numera lo que quiere primero (1 es lo más importante). Cada
+#   escalón de prioridad reduce el peso al 1/FACTOR_PRIORIDAD, así la primera elección
+#   no puede quedar con el área mínima.
+# * Ciclo y densidad entran con elasticidad logarítmica y acotada: sirven para
+#   desempatar, no para tapar la demanda de agua. Si el dato falta, aportan 1.
+# * Aptitud del suelo: un cultivo condicionado o no apto recibe menos superficie, pero
+#   nunca cero.
+# * El reparto cubre el terreno completo y ningún cultivo queda en cero.
+# * Si el reparto ponderado supera el techo de la jornada, el agua manda: se cae al
+#   reparto que gasta lo mínimo posible por metro cuadrado (un peso igual para todos,
+#   b_i = 1/d_i) para respetar el caudal. Si ni ese alcanza —el conjunto de cultivos
+#   pide más agua que la fuente incluso en su reparto más eficiente—, se reparte igual
+#   (cubrir el terreno es condición del pedido) y se avisa con DEMANDA_EXCEDE_CAUDAL:
+#   quién decide es el usuario.
+
+HORAS_RIEGO_JORNADA = 16.0
+DEMANDA_MINIMA_L_M2_DIA = 0.1
+CICLO_REFERENCIA_DIAS = 90.0
+DENSIDAD_REFERENCIA_M2 = 4.0
+ELASTICIDAD_CICLO = 0.15
+ELASTICIDAD_DENSIDAD = 0.15
+FACTOR_PRIORIDAD = 1.5
+PESO_APTITUD = {"apto": 1.0, "condicionado": 0.85, "no_apto": 0.7}
+PESO_MINIMO, PESO_MAXIMO = 0.5, 2.0
+# Cuota mínima de cada cultivo, en centésimos de punto porcentual (0,01 % del área).
+CUOTA_MINIMA_CENTESIMOS = 1
+
+
+def _factor_logaritmico(
+    valor: float | None, referencia: float, elasticidad: float
+) -> float:
+    """Peso acotado de un dato de ficha; 1 cuando el dato no está o no sirve."""
+
+    if valor is None or valor <= 0 or referencia <= 0:
+        return 1.0
+    factor = 1.0 + elasticidad * math.log2(valor / referencia)
+    return min(max(factor, PESO_MINIMO), PESO_MAXIMO)
+
+
+def _peso_prioridad(prioridades: list[int]) -> list[float]:
+    """Peso de cada producto: la primera prioridad pesa FACTOR_PRIORIDAD^(n-1)."""
+
+    escalones = sorted(set(prioridades))
+    return [
+        FACTOR_PRIORIDAD ** (len(escalones) - escalones.index(prioridad) - 1)
+        for prioridad in prioridades
+    ]
+
+
+def repartir_area_agronomica(
+    insumos: list[dict],
+    *,
+    area_m2: float,
+    caudal_efectivo_m3h: float,
+) -> tuple[list[float], float]:
+    """Reparte ``area_m2`` según la necesidad agronómica de cada cultivo (S1).
+
+    Cada insumo trae ``codigo``, ``prioridad``, ``demanda_l_m2_dia`` y, si la ficha
+    los tiene, ``ciclo_dias``, ``densidad_plantas_m2`` y ``aptitud_suelo`` (veredicto
+    para el suelo del terreno). Devuelve el área de cada cultivo en el mismo orden y
+    la demanda pico del conjunto en L/día. La fórmula y sus supuestos están en el
+    comentario de las constantes de arriba.
+    """
+
+    if not insumos:
+        return [], 0.0
+    if area_m2 <= 0:
+        return [0.0 for _ in insumos], 0.0
+
+    pesos = _peso_prioridad([int(insumo.get("prioridad") or 1) for insumo in insumos])
+    bases: list[float] = []
+    demandas: list[float] = []
+    for insumo, peso_prioridad in zip(insumos, pesos, strict=True):
+        demanda = insumo.get("demanda_l_m2_dia")
+        demanda = float(demanda) if demanda is not None else 0.0
+        demanda = max(demanda, DEMANDA_MINIMA_L_M2_DIA)
+        peso = (
+            peso_prioridad
+            * _factor_logaritmico(
+                insumo.get("ciclo_dias"), CICLO_REFERENCIA_DIAS, ELASTICIDAD_CICLO
+            )
+            * _factor_logaritmico(
+                insumo.get("densidad_plantas_m2"),
+                DENSIDAD_REFERENCIA_M2,
+                ELASTICIDAD_DENSIDAD,
+            )
+            * PESO_APTITUD.get(str(insumo.get("aptitud_suelo") or ""), 1.0)
+        )
+        bases.append(peso / demanda)
+        demandas.append(demanda)
+
+    total = sum(bases)
+    if total <= 0:
+        cuota = area_m2 / len(insumos)
+        return [cuota for _ in insumos], cuota * sum(demandas)
+
+    areas = _areas_desde_cuotas(bases, area_m2)
+    pico = sum(area * demanda for area, demanda in zip(areas, demandas, strict=True))
+
+    disponible = caudal_efectivo_m3h * 1000 * HORAS_RIEGO_JORNADA
+    if pico > disponible + 1e-6:
+        # El agua es el límite: el reparto más eficiente posible es el de un peso
+        # igual por cultivo (b_i = 1/d_i), que minimiza la demanda del conjunto.
+        minimas = _areas_desde_cuotas([1.0 / demanda for demanda in demandas], area_m2)
+        pico_minimo = sum(
+            area * demanda for area, demanda in zip(minimas, demandas, strict=True)
+        )
+        if pico_minimo < pico:
+            areas, pico = minimas, pico_minimo
+    return areas, pico
+
+
+def _areas_desde_cuotas(cuotas: list[float], area_m2: float) -> list[float]:
+    """Áreas en m² a partir de cuotas proporcionales, en la grilla del motor."""
+
+    crudas = [area_m2 * cuota / sum(cuotas) for cuota in cuotas]
+    centesimos = _centesimos_reparto(crudas, area_m2)
+    return [
+        float(Decimal(centesimo) * Decimal(str(area_m2)) / 10000)
+        for centesimo in centesimos
+    ]
+
+
+def _centesimos_reparto(areas: list[float], area_total: float) -> list[int]:
+    """Porcentajes en centésimos que suman exactamente 100 % y no dejan a nadie en 0."""
+
+    porcentajes = repartir_porcentajes(areas, area_total)
+    centesimos = [round(porcentaje * 100) for porcentaje in porcentajes]
+
+    # La cuota mínima evita que un cultivo quede en cero; se le descuenta a la zona
+    # más grande, que es la que tiene margen para cederla.
+    for indice, valor in enumerate(centesimos):
+        if valor >= CUOTA_MINIMA_CENTESIMOS:
+            continue
+        mayor = max(range(len(centesimos)), key=lambda otro: centesimos[otro])
+        if mayor == indice:
+            continue
+        centesimos[mayor] -= CUOTA_MINIMA_CENTESIMOS - valor
+        centesimos[indice] = CUOTA_MINIMA_CENTESIMOS
+
+    # ``repartir_porcentajes`` trunca el resto por debajo del centésimo: el sobrante
+    # vuelve a la zona más grande para que el reparto cierre en el 100 % exacto.
+    faltante = 10000 - sum(centesimos)
+    if faltante != 0:
+        mayor = max(range(len(centesimos)), key=lambda otro: centesimos[otro])
+        centesimos[mayor] += faltante
+    return centesimos
+
+
+def _veredicto_suelo(aptitud, suelo_codigo: str) -> str | None:
+    """Veredicto de la ficha para el suelo de este terreno, si está informado."""
+
+    if not isinstance(aptitud, dict):
+        return None
+    datos = aptitud.get(suelo_codigo)
+    if not isinstance(datos, dict):
+        return None
+    veredicto = datos.get("veredicto")
+    return str(veredicto) if veredicto in PESO_APTITUD else None
+
+
+def _con_reparto_agronomico(
+    db: Session, entrada: EntradaAgente, propuesta: PropuestaAgente
+) -> PropuestaAgente:
+    """Reemplaza el reparto igualitario del camino de catálogo por el agronómico (S1).
+
+    Con el agente en modo LLM no se llama: ahí el área que propone el modelo manda.
+    Todo lo que no es área (sistema, cifras, materiales, advertencias) queda igual.
+    """
+
+    if not propuesta.cultivos:
+        return propuesta
+
+    prioridades = {
+        producto.cultivo_codigo: producto.prioridad
+        for producto in entrada.productos
+        if producto.cultivo_codigo
+    }
+    insumos: list[dict] = []
+    for indice, cultivo in enumerate(propuesta.cultivos):
+        catalogo_cultivo = cultivo_repo.get_by_codigo(db, cultivo.cultivo_codigo)
+        ficha = fichas_agente.buscar(cultivo.cultivo_codigo)
+        densidad = _tomar(catalogo_cultivo, ficha, "densidad_plantas_m2")
+        aptitud = _tomar(catalogo_cultivo, ficha, "aptitud_suelo")
+        insumos.append(
+            {
+                "codigo": cultivo.cultivo_codigo,
+                "prioridad": prioridades.get(cultivo.cultivo_codigo, indice + 1),
+                "demanda_l_m2_dia": float(cultivo.demanda_l_m2_dia),
+                "ciclo_dias": cultivo.ciclo_dias,
+                "densidad_plantas_m2": (
+                    float(densidad) if densidad is not None else None
+                ),
+                "aptitud_suelo": _veredicto_suelo(aptitud, entrada.suelo_codigo),
+            }
+        )
+
+    areas, pico = repartir_area_agronomica(
+        insumos,
+        area_m2=float(entrada.area_m2),
+        caudal_efectivo_m3h=float(entrada.caudal_efectivo_m3h),
+    )
+
+    cultivos = [
+        cultivo.model_copy(
+            update={
+                "area_m2": area,
+                "justificacion": (
+                    f"{cultivo.justificacion} Área de {area:.2f} m² asignada por demanda "
+                    "de agua, ciclo, densidad de plantas y prioridad."
+                )[:600],
+            }
+        )
+        for cultivo, area in zip(propuesta.cultivos, areas, strict=True)
+    ]
+    advertencias = list(propuesta.advertencias)
+
+    disponible = float(entrada.caudal_efectivo_m3h) * 1000 * HORAS_RIEGO_JORNADA
+    if pico > disponible + 1e-6:
+        advertencias.append(
+            Advertencia(
+                codigo="DEMANDA_EXCEDE_CAUDAL",
+                mensaje=(
+                    "La demanda pico del reparto ("
+                    f"{pico:.0f} L/día) supera lo que la fuente entrega en una jornada "
+                    f"de riego ({disponible:.0f} L/día): con este caudal el terreno no "
+                    "se puede regar entero con todos esos cultivos. Se repartió el área "
+                    "para que el conjunto consuma lo menos posible por metro cuadrado."
+                )[:300],
+                campo="caudal_efectivo_m3h",
+            )
+        )
+
+    return propuesta.model_copy(
+        update={"cultivos": cultivos, "advertencias": advertencias}
+    )
+
+
 def ejecutar_corrida(db: Session, corrida_id: uuid.UUID, proyecto_id: uuid.UUID) -> None:
     """Corre el agente y congela el resultado. Pensada como tarea de fondo.
 
@@ -632,6 +895,11 @@ def ejecutar_corrida(db: Session, corrida_id: uuid.UUID, proyecto_id: uuid.UUID)
         return
 
     propuesta = resultado.propuesta
+    if resultado.modo == "catalogo":
+        # S1: el fallback determinístico no reparte en partes iguales; el área sale de
+        # la necesidad de cada cultivo y del caudal del terreno. Con el modelo (modo
+        # LLM) no se toca: esa área manda.
+        propuesta = _con_reparto_agronomico(db, entrada, propuesta)
 
     # Nada de lo que pasa de acá en adelante puede dejar la corrida en "corriendo":
     # guardar precios o persistir fuentes puede fallar por la base y el usuario tiene
