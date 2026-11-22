@@ -22,6 +22,8 @@ import { BalanceInforme } from './components/balance-informe/balance-informe';
 import { CalendarioInforme } from './components/calendario-informe/calendario-informe';
 import { ComputoInforme } from './components/computo-informe/computo-informe';
 import { FuentesInforme } from './components/fuentes-informe/fuentes-informe';
+import { ModoCatalogoInforme } from './components/modo-catalogo-informe/modo-catalogo-informe';
+import { CODIGO_MODO_CATALOGO, esModoCatalogo } from './formato-informe';
 import { PlanoRed } from './components/plano-red/plano-red';
 import { RecomendacionesInforme } from './components/recomendaciones-informe/recomendaciones-informe';
 import { TecnologiaInforme } from './components/tecnologia-informe/tecnologia-informe';
@@ -48,6 +50,7 @@ import { ResumenStore } from './state/resumen.store';
     CalendarioInforme,
     ComputoInforme,
     FuentesInforme,
+    ModoCatalogoInforme,
     PlanoRed,
     RecomendacionesInforme,
     TecnologiaInforme,
@@ -89,7 +92,7 @@ export class ResumenPage implements OnDestroy {
    * El backend repite las del diseño en el resultado, así que se deduplican por
    * código y mensaje: el usuario no tiene que leer dos veces el mismo aviso.
    */
-  protected readonly advertenciasInforme = computed(() => {
+  protected readonly advertenciasCompletas = computed(() => {
     const vistas = new Set<string>();
     return [
       ...this.store.advertencias(),
@@ -101,6 +104,26 @@ export class ResumenPage implements OnDestroy {
       return true;
     });
   });
+
+  /**
+   * La corrida se resolvió sin credenciales del modelo (S3): su marca no es una
+   * advertencia técnica más, es el modo de la corrida y se explica en una banda.
+   */
+  protected readonly modoCatalogo = computed(() =>
+    esModoCatalogo(this.advertenciasCompletas()),
+  );
+
+  /**
+   * Advertencias visibles en el banner técnico.
+   *
+   * La marca de modo catálogo se traduce en la banda de producto, así que no se
+   * repite acá con el lenguaje interno del pipeline (S3).
+   */
+  protected readonly advertenciasInforme = computed(() =>
+    this.advertenciasCompletas().filter(
+      (advertencia) => advertencia.codigo !== CODIGO_MODO_CATALOGO,
+    ),
+  );
 
   constructor() {
     const proyectoId = this.route.snapshot.paramMap.get('proyectoId') ?? '';

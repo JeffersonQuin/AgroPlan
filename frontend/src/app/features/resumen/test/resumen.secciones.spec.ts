@@ -363,6 +363,40 @@ function resultadoMinimo() {
   };
 }
 
+/**
+ * Corrida en modo catálogo (L2): la marca `AGENTE_SIN_CREDENCIALES` explica por qué
+ * el agente no trajo cifras, materiales, precios ni fuentes.
+ */
+function resultadoCatalogo() {
+  const base = resultadoCompleto();
+  const diseno = base.diseno as Record<string, unknown>;
+  const aviso = {
+    codigo: 'AGENTE_SIN_CREDENCIALES',
+    mensaje:
+      "La corrida se resolvió con el catálogo interno: AGENTE_MODO está en 'catalogo'.",
+    bloqueante: false,
+    campo: 'modelo',
+  };
+  // El backend repite la marca en el diseño y en el resultado: la banda va una sola vez.
+  diseno['advertencias'] = [aviso];
+  (base as Record<string, unknown>)['advertencias'] = [aviso];
+  diseno['cifras_agente'] = {
+    presion_trabajo_bar: null,
+    eficiencia_pct: null,
+    demanda_pico_l_dia: null,
+    autonomia_dias: null,
+    tiempo_riego_h: null,
+    turnos: [],
+  };
+  diseno['materiales'] = [];
+  diseno['costo_total_bs'] = null;
+  diseno['presupuesto_bs'] = 1500;
+  diseno['presupuesto_excedido'] = null;
+  diseno['fuentes'] = [];
+  diseno['recomendaciones'] = [];
+  return base;
+}
+
 describe('ResumenPage (paso 4: secciones del informe)', () => {
   let http: HttpTestingController;
 
@@ -571,6 +605,52 @@ describe('ResumenPage (paso 4: secciones del informe)', () => {
     expect(html('[data-seccion-fuentes]', secciones).textContent).toContain('no informado');
     expect(pagina.querySelector('[data-error-informe]')).toBeNull();
   });
+  it('en modo catálogo explica una sola vez y las secciones no repiten "no informado" (S3)', async () => {
+    const pagina = await montar(resultadoCatalogo());
+
+    // 1. Una sola banda, con lenguaje de producto, arriba de las secciones.
+    const bandas = pagina.querySelectorAll('[data-modo-catalogo]');
+    expect(bandas.length).toBe(1);
+    const banda = bandas[0] as HTMLElement;
+    expect(banda.textContent).toContain('catálogo interno');
+    expect(banda.textContent).toContain('credenciales');
+    const secciones = html('[data-secciones-informe]', pagina);
+    expect(banda.compareDocumentPosition(secciones) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    // La marca cruda no vuelve a aparecer como advertencia técnica.
+    const advertencias = html('[data-advertencias]', pagina);
+    expect(advertencias.textContent).not.toContain('AGENTE_MODO');
+
+    // 2. Cifras del agente: una línea corta en vez de cinco "no informado".
+    const cifrasAgente = html('[data-cifras-agente]', html('[data-seccion-balance]', secciones));
+    expect(cifrasAgente.textContent).toContain('catálogo interno');
+    expect((cifrasAgente.textContent ?? '').match(/no informado/g) ?? []).toHaveLength(0);
+
+    // 3. Cómputo y fuentes consecuentes, no una pared de "no informado".
+    const computo = html('[data-seccion-computo]', secciones);
+    expect(computo.querySelectorAll('[data-material]').length).toBe(0);
+    expect((computo.textContent ?? '').match(/no informado/g) ?? []).toHaveLength(0);
+    expect(computo.textContent).toContain('catálogo interno');
+
+    const fuentes = html('[data-seccion-fuentes]', secciones);
+    expect(fuentes.textContent).toContain('Sin investigación web en esta corrida (modo catálogo)');
+    expect(fuentes.textContent).not.toContain('no informado');
+  });
+
+  it('con presupuesto informado y sin cómputo no contradice la cifra (S3)', async () => {
+    const pagina = await montar(resultadoCatalogo());
+    const computo = html('[data-seccion-computo]', pagina);
+
+    // El presupuesto real se ve y el chip no dice lo contrario.
+    expect(computo.textContent).toContain('1500 Bs');
+    expect(computo.querySelector('[data-presupuesto-estado]')).toBeNull();
+    expect(computo.textContent).not.toContain('Presupuesto no informado');
+
+    // La falta se explica como cómputo pendiente, no como presupuesto ausente.
+    const aviso = html('[data-computo-sin-costos]', computo);
+    expect(aviso.textContent).toContain('presupuesto');
+  });
+
   it('no repite el mismo texto en título, detalle y justificación (S5)', async () => {
     const resultado = resultadoCompleto();
     const texto = 'La corrida se resolvió con el catálogo interno.';

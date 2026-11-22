@@ -9,6 +9,8 @@ import { FuenteInformeApi } from '../../models/resumen.model';
 })
 export class FuentesInforme {
   readonly fuentes = input<FuenteInformeApi[]>([]);
+  /** Sin credenciales no hubo investigación web: se dice explícitamente (S5). */
+  readonly modoCatalogo = input(false);
 
   protected readonly formatearFecha = formatearFecha;
 

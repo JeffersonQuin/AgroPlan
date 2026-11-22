@@ -58,6 +58,15 @@
       <h3 class="text-[10px] font-bold uppercase tracking-wide text-slate-400">
         Cifras del agente
       </h3>
+      @if (modoCatalogo() && sinCifrasAgente()) {
+        <p
+          class="border border-slate-200 rounded-lg p-3 text-[11px] text-slate-600 leading-snug"
+          data-cifras-agente-catalogo
+        >
+          El agente no propuso cifras: esta corrida se armó con el catálogo interno. El balance
+          de arriba es el que calculó el motor con los datos del terreno.
+        </p>
+      } @else {
       <dl class="border border-slate-200 rounded-lg p-3 flex flex-col gap-1.5 text-[11px]">
         <div class="flex justify-between gap-2">
           <dt class="text-slate-500">Presión de trabajo</dt>
@@ -103,6 +112,7 @@
           </div>
         }
       </dl>
+      }
     </div>
   }
 

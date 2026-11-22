@@ -58,6 +58,27 @@
           </svg>
         </button>
         <button
+          class="p-1.5 rounded transition-colors"
+          [class]="
+            goterosEncendidos()
+              ? 'bg-sky-50 text-sky-700'
+              : 'text-slate-600 hover:bg-slate-100'
+          "
+          data-toggle-emisores
+          type="button"
+          [attr.aria-pressed]="goterosEncendidos()"
+          [title]="goterosEncendidos() ? 'Ocultar goteros' : 'Mostrar goteros'"
+          (click)="alternarEmisores()"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <circle cx="7" cy="7" r="1.6"></circle>
+            <circle cx="12" cy="12" r="1.6"></circle>
+            <circle cx="17" cy="17" r="1.6"></circle>
+            <circle cx="17" cy="7" r="1.6"></circle>
+            <circle cx="7" cy="17" r="1.6"></circle>
+          </svg>
+        </button>
+        <button
           class="p-1.5 rounded text-slate-600 hover:bg-slate-100 transition-colors"
           type="button"
           title="Centrar plano"
@@ -142,7 +163,7 @@
                 <polygon
                   data-zona
                   [attr.fill]="zona.color"
-                  fill-opacity="0.32"
+                  fill-opacity="0.55"
                   [attr.points]="zona.puntos"
                   [attr.stroke]="zona.color"
                   stroke-linejoin="round"
@@ -174,9 +195,11 @@
             @for (tramo of dibujo().tramos; track tramo.id) {
               <polyline
                 fill="none"
+                [attr.data-tramo-tipo]="tramo.tipo"
                 [attr.points]="tramo.puntos"
                 [attr.stroke]="tramo.color"
                 stroke-linejoin="round"
+                [attr.stroke-opacity]="tramo.opacidad"
                 [attr.stroke-width]="tramo.ancho"
               ></polyline>
             }
@@ -385,7 +408,15 @@
         <span class="text-slate-700 font-medium truncate">Tanque / bomba</span>
       </div>
     </div>
-    @if (emisoresOcultos() > 0) {
+    @if (!goterosEncendidos()) {
+      @if (emisoresTotales() > 0) {
+        <p class="text-[10px] text-slate-500 leading-snug" data-emisores-ocultos>
+          Los goteros están apagados para no tapar la red ni el color de las zonas. Encendé
+          «Goteros» en las herramientas del plano para ver los {{ emisoresTotales() }} del
+          payload.
+        </p>
+      }
+    } @else if (emisoresOcultos() > 0) {
       <p class="text-[10px] text-slate-500 leading-snug" data-emisores-densidad>
         Se dibujan {{ emisoresVisibles().length }} de {{ emisoresTotales() }} goteros a este
         zoom; el cómputo usa los {{ emisoresTotales() }} del payload. Acercá para ver más

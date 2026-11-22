@@ -11,7 +11,12 @@
 
   @if (materiales().length === 0) {
     <p class="text-[11px] text-slate-500" data-computo-vacio>
-      Cómputo de materiales: <span class="text-slate-400">no informado</span>.
+      @if (modoCatalogo()) {
+        Sin cómputo de materiales en esta corrida: el catálogo interno no trae precios de
+        mercado.
+      } @else {
+        Cómputo de materiales: <span class="text-slate-400">no informado</span>.
+      }
     </p>
   } @else {
     <div class="overflow-x-auto">
@@ -72,16 +77,19 @@
 
   <div class="border-t border-slate-100 pt-2 flex flex-wrap items-center justify-between gap-2">
     <dl class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px]" data-costo-total>
-      <div class="flex items-center gap-1">
-        <dt class="text-slate-500">Costo total:</dt>
-        <dd class="font-bold text-slate-800 font-mono">
-          @if (costoTotalBs() !== null) {
-            {{ formatearNumero(costoTotalBs(), 2) }} Bs
-          } @else {
-            <span class="text-slate-400 font-normal">no informado</span>
-          }
-        </dd>
-      </div>
+      <!-- En modo catálogo no hay costos: la fila no se llena de "no informado" (S3). -->
+      @if (!(modoCatalogo() && costoTotalBs() === null)) {
+        <div class="flex items-center gap-1">
+          <dt class="text-slate-500">Costo total:</dt>
+          <dd class="font-bold text-slate-800 font-mono">
+            @if (costoTotalBs() !== null) {
+              {{ formatearNumero(costoTotalBs(), 2) }} Bs
+            } @else {
+              <span class="text-slate-400 font-normal">no informado</span>
+            }
+          </dd>
+        </div>
+      }
       <div class="flex items-center gap-1">
         <dt class="text-slate-500">Presupuesto:</dt>
         <dd class="font-bold text-slate-800 font-mono">
@@ -93,12 +101,19 @@
         </dd>
       </div>
     </dl>
-    <span
-      class="text-[10px] font-bold px-2 py-0.5 rounded-full border"
-      data-presupuesto-estado
-      [class]="claseEstado()"
-    >
-      {{ estadoPresupuesto() }}
-    </span>
+    @if (mostrarEstado()) {
+      <span
+        class="text-[10px] font-bold px-2 py-0.5 rounded-full border"
+        data-presupuesto-estado
+        [class]="claseEstado()"
+      >
+        {{ estadoPresupuesto() }}
+      </span>
+    }
   </div>
+  @if (sinCostos()) {
+    <p class="text-[10.5px] text-slate-500 leading-snug" data-computo-sin-costos>
+      Falta el cómputo de materiales: todavía no hay costos para comparar con el presupuesto.
+    </p>
+  }
 </section>

@@ -9,9 +9,9 @@ import hashlib
 import json
 import uuid
 from datetime import date, datetime
-from typing import Literal
+from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.models.enums import (
     EstadoProyecto,
@@ -126,9 +126,16 @@ class EntradaAgente(BaseModel):
         Si el usuario cambia productos, área, suelo, caudal o zona, la huella cambia y
         la corrida vigente queda marcada como desactualizada sin volver a ejecutar el
         agente.
+
+        ``area_deseada_m2`` queda **fuera** de la huella a propósito: cuando el intake
+        sale de los bloques del proyecto, esas áreas las produjo el motor al aplicar una
+        corrida. Si contaran, aplicar cambiaría la huella y el pedido siguiente gastaría
+        una corrida nueva con el mismo pedido del usuario.
         """
 
         payload = self.model_dump(mode="json", exclude_none=True)
+        for producto in payload.get("productos", []):
+            producto.pop("area_deseada_m2", None)
         normalizado = json.dumps(
             payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False
         )
@@ -143,7 +150,7 @@ class EntradaAgente(BaseModel):
 class CultivoRecomendado(BaseModel):
     """Cultivo elegido por el agente con su justificación y sus fuentes."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="ignore")
 
     cultivo_codigo: str = Field(min_length=2, max_length=30)
     nombre: str = Field(min_length=2, max_length=60)
@@ -168,7 +175,7 @@ class CultivoRecomendado(BaseModel):
 class EmisorRecomendado(BaseModel):
     """Emisor y separaciones que recomienda el agente."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="ignore")
 
     tipo: str = Field(default="gotero", max_length=20)
     caudal_lh: float = Field(gt=0, le=20)
@@ -178,7 +185,7 @@ class EmisorRecomendado(BaseModel):
 class SistemaRecomendado(BaseModel):
     """Parámetros de riego recomendados. El motor los convierte en red."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="ignore")
 
     tipo: str = Field(default="goteo", max_length=20)
     emisor: EmisorRecomendado
@@ -199,7 +206,7 @@ class TurnoSectorAgente(BaseModel):
     contrato. ``horas`` es la duración del turno, no la hora de inicio.
     """
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="ignore")
 
     sector: int
     horas: float | None = None
@@ -213,7 +220,7 @@ class CifrasAgente(BaseModel):
     razonables vive en ``validacion.corregir``.
     """
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="ignore")
 
     presion_trabajo_bar: float | None = None
     eficiencia_pct: float | None = None
@@ -235,7 +242,7 @@ class MaterialAgente(BaseModel):
     pueda decir "precio de hace 43 días, reutilizado".
     """
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="ignore")
 
     rubro: str = Field(min_length=1, max_length=60)
     descripcion: str = Field(min_length=1, max_length=200)
@@ -252,11 +259,17 @@ class MaterialAgente(BaseModel):
 class RecomendacionFinal(BaseModel):
     """Recomendación final del informe, con su justificación (S7)."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="ignore")
 
     titulo: str = Field(min_length=1, max_length=120)
     detalle: str = Field(min_length=1, max_length=1000)
     justificacion: str = Field(default="", max_length=600)
+
+
+# Campos que sólo puede producir el motor: si el agente los devuelve, se rechaza.
+_CAMPOS_GEOMETRIA = frozenset(
+    {"poligono", "geometria", "vertices", "coordenadas", "red", "sectores", "computo"}
+)
 
 
 class PropuestaAgente(BaseModel):
@@ -268,7 +281,26 @@ class PropuestaAgente(BaseModel):
     muestra; el motor las usa como objetivo y se ajusta a ellas.
     """
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="ignore")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _sin_geometria(cls, datos: Any) -> Any:
+        """Ignora claves de más del modelo, salvo que intente devolver geometría.
+
+        Un LLM charlatán no debe tirar la corrida por agregar un campo, pero el
+        invariante "la IA nunca devuelve coordenadas" tiene que seguir siendo ruidoso:
+        si aparece geometría en la propuesta, se rechaza.
+        """
+
+        if isinstance(datos, dict):
+            geometria = _CAMPOS_GEOMETRIA & set(datos)
+            if geometria:
+                raise ValueError(
+                    "La propuesta del agente no puede traer geometría: "
+                    + ", ".join(sorted(geometria))
+                )
+        return datos
 
     cultivos: list[CultivoRecomendado] = Field(min_length=1, max_length=8)
     sistema: SistemaRecomendado
