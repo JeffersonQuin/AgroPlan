@@ -2,7 +2,9 @@
 
 <main class="w-full pt-16 bg-surface min-h-[calc(100vh-64px)]">
   <div class="flex flex-col w-full">
-    <div class="w-full max-w-7xl mx-auto px-margin-desktop py-space-lg flex flex-col gap-space-lg">
+    <div
+      class="w-full max-w-7xl mx-auto px-4 sm:px-space-lg lg:px-margin-desktop py-space-lg flex flex-col gap-space-lg"
+    >
       <app-projects-toolbar
         [activeCount]="store.projects().length"
         [emptyStateSimulated]="emptySimulated()"
@@ -12,7 +14,7 @@
 
       @if (store.error(); as mensaje) {
         <div
-          class="flex items-center justify-between gap-space-sm bg-error-container/40 border border-error/30 rounded-xl px-space-md py-space-sm"
+          class="flex flex-wrap items-center justify-between gap-space-sm bg-error-container/40 border border-error/30 rounded-xl px-space-md py-space-sm"
           role="alert"
         >
           <span class="text-label-md text-on-surface">{{ mensaje }}</span>
@@ -37,7 +39,7 @@
           }
 
           <button
-            class="group text-left bg-surface-bright/50 hover:bg-surface-bright rounded-xl p-space-lg transition-all flex flex-col items-center justify-center min-h-[380px] text-center cursor-pointer shadow-xs hover:shadow-sm"
+            class="group text-left bg-surface-bright/50 hover:bg-surface-bright rounded-xl p-space-lg transition-all flex flex-col items-center justify-center min-h-[240px] md:min-h-[380px] text-center cursor-pointer shadow-xs hover:shadow-sm"
             type="button"
             (click)="openModal()"
           >
