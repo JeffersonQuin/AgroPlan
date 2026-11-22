@@ -14,6 +14,8 @@
   "densidad_plantas_m2": 200,
   "profundidad_raiz_cm": 70,
   "notas": "Cereal de invierno; rinde mejor en suelos francos con buena reserva.",
+  "imagen": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a3/Vehn%C3%A4pelto_6.jpg/1280px-Vehn%C3%A4pelto_6.jpg",
+  "imagen_fuente": "https://commons.wikimedia.org/wiki/File:Vehn%C3%A4pelto_6.jpg",
   "aptitud_suelo": {
     "franco": {
       "veredicto": "apto",
@@ -73,5 +75,6 @@
       "url": null,
       "fragmento": "Demanda, ciclo y aptitud de suelo de arranque"
     }
-  ]
+  ],
+  "imagen_credito": "Foto: kallerna / Wikimedia Commons, CC BY-SA 4.0"
 }

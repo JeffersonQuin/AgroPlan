@@ -67,6 +67,9 @@ class ProductoDeseado(BaseModel):
     densidad_plantas_m2: float | None = Field(default=None, gt=0, le=500)
     meses_siembra: list[int] | None = None
     fuentes: list[FichaFuente] | None = None
+    # Imagen de la ficha curada (S4). Si viene, el agente usa ésta y no investiga
+    # otra; ``None`` significa que el producto no tiene imagen curada.
+    imagen_url: str | None = Field(default=None, max_length=1000)
 
 
 class RestriccionesEntrada(BaseModel):
@@ -394,6 +397,9 @@ class BloqueGenerado(BaseModel):
     ciclo_dias: int | None = None
     kc: float | None = None
     imagen_url: str | None = None
+    # Atribución de la foto cuando viene de la ficha curada. Con imagen investigada
+    # por el agente queda en null: ahí no conocemos el crédito.
+    imagen_credito: str | None = None
 
 
 class DisenoGenerado(BaseModel):

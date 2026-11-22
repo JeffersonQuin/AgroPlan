@@ -14,6 +14,8 @@
   "densidad_plantas_m2": 30,
   "profundidad_raiz_cm": 40,
   "notas": "Necesita suelo suelto para enterrar la semilla; cosecha en Chaco y valles.",
+  "imagen": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fb/Peanuts_%28Arachis_hypogaea%29_-_in_shell%2C_shell_cracked_open%2C_shelled%2C_peeled.jpg/1280px-Peanuts_(Arachis_hypogaea)_-_in_shell,_shell_cracked_open,_shelled,_peeled.jpg",
+  "imagen_fuente": "https://commons.wikimedia.org/wiki/File:Peanuts_(Arachis_hypogaea)_-_in_shell,_shell_cracked_open,_shelled,_peeled.jpg",
   "aptitud_suelo": {
     "franco": {
       "veredicto": "apto",
@@ -73,5 +75,6 @@
       "url": null,
       "fragmento": "Demanda, ciclo y aptitud de suelo de arranque"
     }
-  ]
+  ],
+  "imagen_credito": "Foto: Ivar Leidus / Wikimedia Commons, CC BY-SA 4.0"
 }

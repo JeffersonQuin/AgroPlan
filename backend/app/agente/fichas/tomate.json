@@ -13,6 +13,8 @@
     11
   ],
   "notas": "Exigente en agua y calcio; evitar mojar el follaje para prevenir hongos.",
+  "imagen": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/89/Tomato_je.jpg/1280px-Tomato_je.jpg",
+  "imagen_fuente": "https://commons.wikimedia.org/wiki/File:Tomato_je.jpg",
   "fuentes": [
     {
       "tipo": "manual",
@@ -75,5 +77,6 @@
       "motivo": "Fértil, con buen manejo de humedad.",
       "fuente": "Ficha curada AgroPlan"
     }
-  }
+  },
+  "imagen_credito": "Foto: Softeis / Wikimedia Commons, CC BY-SA 3.0"
 }

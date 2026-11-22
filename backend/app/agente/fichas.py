@@ -24,6 +24,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 from app.agente.cliente import FuenteRecuperada
 from app.agente.validacion import normalizar
@@ -58,6 +59,13 @@ class FichaCultivo:
     profundidad_raiz_cm: int | None = None
     # {"franco": {"veredicto": "apto", "motivo": "...", "fuente": "..."}}
     aptitud_suelo: dict[str, dict] | None = None
+    # Imagen curada del cultivo y la página de donde salió (S4). Una ficha vieja sin
+    # estas claves sigue siendo válida: el agente investiga la que falte.
+    imagen: str | None = None
+    imagen_fuente: str | None = None
+    # Atribución obligatoria de la licencia de la foto. Texto libre, puede faltar en
+    # una ficha vieja; las 14 curadas lo traen y un test lo exige.
+    imagen_credito: str | None = None
 
 
 def _texto(valor: Any) -> str | None:
@@ -123,6 +131,20 @@ def _meses(valor: Any) -> list[int] | None | bool:
             return False
         meses.add(item)
     return sorted(meses)
+
+
+def _url_http(valor: Any) -> str | None | bool:
+    """URL absoluta http(s), ``None`` si no está y ``False`` si está mal formada."""
+
+    if valor is None:
+        return None
+    texto = _texto(valor)
+    if texto is None:
+        return False
+    partes = urlparse(texto)
+    if partes.scheme not in ("http", "https") or not partes.netloc:
+        return False
+    return texto
 
 
 def _fuentes(valor: Any) -> list[FuenteRecuperada] | None:
@@ -205,6 +227,16 @@ def _ficha_desde_datos(datos: Any, codigo_archivo: str) -> FichaCultivo | str:
             f"{{veredicto ∈ {VEREDICTOS_SUELO}, motivo}}"
         )
 
+    imagen = _url_http(datos.get("imagen"))
+    if imagen is False:
+        return "imagen debe ser una URL http(s) absoluta o null"
+
+    imagen_fuente = _url_http(datos.get("imagen_fuente"))
+    if imagen_fuente is False:
+        return "imagen_fuente debe ser una URL http(s) absoluta o null"
+
+    imagen_credito = _texto(datos.get("imagen_credito"))
+
     notas = _texto(datos.get("notas")) or ""
 
     return FichaCultivo(
@@ -212,6 +244,9 @@ def _ficha_desde_datos(datos: Any, codigo_archivo: str) -> FichaCultivo | str:
         densidad_plantas_m2=densidad,
         profundidad_raiz_cm=int(profundidad) if profundidad is not None else None,
         aptitud_suelo=aptitud or None,
+        imagen=imagen,
+        imagen_fuente=imagen_fuente,
+        imagen_credito=imagen_credito,
         codigo=codigo,
         nombre=nombre,
         icono=icono,

@@ -14,6 +14,8 @@
   "densidad_plantas_m2": 0.2,
   "profundidad_raiz_cm": 80,
   "notas": "Exigente en agua y fertilidad; muy común en Yungas y trópico de Cochabamba.",
+  "imagen": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4c/Bananas.jpg/1280px-Bananas.jpg",
+  "imagen_fuente": "https://commons.wikimedia.org/wiki/File:Bananas.jpg",
   "aptitud_suelo": {
     "franco": {
       "veredicto": "apto",
@@ -73,5 +75,6 @@
       "url": null,
       "fragmento": "Demanda, ciclo y aptitud de suelo de arranque"
     }
-  ]
+  ],
+  "imagen_credito": "Foto: Steve Hopson / Wikimedia Commons, CC BY-SA 2.5"
 }
