@@ -189,7 +189,29 @@ function traducirValidacion(mensaje: string): string {
   if (mensaje.includes('less than or equal')) return 'está por encima del máximo permitido';
   if (mensaje.includes('greater than or equal')) return 'está por debajo del mínimo permitido';
   if (mensaje.includes('String should have at least')) return 'está vacío o es demasiado corto';
+  if (mensaje.includes('Extra inputs are not permitted')) {
+    return 'el servidor no reconoce este campo: reiniciá el backend';
+  }
   return mensaje;
+}
+
+/**
+ * Errores de validación indexados por campo, para marcarlos en el formulario en vez
+ * de mostrar un cartel genérico. La clave es el último tramo de `loc`.
+ */
+export function erroresDeCampo(error: HttpErrorResponse): Record<string, string> {
+  const detalle = error.error?.detail;
+  if (!Array.isArray(detalle)) return {};
+
+  const errores: Record<string, string> = {};
+  for (const item of detalle as ErrorValidacionApi[]) {
+    const partes = item.loc ?? [];
+    const campo = partes.filter((parte) => parte !== 'body').pop();
+    if (typeof campo === 'string' && item.msg) {
+      errores[campo] = traducirValidacion(item.msg);
+    }
+  }
+  return errores;
 }
 
 /** One readable sentence for the most common backend failures. */

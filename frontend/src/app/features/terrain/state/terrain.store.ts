@@ -3,7 +3,7 @@ import { Service, computed, inject, signal } from '@angular/core';
 import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { ProjectsApi } from '../../projects/projects.api';
-import { mensajeDeError } from '../../projects/state/projects.store';
+import { erroresDeCampo, mensajeDeError } from '../../projects/state/projects.store';
 import {
   AdvertenciaApi,
   EstadoTerreno,
@@ -69,12 +69,15 @@ export class TerrainStore {
   private readonly _estado = signal<EstadoTerreno>('inicial');
   private readonly _error = signal<string | null>(null);
   private readonly _suelos = signal<SueloApi[]>([]);
+  private readonly _erroresCampo = signal<Record<string, string>>({});
 
   readonly state = this._state.asReadonly();
   readonly estado = this._estado.asReadonly();
   readonly error = this._error.asReadonly();
   readonly suelos = this._suelos.asReadonly();
   readonly guardado = this._guardado.asReadonly();
+  /** Errores de validación del backend, por campo, para pintar el input en rojo. */
+  readonly erroresCampo = this._erroresCampo.asReadonly();
 
   readonly proyectoId = this._proyectoId.asReadonly();
   readonly nombreProyecto = computed(() => this._nombreProyecto() || 'Proyecto sin nombre');
@@ -280,6 +283,7 @@ export class TerrainStore {
     const payload = this.aPayload();
     this._estado.set('guardando');
     this._error.set(null);
+    this._erroresCampo.set({});
 
     const peticion = this.api.guardar(proyectoId, payload, this._guardado() !== null);
     peticion.subscribe({
@@ -296,18 +300,22 @@ export class TerrainStore {
               this._guardado.set(terreno);
               this._estado.set('guardado');
             },
-            error: (segundo: HttpErrorResponse) => {
-              this._error.set(mensajeDeError(segundo));
-              this._estado.set('error');
-            },
+            error: (segundo: HttpErrorResponse) => this.marcarError(segundo),
           });
           return;
         }
-        this._error.set(mensajeDeError(error));
-        this._estado.set('error');
+        this.marcarError(error);
       },
     });
     return peticion;
+  }
+
+  /** Los 422 se pintan en su campo; el resto va al cartel general. */
+  private marcarError(error: HttpErrorResponse): void {
+    const porCampo = erroresDeCampo(error);
+    this._erroresCampo.set(porCampo);
+    this._error.set(Object.keys(porCampo).length > 0 ? null : mensajeDeError(error));
+    this._estado.set('error');
   }
 
   setName(name: string): void {
@@ -317,6 +325,16 @@ export class TerrainStore {
 
   setShape(shape: TerrainState['shape']): void {
     this._state.update((state) => ({ ...state, shape }));
+  }
+
+  /** Al editar un campo se borra el error de ese campo. */
+  limpiarError(campo: string): void {
+    if (this._erroresCampo()[campo] === undefined) return;
+    this._erroresCampo.update((errores) => {
+      const copia = { ...errores };
+      delete copia[campo];
+      return copia;
+    });
   }
 
   setDimension(key: keyof TerrainDimensions, value: number): void {
