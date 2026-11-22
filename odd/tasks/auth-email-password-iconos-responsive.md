@@ -48,11 +48,9 @@ Convención de implementación de S3 (obligatoria para todas las pantallas):
   `No icon named … was found` y el ícono queda en blanco. Por la misma normalización, una clave
   con guion bajo (`lock_reset` → `lockReset`) no coincide: el valor que llega a `[name]` tiene
   que ser el nombre camelCase del ícono.
-- Alternativa aceptada, usada por `register-hero` para sus cuatro capacidades: registrar el SVG
-  bajo una clave semántica propia (`provideIcons({ ...FEATURE_ICONS })` con claves
-  `architecture`/`eco`/`valve`/`summarize`) y pasar esa misma clave a `[name]`. Vale mientras la
-  clave registrada y la que llega al template sean idénticas; no mezclar los dos patrones dentro
-  del mismo componente.
+- No hay un segundo patrón aceptado: un mapa cuyas claves semánticas se registran tal cual y se
+  pasan a `[name]` funcionaba sólo mientras ambas coincidieran, y se unificó en `133ce64`
+  (`register-hero`, que ahora devuelve el nombre del registro como todos los demás).
 - Cada grupo de íconos dinámicos tiene un test que exige que el `<ng-icon>` contenga un `<svg>`:
   sin eso, un nombre mal resuelto queda en blanco sin romper ningún test.
 - Al final no queda ninguna referencia a `material-symbols-outlined` en `src/` ni el `<link>`
@@ -198,3 +196,9 @@ nueve warnings) y pasan después: son la prueba durable de S3.
 semánticas propias; funciona y queda documentado como patrón alternativo en S3. Si se renombra
 una de esas claves, el ícono queda en blanco, y ese grupo no tiene test propio: queda anotado
 como deuda.
+
+**L18** — Cierre de la deuda de L17: `133ce64` unificó `register-hero` a la convención de los
+demás mapas (`FEATURE_ICONS` devuelve el nombre del registro y el template bindea el valor
+mapeado) y agregó `register-hero.spec.ts`, que exige un `<svg>` en el ícono del pill y en los
+cuatro de capacidad. La nota de S3 ya no describe un patrón alternativo; el Log conserva L17
+como registro histórico de lo que estaba mal.
