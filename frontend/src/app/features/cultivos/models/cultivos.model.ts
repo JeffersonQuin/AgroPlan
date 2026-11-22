@@ -162,4 +162,12 @@ export interface CorridaDetalleApi {
   estado: string;
   error_detalle: string | null;
   salida: unknown | null;
+  /**
+   * Fase real en la que está el backend y desde cuándo (ISO con zona).
+   *
+   * Las corridas anteriores a estas columnas llegan con `null` en las dos: la
+   * pantalla las trata como siempre (S2).
+   */
+  fase?: string | null;
+  fase_desde?: string | null;
 }

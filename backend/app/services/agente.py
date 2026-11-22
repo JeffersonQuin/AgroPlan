@@ -1072,12 +1072,36 @@ def _aviso_caudal_insuficiente(
     )
 
 
+# Fases reales de una corrida, en el orden en que el backend las ejecuta (S1).
+# Cada una se marca cuando el backend la empieza, no antes: el frontend cronometra
+# desde ``fase_desde`` y no necesita porcentajes inventados.
+FASE_CONTEXTO = "contexto"
+FASE_MODELO = "modelo"
+FASE_VALIDACION = "validacion"
+FASE_PRECIOS = "precios"
+FASE_RED = "red"
+FASE_LISTO = "listo"
+
+
+def _marcar_fase(db: Session, corrida: AgenteCorrida, fase: str) -> AgenteCorrida:
+    """Guarda la fase en la que el backend entra ahora mismo.
+
+    Se persiste al instante: el request ya respondió 202 y la única forma que tiene
+    el polling de ver el avance es leer la fila de la corrida. ``fase_desde`` es
+    siempre la hora del servidor, no la del navegador.
+    """
+
+    corrida.fase = fase
+    corrida.fase_desde = datetime.now(timezone.utc)
+    return agente_corrida_repo.update(db, corrida)
+
+
 def ejecutar_corrida(db: Session, corrida_id: uuid.UUID, proyecto_id: uuid.UUID) -> None:
     """Corre el agente y congela el resultado. Pensada como tarea de fondo.
 
     El request ya respondió 202, así que la sesión llega abierta y acá empieza una
     transacción nueva. Nunca deja la corrida en ``corriendo``: pasa a ``ok`` o a
-    ``error`` con ``error_detalle``.
+    ``error`` con ``error_detalle``, conservando la fase donde se rompió.
     """
 
     corrida = agente_corrida_repo.get_by_id(db, corrida_id, proyecto_id)
@@ -1097,8 +1121,21 @@ def ejecutar_corrida(db: Session, corrida_id: uuid.UUID, proyecto_id: uuid.UUID)
 
     inicio = time.monotonic()
     try:
+        corrida = _marcar_fase(db, corrida, FASE_CONTEXTO)
         entrada = EntradaAgente.model_validate(corrida.entrada)
-        resultado = ejecutar_agente(_contexto_desde_corrida(db, proyecto, entrada))
+        contexto = _contexto_desde_corrida(db, proyecto, entrada)
+        corrida = _marcar_fase(db, corrida, FASE_MODELO)
+        resultado = ejecutar_agente(contexto)
+        # El modelo ya devolvió: acá el backend empieza a sanear la propuesta. La
+        # corrección interna de ``agente.validacion`` viaja dentro de la fase del
+        # modelo; lo que sigue es el saneo/reparto del servicio.
+        corrida = _marcar_fase(db, corrida, FASE_VALIDACION)
+        propuesta = resultado.propuesta
+        if resultado.modo == "catalogo":
+            # S1: el fallback determinístico no reparte en partes iguales; el área sale
+            # de la necesidad de cada cultivo y del caudal del terreno. Con el modelo
+            # (modo LLM) no se toca: esa área manda.
+            propuesta = _con_reparto_agronomico(db, entrada, propuesta)
     except Exception as exc:  # noqa: BLE001 - una corrida rota no cae el proceso
         corrida.estado = EstadoCorrida.ERROR.value
         corrida.error_detalle = str(exc)[:2000] or exc.__class__.__name__
@@ -1107,17 +1144,11 @@ def ejecutar_corrida(db: Session, corrida_id: uuid.UUID, proyecto_id: uuid.UUID)
         agente_corrida_repo.update(db, corrida)
         return
 
-    propuesta = resultado.propuesta
-    if resultado.modo == "catalogo":
-        # S1: el fallback determinístico no reparte en partes iguales; el área sale de
-        # la necesidad de cada cultivo y del caudal del terreno. Con el modelo (modo
-        # LLM) no se toca: esa área manda.
-        propuesta = _con_reparto_agronomico(db, entrada, propuesta)
-
     # Nada de lo que pasa de acá en adelante puede dejar la corrida en "corriendo":
     # guardar precios o persistir fuentes puede fallar por la base y el usuario tiene
     # que recibir un error explicable, no un polling eterno.
     try:
+        corrida = _marcar_fase(db, corrida, FASE_PRECIOS)
         # S6: lo que el agente investigó se guarda una vez por material y se reutiliza
         # mientras siga vigente; después se completa el total con cantidad × precio y
         # se contrasta contra el presupuesto del paso 3.
@@ -1139,6 +1170,9 @@ def ejecutar_corrida(db: Session, corrida_id: uuid.UUID, proyecto_id: uuid.UUID)
 
         _persistir_fuentes(db, corrida, resultado.fuentes)
         _persistir_recomendaciones(db, corrida, propuesta)
+        # Recién acá el proceso terminó de verdad: la propuesta está congelada con
+        # sus fuentes y recomendaciones.
+        _marcar_fase(db, corrida, FASE_LISTO)
     except Exception as exc:  # noqa: BLE001 - una corrida rota no cae el proceso
         # La transacción quedó rota (por ejemplo un IntegrityError): se descarta
         # antes de escribir el estado de error. El estado "corriendo" ya estaba
@@ -1265,6 +1299,10 @@ def aplicar_corrida(
             raise AgenteServiceError(exc.status_code, exc.detail) from exc
 
     try:
+        # Red es la fase que aplica el reparto congelado y genera sectores y red: se
+        # marca justo antes de escribirla, así un fallo del motor queda con la fase
+        # donde se rompió (S3).
+        corrida = _marcar_fase(db, corrida, FASE_RED)
         riego_service.upsert_config(db, proyecto, configuracion)
         riego_service.generar(db, proyecto)
     except riego_service.RiegoServiceError as exc:
@@ -1291,6 +1329,7 @@ def aplicar_corrida(
     proyecto.corrida_actual_id = corrida.id
     proyecto_repo.update(db, proyecto)
 
+    _marcar_fase(db, corrida, FASE_LISTO)
     return resultado_proyecto(db, proyecto)
 
 

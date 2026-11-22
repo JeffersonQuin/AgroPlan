@@ -30,9 +30,9 @@ Branch: `feat/resumen-geometria` (base `dev`). Persigue a `odd/tasks/paso4-resum
 
 ## Tasks
 
-- [ ] **T1** Geometría sobre el polígono real: recorte de franjas contra el terreno, sectores por área usable, zonas de cultivo dentro del polígono, red y cómputo sobre las áreas recortadas — S1, S2, S3
-- [ ] **T2** Recomendaciones legibles: filtrar diagnósticos internos, deduplicar y separar advertencias técnicas — S5, S6
-- [ ] **T3** Plano del informe: terreno + sectores + zonas con color y etiqueta, red encima, leyenda clara, nada fuera del polígono — S4
+- [x] **T1** Geometría sobre el polígono real: recorte de franjas contra el terreno, sectores por área usable, zonas de cultivo dentro del polígono, red y cómputo sobre las áreas recortadas — S1, S2, S3
+- [x] **T2** Recomendaciones legibles: filtrar diagnósticos internos, deduplicar y separar advertencias técnicas — S5, S6
+- [x] **T3** Plano del informe: terreno + sectores + zonas con color y etiqueta, red encima, leyenda clara, nada fuera del polígono — S4
 
 ## Log
 

@@ -26,8 +26,8 @@ Branch: `fix/reparto-y-plano` (base `dev`). Persigue a `odd/tasks/resumen-geomet
 
 ## Tasks
 
-- [ ] **T1** Reparto agronómico y zonas irregulares: criterio documentado por producto, techo de caudal, y formas que siguen el terreno — S1, S2
-- [ ] **T2** Informe honesto en modo catálogo, plano con prioridades visuales y fuentes explicadas — S3, S4, S5
+- [x] **T1** Reparto agronómico y zonas irregulares: criterio documentado por producto, techo de caudal, y formas que siguen el terreno — S1, S2
+- [x] **T2** Informe honesto en modo catálogo, plano con prioridades visuales y fuentes explicadas — S3, S4, S5
 
 ## Log
 
