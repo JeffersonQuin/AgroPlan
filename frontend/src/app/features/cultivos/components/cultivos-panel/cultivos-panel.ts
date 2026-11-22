@@ -3,10 +3,10 @@ import { WizardDraftStore } from '../../../wizard/state/wizard-draft.store';
 import { CultivosStore } from '../../state/cultivos.store';
 
 /**
- * Right rail of step 2: the products already configured.
+ * Right rail of step 2: what the step collected and what the final summary will show.
  *
- * Only what the user chose is shown here. The area, the demand, the harvest dates and
- * the soil verdict arrive in the final summary: this step does not ask the agent.
+ * The product list lives in the centre column; here only the counts, the terrain data
+ * read in step 1 and the promise of what step 4 delivers.
  */
 @Component({
   selector: 'app-cultivos-panel',
@@ -15,9 +15,4 @@ import { CultivosStore } from '../../state/cultivos.store';
 export class CultivosPanel {
   protected readonly store = inject(CultivosStore);
   protected readonly borrador = inject(WizardDraftStore);
-
-  protected colorDe(codigo: string | null, color: string): string {
-    if (codigo === null) return color;
-    return this.store.opcionesCultivo().find((opcion) => opcion.value === codigo)?.color ?? color;
-  }
 }

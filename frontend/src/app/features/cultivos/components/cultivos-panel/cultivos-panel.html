@@ -1,49 +1,28 @@
 <aside class="flex flex-col gap-4 overflow-y-auto max-h-[calc(100vh-9rem)] pl-1">
-  <!-- Cultivos configurados -->
+  <!-- Resumen del paso -->
   <section class="bg-white rounded-xl border border-agro-border p-3.5 shadow-sm">
     <h2 class="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">
-      Cultivos configurados ({{ borrador.cantidad() }})
+      Resumen del paso 2
     </h2>
-
-    @if (borrador.vacio()) {
-      <p class="text-[11px] text-slate-400 py-3 text-center">
-        Todavía no agregaste productos.
-      </p>
-    }
-
-    <ul class="space-y-2">
-      @for (producto of borrador.productos(); track producto.etiqueta; let i = $index) {
-        <li class="border border-slate-200 rounded-lg p-2.5">
-          <div class="flex items-start justify-between gap-2">
-            <div class="flex items-center gap-1.5 min-w-0">
-              <span
-                class="w-2.5 h-2.5 rounded-full shrink-0"
-                [style.background]="colorDe(producto.codigo, producto.color)"
-              ></span>
-              <div class="min-w-0">
-                <p class="text-xs font-bold text-slate-800 truncate">{{ producto.etiqueta }}</p>
-                <p class="text-[10px] text-slate-500">
-                  {{ producto.codigo === null ? 'Producto nuevo · se investiga' : 'Del catálogo' }}
-                </p>
-              </div>
-            </div>
-            <button
-              class="p-1 rounded text-slate-400 hover:text-error hover:bg-error-container/30 shrink-0"
-              type="button"
-              [attr.aria-label]="'Quitar ' + producto.etiqueta"
-              (click)="borrador.quitarProducto(i)"
-            >
-              <span class="material-symbols-outlined text-[16px]" aria-hidden="true">delete</span>
-            </button>
-          </div>
-        </li>
-      }
-    </ul>
+    <dl class="grid grid-cols-2 gap-y-1 text-[11px]">
+      <dt class="text-slate-500">Productos</dt>
+      <dd class="text-right font-bold text-slate-800">{{ borrador.cantidad() }}</dd>
+      <dt class="text-slate-500">Superficie</dt>
+      <dd class="text-right font-bold text-slate-800">{{ store.areaM2() }} m²</dd>
+      <dt class="text-slate-500">Caudal</dt>
+      <dd class="text-right font-bold text-slate-800">{{ store.caudalM3h() }} m³/h</dd>
+      <dt class="text-slate-500">Suelo</dt>
+      <dd class="text-right font-bold text-slate-800">{{ store.sueloCodigo() || '—' }}</dd>
+      <dt class="text-slate-500">Siembra</dt>
+      <dd class="text-right font-bold text-slate-800">{{ borrador.siembra() }}</dd>
+    </dl>
   </section>
 
   <!-- Qué falta: el detalle llega en el paso 4 -->
   <section class="bg-slate-50 rounded-xl border border-slate-200 p-3.5 shadow-sm">
-    <div class="flex items-center gap-2 text-slate-700 font-bold text-[11px] uppercase tracking-wider mb-1.5">
+    <div
+      class="flex items-center gap-2 text-slate-700 font-bold text-[11px] uppercase tracking-wider mb-1.5"
+    >
       <span class="material-symbols-outlined text-[16px]" aria-hidden="true">info</span>
       Detalle del reparto
     </div>
@@ -62,20 +41,42 @@
     </p>
   </section>
 
-  <!-- Datos del terreno: se leen, no se escriben -->
+  <!-- Qué trae cada producto: se completa con el agente -->
   <section class="bg-white rounded-xl border border-agro-border p-3.5 shadow-sm">
     <h2 class="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">
-      Terreno del paso 1
+      Lo que vas a ver en el resumen
     </h2>
-    <dl class="grid grid-cols-2 gap-y-1 text-[11px]">
-      <dt class="text-slate-500">Superficie</dt>
-      <dd class="text-right font-bold text-slate-800">{{ store.areaM2() }} m²</dd>
-      <dt class="text-slate-500">Caudal</dt>
-      <dd class="text-right font-bold text-slate-800">{{ store.caudalM3h() }} m³/h</dd>
-      <dt class="text-slate-500">Suelo</dt>
-      <dd class="text-right font-bold text-slate-800">{{ store.sueloCodigo() || '—' }}</dd>
-      <dt class="text-slate-500">Siembra</dt>
-      <dd class="text-right font-bold text-slate-800">{{ borrador.siembra() }}</dd>
-    </dl>
+    <ul class="space-y-1 text-[11px] text-slate-600">
+      <li class="flex items-center gap-1.5">
+        <span class="material-symbols-outlined text-[14px] text-agro-600" aria-hidden="true"
+          >grid_view</span
+        >
+        Reparto del área entre los productos
+      </li>
+      <li class="flex items-center gap-1.5">
+        <span class="material-symbols-outlined text-[14px] text-agro-600" aria-hidden="true"
+          >water_drop</span
+        >
+        Demanda de agua total y por cultivo
+      </li>
+      <li class="flex items-center gap-1.5">
+        <span class="material-symbols-outlined text-[14px] text-agro-600" aria-hidden="true"
+          >event</span
+        >
+        Siembra y cosecha estimada
+      </li>
+      <li class="flex items-center gap-1.5">
+        <span class="material-symbols-outlined text-[14px] text-agro-600" aria-hidden="true"
+          >valve</span
+        >
+        Sistema de riego recomendado
+      </li>
+      <li class="flex items-center gap-1.5">
+        <span class="material-symbols-outlined text-[14px] text-agro-600" aria-hidden="true"
+          >verified</span
+        >
+        Aptitud del suelo y fuentes citadas
+      </li>
+    </ul>
   </section>
 </aside>

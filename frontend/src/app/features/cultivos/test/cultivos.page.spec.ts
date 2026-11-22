@@ -89,15 +89,15 @@ describe('CultivosPage (paso 2: sólo recoge datos)', () => {
     return harness;
   }
 
-  it('shows the project, the empty product list and the terrain of step 1', async () => {
+  it('shows the project and an empty state that explains what to do', async () => {
     const harness = await montar();
     const html = harness.routeNativeElement as HTMLElement;
 
     expect(html.textContent).toContain('Los Olivos');
-    expect(html.textContent).toContain('Terreno del paso 1');
-    expect(html.textContent).toContain('Cultivos configurados (0)');
-    expect(html.textContent).toContain('Todavía no agregaste productos');
+    expect(html.textContent).toContain('Todavía no elegiste productos');
+    expect(html.textContent).toContain('Resumen del paso 2');
     expect(html.textContent).toContain('Este paso no consulta al agente');
+    expect(html.textContent).toContain('Lo que vas a ver en el resumen');
     // El paso 2 no escribe nada: no hay llamadas de escritura pendientes.
     http.expectNone('http://localhost:8000/proyectos/p-1/agente');
   });
@@ -112,8 +112,11 @@ describe('CultivosPage (paso 2: sólo recoge datos)', () => {
     agregar.click();
     await harness.fixture.whenStable();
 
-    expect(html.textContent).toContain('Cultivos configurados (1)');
+    const tarjetas = html.querySelectorAll('article');
+    expect(tarjetas.length).toBe(1);
     expect(html.textContent).toContain('Papa');
+    expect(html.textContent).toContain('Del catálogo');
+    expect(html.textContent).toContain('resumen');
     expect(html.textContent).toContain('Con 1 producto(s) el agente va a repartir los 2100 m²');
     http.expectNone('http://localhost:8000/proyectos/p-1/agente');
   });
@@ -136,9 +139,9 @@ describe('CultivosPage (paso 2: sólo recoge datos)', () => {
     agregar.click();
     await harness.fixture.whenStable();
 
-    expect(html.textContent).toContain('Cultivos configurados (1)');
+    expect(html.querySelectorAll('article').length).toBe(1);
     expect(html.textContent).toContain('yuca');
-    expect(html.textContent).toContain('se investiga');
+    expect(html.textContent).toContain('Nuevo · se investiga');
   });
 
   // La persistencia se prueba en wizard-draft.store.spec.ts: el harness del router

@@ -3,7 +3,6 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { WizardDraftStore } from '../wizard/state/wizard-draft.store';
 import { WizardHeader } from '../wizard/components/wizard-header/wizard-header';
 import { CultivoForm } from './components/cultivo-form/cultivo-form';
-import { CultivosCroquis } from './components/cultivos-croquis/cultivos-croquis';
 import { CultivosPanel } from './components/cultivos-panel/cultivos-panel';
 import { CultivosStore } from './state/cultivos.store';
 
@@ -16,7 +15,7 @@ import { CultivosStore } from './state/cultivos.store';
  */
 @Component({
   selector: 'app-cultivos-page',
-  imports: [RouterLink, WizardHeader, CultivoForm, CultivosCroquis, CultivosPanel],
+  imports: [RouterLink, WizardHeader, CultivoForm, CultivosPanel],
   templateUrl: './cultivos.page.html',
 })
 export class CultivosPage {
