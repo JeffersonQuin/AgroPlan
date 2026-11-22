@@ -9,8 +9,9 @@ import { vi } from 'vitest';
 import { provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { PERMITIR_REGENERAR } from '../resumen.config';
+import { WizardDraftStore } from '../../wizard/state/wizard-draft.store';
 import { ResumenPage } from '../resumen.page';
-import { RESUMEN_POLL_MS } from '../state/resumen.store';
+import { ResumenStore, RESUMEN_MAX_ESPERA_MS, RESUMEN_POLL_MS } from '../state/resumen.store';
 
 const API = 'http://localhost:8000';
 const BASE = `${API}/proyectos`;
@@ -451,5 +452,61 @@ describe('ResumenPage (paso 4: flujo del informe)', () => {
     expect(irACultivos?.getAttribute('href')).toBe('/proyectos/p-1/cultivos');
     expect(html.textContent).not.toContain('Generar informe');
     http.expectNone(`${BASE}/p-1/agente`);
+  });
+});
+
+describe('ResumenStore (tope de espera del agente)', () => {
+  it('deja de sondear y explica qué pasa cuando la corrida no termina', () => {
+    vi.useFakeTimers();
+    try {
+      TestBed.resetTestingModule();
+      localStorage.setItem(
+        CLAVE_BORRADOR,
+        JSON.stringify({
+          proyectoId: 'p-1',
+          siembra: '2026-11-21',
+          productos: [{ codigo: null, texto: 'yuca', etiqueta: 'yuca', color: '#8D6E63' }],
+        }),
+      );
+      TestBed.configureTestingModule({
+        providers: [
+          provideHttpClient(),
+          provideHttpClientTesting(),
+          { provide: RESUMEN_POLL_MS, useValue: 1000 },
+          { provide: RESUMEN_MAX_ESPERA_MS, useValue: 5000 },
+        ],
+      });
+      const http = TestBed.inject(HttpTestingController);
+      const store = TestBed.inject(ResumenStore);
+      TestBed.inject(WizardDraftStore).cargar('p-1');
+
+      store.cargar('p-1');
+      http.expectOne(`${BASE}/p-1`).flush(PROYECTO);
+      http.expectOne(`${BASE}/p-1/terreno`).flush(TERRENO);
+      http.expectOne(`${API}/catalogos/suelos`).flush([]);
+      http.expectOne(`${API}/catalogos/cultivos`).flush([]);
+      http.expectOne(`${BASE}/p-1/resultado`).flush({}, { status: 404, statusText: 'Not Found' });
+
+      store.generar();
+      http.expectOne(`${BASE}/p-1/agente`).flush({
+        corrida_id: 'c-1',
+        estado: 'pendiente',
+        intake_hash: 'h-1',
+      });
+
+      // La corrida nunca termina: el reloj pasa el tope inyectado.
+      for (let intento = 0; intento < 10; intento++) {
+        for (const peticion of http.match(`${BASE}/p-1/agente/corridas/c-1`)) {
+          peticion.flush({ id: 'c-1', estado: 'corriendo', error_detalle: null, salida: null });
+        }
+        vi.advanceTimersByTime(1000);
+      }
+
+      expect(store.estado()).toBe('error');
+      expect(store.error()).toContain('tardó más de');
+      expect(store.error()).toContain('recargá la página');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
