@@ -108,6 +108,14 @@ describe('WizardDraftStore', () => {
     expect(store.aPayload().restricciones.presupuesto_bs).toBeNull();
   });
 
+  it('does not round a decimal budget up over the floor', () => {
+    store.setPresupuestoBs('99.6');
+
+    expect(store.presupuestoBs()).toBe(99);
+    expect(store.presupuestoBajoElPiso()).toBe(true);
+    expect(store.aPayload().restricciones.presupuesto_bs).toBeNull();
+  });
+
   it('loads a draft saved before step 3 with the default restrictions', () => {
     localStorage.setItem(
       'agroplan.borrador',

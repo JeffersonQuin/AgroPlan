@@ -39,7 +39,7 @@ entrega del paso 2).
 
 ## Evidencia
 
-- `ng test --watch=false` (Angular 22 vía `npx -y -p node@24 node ./node_modules/@angular/cli/bin/ng.js test`): **22 archivos, 134 tests verdes**, incluidos los 5 de `riego.page.spec.ts` y los 6 nuevos de `wizard-draft.store.spec.ts`.
+- `ng test --watch=false` (Angular 22 vía `npx -y -p node@24 node ./node_modules/@angular/cli/bin/ng.js test`): **22 archivos, 135 tests verdes**, incluidos los 5 de `riego.page.spec.ts` y los 6 nuevos de `wizard-draft.store.spec.ts`.
 - El spec de la página verifica lo que el paso **no** hace: `http.expectNone('.../agente')` y `http.verify()` en `afterEach` (ninguna escritura).
 - Specs nombrados por regla: fuente y caudal del paso 1 (S5), restricciones y payload (S2, S6), aviso por debajo del piso (S4), copia del presupuesto opcional (S3), aviso sin caudal (S5), enlace del paso 2 (S7).
 
@@ -65,3 +65,5 @@ entrega del paso 2).
   `proyectoId` al leer; la extensión de S6 mantiene esa forma y agrega `restricciones`.
 - **L8** (decisión) La bomba y el modelo de tanque del prototipo **no** son inputs: el agente elige
   el equipo en el paso 4. El tanque del paso 3 es sólo "ya tiene / no tiene y de cuántos litros".
+
+- **L9** (verificación independiente) Todos los ítems S1–S7 en `pass`. Hallazgo real: `normalizarMonto` redondeaba, así que un presupuesto de 99,6 Bs pasaba el piso de 100 al enviarse. Corregido a truncado (`Math.floor`) y cubierto con un test propio en `wizard-draft.store.spec.ts`.

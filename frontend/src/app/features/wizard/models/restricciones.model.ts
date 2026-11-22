@@ -63,5 +63,6 @@ export function normalizarMonto(valor: string | number | null): number | null {
   if (typeof valor === 'string' && valor.trim() === '') return null;
   const monto = typeof valor === 'number' ? valor : Number(valor);
   if (!Number.isFinite(monto) || monto <= 0) return null;
-  return Math.round(monto);
+  // Se trunca, no se redondea: 99.6 Bs sigue por debajo del piso y no debe pasar.
+  return Math.floor(monto);
 }
