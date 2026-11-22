@@ -92,3 +92,26 @@ quedaron así:
 Contrato cruzado verificado contra uvicorn: rectángulo 60 × 40 → backend
 `area_m2 2400`, `perimetro_m 200`, `lados 4`, `lados_m [60, 40, 60, 40]`; el front calcula
 2400 m² y 200 m. Coinciden. 96 tests verdes.
+
+**L7** — Ronda de ajustes pedidos por el usuario tras probar:
+
+- el nombre de la parcela hereda el del proyecto y se edita ahí (no se pide dos veces);
+- caudal y profundidad del nivel dinámico pasan a opcionales: vacíos se envían como
+  "no informado" y el backend asigna el caudal según la fuente (1,5 m³/h para pila);
+- "Validaciones técnicas" deja de ser texto fijo: cotas completas, área mínima,
+  autointersección de aristas y pendiente dentro del rango, calculadas de verdad;
+- `pila` se suma a los orígenes de agua (cinco), y la pendiente arranca asumida en 1%
+  con un botón "La conozco" que revela el slider;
+- el catálogo de suelos crece a 10 con los más comunes de Bolivia (franco arenoso,
+  franco arcilloso, salino, calcáreo, pedregoso, franco con materia orgánica) y el
+  selector se llena desde `GET /catalogos/suelos`;
+- el croquis pierde los árboles, centra la figura, suma cuadrícula con interruptor,
+  zoom 50–400% y paneo arrastrando el fondo; los vértices siguen arrastrándose con la
+  vista ampliada.
+
+**L8** — Bug real encontrado en esa ronda: el canvas tenía dos capas de círculos, los
+del mockup clavados en coordenadas encima de los generados, así que se veían vértices
+que no arrastraban. Se reescribió la plantilla del canvas sin residuos.
+
+**L9** — Estado del slice: backend 92 tests, frontend 109 tests, build de desarrollo OK,
+PR #19 abierto contra `dev` con 7 commits. El usuario confirmó el paso 1.
