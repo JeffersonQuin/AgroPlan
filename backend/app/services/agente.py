@@ -6,6 +6,8 @@ motor determinístico sigue siendo el único que calcula polígonos, sectores y 
 
 from __future__ import annotations
 
+import math
+import re
 import time
 import uuid
 from dataclasses import dataclass
@@ -35,7 +37,10 @@ from app.repository import sistema_riego as sistema_riego_repo
 from app.repository import suelo as suelo_repo
 from app.repository import terreno as terreno_repo
 from app.schemas.agente import (
+    AjusteMotor,
     BloqueGenerado,
+    CalendarioBloque,
+    CifrasMotor,
     CorridaDetalleOut,
     CorridaOut,
     DisenoGenerado,
@@ -45,6 +50,7 @@ from app.schemas.agente import (
     ProductoDeseado,
     ProductoSolicitado,
     PropuestaAgente,
+    RecomendacionInforme,
     RecomendacionOut,
     RecomendacionUpdate,
     RestriccionesEntrada,
@@ -56,6 +62,7 @@ from app.schemas.proyecto import GeometriaTerreno
 from app.schemas.riego import EmisorIn, SistemaRiegoIn
 from app.services import cultivo as cultivo_service
 from app.services import geometria
+from app.services import precio as precio_service
 from app.services import proyecto as proyecto_service
 from app.services import riego as riego_service
 from app.services import terreno as terreno_service
@@ -447,7 +454,32 @@ def _contexto_desde_corrida(
         ),
         bloques=len(bloque_repo.list_by_proyecto(db, proyecto.id)),
         sesion=str(corrida_id),
+        precios=_precios_contexto(db),
     )
+
+
+def _precios_contexto(db: Session) -> list[dict]:
+    """Precios vigentes que viajan al prompt para no investigarlos otra vez (S6)."""
+
+    ahora = datetime.now(timezone.utc)
+    precios: list[dict] = []
+    for fila in precio_service.vigentes(db):
+        recuperado_en = fila.recuperado_en
+        if recuperado_en.tzinfo is None:
+            recuperado_en = recuperado_en.replace(tzinfo=timezone.utc)
+        precios.append(
+            {
+                "rubro": fila.rubro,
+                "descripcion": fila.descripcion,
+                "unidad": fila.unidad,
+                "moneda": fila.moneda,
+                "precio_unitario_bs": float(fila.precio_unitario_bs),
+                "fuente_url": fila.fuente_url,
+                "recuperado_en": recuperado_en.isoformat(),
+                "dias_desde_recuperado": max((ahora - recuperado_en).days, 0),
+            }
+        )
+    return precios
 
 
 def _persistir_fuentes(
@@ -509,6 +541,44 @@ def _persistir_recomendaciones(
         )
 
 
+def _advertir_presupuesto(propuesta: PropuestaAgente, entrada: EntradaAgente) -> None:
+    """Avisa si el total del cómputo supera el presupuesto del paso 3 (S6).
+
+    El motor no recorta materiales ni cambia el presupuesto por su cuenta: solo
+    informa la diferencia para que el usuario decida. Solo se suman los rubros que
+    tienen total informado; un rubro sin precio no se cuenta como cero.
+    """
+
+    restricciones = entrada.restricciones
+    if restricciones is None or restricciones.presupuesto_bs is None:
+        return
+
+    totales = [
+        float(material.total_bs)
+        for material in propuesta.materiales
+        if material.total_bs is not None
+    ]
+    if not totales:
+        return
+
+    total = sum(totales)
+    presupuesto = float(restricciones.presupuesto_bs)
+    if total <= presupuesto:
+        return
+
+    propuesta.advertencias.append(
+        Advertencia(
+            codigo="PRESUPUESTO_EXCEDIDO",
+            mensaje=(
+                f"El cómputo de materiales estimado ({total:.2f} Bs) supera el "
+                f"presupuesto del paso 3 ({presupuesto:.2f} Bs). No se recortaron "
+                "materiales ni se cambió el presupuesto."
+            )[:300],
+            campo="presupuesto_bs",
+        )
+    )
+
+
 def ejecutar_corrida(db: Session, corrida_id: uuid.UUID, proyecto_id: uuid.UUID) -> None:
     """Corre el agente y congela el resultado. Pensada como tarea de fondo.
 
@@ -544,17 +614,48 @@ def ejecutar_corrida(db: Session, corrida_id: uuid.UUID, proyecto_id: uuid.UUID)
         agente_corrida_repo.update(db, corrida)
         return
 
-    corrida.salida = resultado.propuesta.model_dump(mode="json")
-    corrida.modelo = resultado.modelo
-    corrida.tokens_entrada = resultado.tokens_entrada
-    corrida.tokens_salida = resultado.tokens_salida
-    corrida.duracion_ms = int((time.monotonic() - inicio) * 1000)
-    corrida.terminado_en = datetime.now(timezone.utc)
-    corrida.estado = EstadoCorrida.OK.value
-    corrida = agente_corrida_repo.update(db, corrida)
+    propuesta = resultado.propuesta
 
-    _persistir_fuentes(db, corrida, resultado.fuentes)
-    _persistir_recomendaciones(db, corrida, resultado.propuesta)
+    # Nada de lo que pasa de acá en adelante puede dejar la corrida en "corriendo":
+    # guardar precios o persistir fuentes puede fallar por la base y el usuario tiene
+    # que recibir un error explicable, no un polling eterno.
+    try:
+        # S6: lo que el agente investigó se guarda una vez por material y se reutiliza
+        # mientras siga vigente; después se completa el total con cantidad × precio y
+        # se contrasta contra el presupuesto del paso 3.
+        precio_service.reutilizar(
+            db, propuesta.materiales, precio_service.VIGENCIA_DIAS
+        )
+        precio_service.completar_totales(propuesta.materiales)
+        precio_service.guardar(db, propuesta.materiales)
+        _advertir_presupuesto(propuesta, entrada)
+
+        corrida.salida = propuesta.model_dump(mode="json")
+        corrida.modelo = resultado.modelo
+        corrida.tokens_entrada = resultado.tokens_entrada
+        corrida.tokens_salida = resultado.tokens_salida
+        corrida.duracion_ms = int((time.monotonic() - inicio) * 1000)
+        corrida.terminado_en = datetime.now(timezone.utc)
+        corrida.estado = EstadoCorrida.OK.value
+        corrida = agente_corrida_repo.update(db, corrida)
+
+        _persistir_fuentes(db, corrida, resultado.fuentes)
+        _persistir_recomendaciones(db, corrida, propuesta)
+    except Exception as exc:  # noqa: BLE001 - una corrida rota no cae el proceso
+        # La transacción quedó rota (por ejemplo un IntegrityError): se descarta
+        # antes de escribir el estado de error. El estado "corriendo" ya estaba
+        # commiteado, así que la corrida se vuelve a leer.
+        db.rollback()
+        corrida = agente_corrida_repo.get_by_id(db, corrida_id, proyecto_id)
+        if corrida is None:
+            return
+        corrida.estado = EstadoCorrida.ERROR.value
+        corrida.error_detalle = (
+            f"No se pudo guardar el resultado de la corrida: {exc}"
+        )[:2000] or exc.__class__.__name__
+        corrida.duracion_ms = int((time.monotonic() - inicio) * 1000)
+        corrida.terminado_en = datetime.now(timezone.utc)
+        agente_corrida_repo.update(db, corrida)
 
 
 def _punto_conexion(terreno: Terreno) -> Punto:
@@ -706,8 +807,469 @@ def obtener_corrida(
         FuenteOut.model_validate(fuente)
         for fuente in agente_fuente_repo.list_by_corrida(db, corrida.id)
     ]
+    recomendaciones = [
+        RecomendacionOut.model_validate(recomendacion)
+        for recomendacion in agente_recomendacion_repo.list_by_corrida(db, corrida.id)
+    ]
     detalle = CorridaDetalleOut.model_validate(corrida)
-    return detalle.model_copy(update={"fuentes": fuentes})
+    return detalle.model_copy(
+        update={"fuentes": fuentes, "recomendaciones": recomendaciones}
+    )
+
+
+def _corrida_actual(db: Session, proyecto: Proyecto) -> AgenteCorrida | None:
+    """Corrida vigente del proyecto: la que el informe usa como referencia."""
+
+    if proyecto.corrida_actual_id is None:
+        return None
+    return agente_corrida_repo.get_by_id(db, proyecto.corrida_actual_id, proyecto.id)
+
+
+def _propuesta_de_corrida(corrida: AgenteCorrida | None) -> PropuestaAgente | None:
+    """Propuesta congelada, o None si la corrida todavía no terminó bien."""
+
+    if corrida is None or corrida.estado != EstadoCorrida.OK.value or not corrida.salida:
+        return None
+    try:
+        return PropuestaAgente.model_validate(corrida.salida)
+    except ValueError:
+        return None
+
+
+def _texto(valor: float | None) -> str | None:
+    """Formatea una cifra para el informe sin arrastrar decimales falsos."""
+
+    if valor is None:
+        return None
+    if isinstance(valor, int):
+        return str(valor)
+    return f"{float(valor):g}"
+
+
+def _difiere(
+    valor_agente: float | None, valor_motor: float | None, tolerancia: float
+) -> bool:
+    """Solo hay ajuste si el agente informó una cifra y el motor la cambió de verdad.
+
+    El borde exacto de la tolerancia no cuenta como diferencia: ``1.5`` contra
+    ``1.55`` con tolerancia ``0.05`` es el mismo valor, no un ajuste. El ``eps``
+    absorbe el error de coma flotante de esa comparación.
+    """
+
+    if valor_agente is None or valor_motor is None:
+        return False
+    return not math.isclose(
+        float(valor_agente),
+        float(valor_motor),
+        rel_tol=0.0,
+        abs_tol=tolerancia + 1e-9,
+    )
+
+
+def _cifras_motor(
+    db: Session, proyecto: Proyecto, bloques: list, diseno: DisenoGenerado
+) -> CifrasMotor:
+    """Cifras hidráulicas que calcula el determinístico después de generar la red.
+
+    El caudal por sector sale de los sectores **generados** (``sectores[].caudal_m3h``),
+    no del caudal efectivo dividido entre sectores: la red reparte por goteros y área,
+    así que los dos números pueden diferir. El preview queda como respaldo cuando
+    todavía no hay red.
+    """
+
+    try:
+        previa = riego_service.preview(db, proyecto)
+    except riego_service.RiegoServiceError:
+        previa = None
+
+    caudal_sector = (
+        max(float(sector.caudal_m3h) for sector in diseno.sectores)
+        if diseno.sectores
+        else (previa.caudal_sector_m3h if previa is not None else None)
+    )
+    demanda_pico = (
+        sum(
+            float(bloque.area_m2) * float(bloque.demanda_l_m2_dia)
+            for bloque in bloques
+        )
+        if bloques
+        else None
+    )
+    return CifrasMotor(
+        presion_trabajo_bar=previa.presion_bar if previa is not None else None,
+        caudal_sector_m3h=caudal_sector,
+        tiempo_riego_h=(
+            round(previa.tiempo_riego_min / 60.0, 2) if previa is not None else None
+        ),
+        autonomia_dias=previa.autonomia_dias if previa is not None else None,
+        demanda_pico_l_dia=(
+            round(demanda_pico, 2) if demanda_pico is not None else None
+        ),
+    )
+
+
+def _normalizar_texto(valor: str) -> str:
+    """Minúsculas y sin tildes, para comparar rubros y unidades del cómputo."""
+
+    return valor.lower().translate(str.maketrans("áéíóúü", "aeiouu"))
+
+
+# Unidades normalizadas: el agente puede escribir "m", "ML" o "Metro lineal".
+_UNIDADES_METRO = {
+    "m",
+    "ml",
+    "m.",
+    "ml.",
+    "metro",
+    "metros",
+    "metro lineal",
+    "metros lineales",
+}
+_UNIDADES_UNIDAD = {
+    "u",
+    "un",
+    "unidad",
+    "unidades",
+    "pza",
+    "pzas",
+    "pieza",
+    "piezas",
+}
+
+
+def _familia_material(rubro: str) -> str | None:
+    """Familia del cómputo que el motor sí calcula, a partir del rubro del agente.
+
+    ``tanque``, ``bomba`` y ``conexiones`` quedan fuera a propósito: el motor no los
+    computa y no hay contra qué contrastarlos.
+    """
+
+    texto = _normalizar_texto(rubro)
+    if "gotero" in texto or "emisor" in texto:
+        return "goteros"
+    if "valvula" in texto:
+        return "valvulas"
+    tokens = set(re.findall(r"[a-z]+", texto))
+    if "tuber" in texto or "pvc" in texto or "manguera" in texto or "pe" in tokens:
+        return "tuberia"
+    return None
+
+
+def _unidad_normalizada(unidad: str) -> str:
+    return " ".join(_normalizar_texto(unidad).split())
+
+
+def _ajustes_materiales(
+    propuesta: PropuestaAgente, diseno: DisenoGenerado
+) -> list[AjusteMotor]:
+    """Contrasta el cómputo del agente (tubería, goteros, válvulas) con el motor."""
+
+    objetivos = {
+        "tuberia": (
+            "computo.tuberia_m",
+            diseno.computo.tuberia_m,
+            _UNIDADES_METRO,
+            "El motor recalculó la tubería a partir de la red generada.",
+        ),
+        "goteros": (
+            "computo.goteros_u",
+            diseno.computo.goteros_u,
+            _UNIDADES_UNIDAD,
+            "El motor recalculó los goteros según la separación y el área de la red.",
+        ),
+        "valvulas": (
+            "computo.valvulas_u",
+            diseno.computo.valvulas_u,
+            _UNIDADES_UNIDAD,
+            "El motor calcula una válvula por sector generado.",
+        ),
+    }
+
+    ajustes: list[AjusteMotor] = []
+    for material in propuesta.materiales:
+        familia = _familia_material(material.rubro)
+        if familia is None:
+            continue
+        campo, valor_motor, unidades, motivo = objetivos[familia]
+        if _unidad_normalizada(material.unidad) not in unidades:
+            # Otra unidad (rollos, cajas): no hay comparación honesta que hacer.
+            continue
+        if _difiere(material.cantidad, float(valor_motor), 0.5):
+            ajustes.append(
+                AjusteMotor(
+                    campo=campo,
+                    valor_agente=_texto(material.cantidad),
+                    valor_motor=_texto(valor_motor),
+                    motivo=motivo,
+                )
+            )
+    return ajustes
+
+
+def _ajustes_turnos(
+    turnos: list, sectores: list
+) -> list[AjusteMotor]:
+    """Compara cada turno del agente con el caudal real de su sector (S3).
+
+    Un turno por cada sector que difiera, y también los desajustes de conjunto: un
+    turno de un sector que la red no generó, o un sector generado sin turno.
+    """
+
+    if not turnos:
+        return []
+
+    caudales_lh = {
+        sector.numero: float(sector.caudal_m3h) * 1000.0 for sector in sectores
+    }
+    cubiertos: set[int] = set()
+    ajustes: list[AjusteMotor] = []
+
+    for turno in turnos:
+        cubiertos.add(turno.sector)
+        caudal_motor = caudales_lh.get(turno.sector)
+        if caudal_motor is None:
+            ajustes.append(
+                AjusteMotor(
+                    campo=f"caudal_sector_lh.{turno.sector}",
+                    valor_agente=_texto(turno.caudal_lh),
+                    valor_motor=None,
+                    motivo=(
+                        f"El agente propuso un turno para el sector {turno.sector}, "
+                        f"pero el motor generó {len(sectores)} sectores."
+                    ),
+                )
+            )
+            continue
+        if _difiere(turno.caudal_lh, caudal_motor, 0.5):
+            ajustes.append(
+                AjusteMotor(
+                    campo=f"caudal_sector_lh.{turno.sector}",
+                    valor_agente=_texto(turno.caudal_lh),
+                    valor_motor=_texto(round(caudal_motor, 2)),
+                    motivo=(
+                        "El motor recalcula el caudal del sector "
+                        f"{turno.sector} con los goteros y el área de la red generada."
+                    ),
+                )
+            )
+
+    for numero in sorted(set(caudales_lh) - cubiertos):
+        ajustes.append(
+            AjusteMotor(
+                campo=f"caudal_sector_lh.{numero}",
+                valor_agente=None,
+                valor_motor=_texto(round(caudales_lh[numero], 2)),
+                motivo=(
+                    f"El motor generó el sector {numero}, pero el agente no propuso "
+                    "un turno para él."
+                ),
+            )
+        )
+    return ajustes
+
+
+def _ajustes_motor(
+    propuesta: PropuestaAgente | None,
+    diseno: DisenoGenerado,
+    cifras: CifrasMotor,
+    bloques: list[BloqueGenerado],
+) -> list[AjusteMotor]:
+    """Compara lo que propuso el agente con lo que devolvió el motor (S3).
+
+    Solo se comparan los datos que el agente efectivamente trajo: un valor ausente
+    queda en ``None`` y no genera un ajuste inventado.
+    """
+
+    if propuesta is None:
+        return []
+
+    agente = propuesta.cifras
+    motor_por_variable = (
+        (
+            "presion_trabajo_bar",
+            agente.presion_trabajo_bar,
+            cifras.presion_trabajo_bar,
+            0.05,
+            "El motor recalculó la presión de trabajo con la bomba y la red generada.",
+        ),
+        (
+            "tiempo_riego_h",
+            agente.tiempo_riego_h,
+            cifras.tiempo_riego_h,
+            0.05,
+            "El motor recalcula el tiempo de riego con la demanda del área asignada.",
+        ),
+        (
+            "autonomia_dias",
+            agente.autonomia_dias,
+            cifras.autonomia_dias,
+            0.05,
+            "El motor recalcula la autonomía del tanque con la demanda real del área.",
+        ),
+        (
+            "demanda_pico_l_dia",
+            agente.demanda_pico_l_dia,
+            cifras.demanda_pico_l_dia,
+            1.0,
+            "El motor recalcula la demanda pico total con área y demanda de cada bloque.",
+        ),
+    )
+
+    ajustes = [
+        AjusteMotor(
+            campo=campo,
+            valor_agente=_texto(valor_agente),
+            valor_motor=_texto(valor_motor),
+            motivo=motivo,
+        )
+        for campo, valor_agente, valor_motor, tolerancia, motivo in motor_por_variable
+        if _difiere(valor_agente, valor_motor, tolerancia)
+    ]
+
+    ajustes.extend(_ajustes_turnos(agente.turnos, diseno.sectores))
+
+    if agente.turnos and len(agente.turnos) != len(diseno.sectores):
+        ajustes.append(
+            AjusteMotor(
+                campo="sectores",
+                valor_agente=str(len(agente.turnos)),
+                valor_motor=str(len(diseno.sectores)),
+                motivo=(
+                    f"El agente propuso {len(agente.turnos)} turnos y el motor "
+                    f"generó {len(diseno.sectores)} sectores con los parámetros de "
+                    f"riego de la corrida (num_sectores="
+                    f"{propuesta.sistema.num_sectores})."
+                ),
+            )
+        )
+
+    areas_motor: dict[str, float] = {}
+    for bloque in bloques:
+        areas_motor[bloque.cultivo_codigo] = (
+            areas_motor.get(bloque.cultivo_codigo, 0.0) + bloque.area_m2
+        )
+    for cultivo in propuesta.cultivos:
+        area_motor = areas_motor.get(cultivo.cultivo_codigo)
+        if area_motor is None:
+            continue
+        if _difiere(
+            cultivo.area_m2, area_motor, max(0.5, area_motor * 0.01)
+        ):
+            ajustes.append(
+                AjusteMotor(
+                    campo=f"area_m2.{cultivo.cultivo_codigo}",
+                    valor_agente=_texto(cultivo.area_m2),
+                    valor_motor=_texto(round(area_motor, 2)),
+                    motivo=(
+                        "El motor ajustó el área del bloque para que el reparto cubra el terreno."
+                    ),
+                )
+            )
+
+    ajustes.extend(_ajustes_materiales(propuesta, diseno))
+
+    return ajustes
+
+
+def _recomendaciones_informe(
+    db: Session, corrida: AgenteCorrida | None, propuesta: PropuestaAgente | None
+) -> list[RecomendacionInforme]:
+    """Recomendaciones finales (S7): las persistidas y las de la corrida congelada."""
+
+    recomendaciones: list[RecomendacionInforme] = []
+    if propuesta is not None:
+        recomendaciones.extend(
+            RecomendacionInforme(
+                tipo="final",
+                titulo=recomendacion.titulo,
+                detalle=recomendacion.detalle,
+                justificacion=recomendacion.justificacion or None,
+            )
+            for recomendacion in propuesta.recomendaciones
+        )
+
+    if corrida is None:
+        return recomendaciones
+
+    for fila in agente_recomendacion_repo.list_by_corrida(db, corrida.id):
+        payload = fila.payload or {}
+        titulo = (
+            payload.get("titulo")
+            or payload.get("nombre")
+            or payload.get("mensaje")
+            or fila.tipo
+        )
+        detalle = payload.get("detalle") or payload.get("mensaje")
+        recomendaciones.append(
+            RecomendacionInforme(
+                id=fila.id,
+                tipo=fila.tipo,
+                titulo=str(titulo)[:300],
+                detalle=str(detalle)[:1000] if detalle else None,
+                justificacion=fila.justificacion,
+                aplicada=fila.aplicada,
+            )
+        )
+    return recomendaciones
+
+
+def _presupuesto_informe(
+    corrida: AgenteCorrida | None, propuesta: PropuestaAgente | None
+) -> tuple[float | None, float | None, bool | None]:
+    """Presupuesto del paso 3, costo del cómputo y si lo supera (S6).
+
+    El presupuesto sale de la entrada congelada de la corrida; el costo, de la suma
+    de los ``total_bs`` informados. Un rubro sin precio no suma y no se cuenta como
+    cero. Sin presupuesto o sin ningún precio la comparación es ``None`` (no
+    informada), nunca ``False`` disfrazado de "no excedido".
+    """
+
+    presupuesto: float | None = None
+    if corrida is not None and corrida.entrada:
+        try:
+            entrada = EntradaAgente.model_validate(corrida.entrada)
+        except ValueError:
+            entrada = None
+        if entrada is not None and entrada.restricciones is not None:
+            presupuesto = entrada.restricciones.presupuesto_bs
+
+    totales = [
+        float(material.total_bs)
+        for material in (propuesta.materiales if propuesta is not None else [])
+        if material.total_bs is not None
+    ]
+    costo_total = round(sum(totales), 2) if totales else None
+    excedido = (
+        None
+        if presupuesto is None or costo_total is None
+        else costo_total > float(presupuesto)
+    )
+    return (float(presupuesto) if presupuesto is not None else None, costo_total, excedido)
+
+
+def _advertencia_presupuesto(
+    presupuesto: float | None,
+    costo_total: float | None,
+) -> Advertencia | None:
+    """Advertencia del informe cuando el cómputo supera el presupuesto (S6).
+
+    No se recorta el cómputo ni se cambia el presupuesto. Si la corrida ya trajo la
+    misma advertencia, el informe la reemplaza: el aviso de la corrida no menciona el
+    excedente y el del informe sí.
+    """
+
+    if presupuesto is None or costo_total is None or costo_total <= presupuesto:
+        return None
+
+    excedente = round(costo_total - presupuesto, 2)
+    return Advertencia(
+        codigo="PRESUPUESTO_EXCEDIDO",
+        mensaje=(
+            f"El cómputo de materiales estimado ({costo_total:.2f} Bs) supera el "
+            f"presupuesto del paso 3 ({presupuesto:.2f} Bs) en {excedente:.2f} Bs."
+        )[:300],
+        campo="presupuesto_bs",
+    )
 
 
 def resultado_proyecto(db: Session, proyecto: Proyecto) -> ResultadoProyectoOut:
@@ -716,25 +1278,69 @@ def resultado_proyecto(db: Session, proyecto: Proyecto) -> ResultadoProyectoOut:
     except riego_service.RiegoServiceError as exc:
         raise AgenteServiceError(exc.status_code, exc.detail) from exc
 
+    terreno = _terreno_requerido(db, proyecto)
+    corrida = _corrida_actual(db, proyecto)
+    propuesta = _propuesta_de_corrida(corrida)
+    bloques_db = bloque_repo.list_by_proyecto(db, proyecto.id)
+    imagenes = (
+        {cultivo.cultivo_codigo: cultivo.imagen_url for cultivo in propuesta.cultivos}
+        if propuesta is not None
+        else {}
+    )
+
     bloques = []
-    for bloque in bloque_repo.list_by_proyecto(db, proyecto.id):
+    for bloque in bloques_db:
         cultivo = cultivo_repo.get_by_codigo(db, bloque.cultivo_codigo)
         try:
             puntos = geometria.normalizar_vertices(bloque.poligono.get("anillo", []))
         except (KeyError, TypeError, ValueError):
             continue
+        area = float(bloque.area_m2)
+        demanda = float(bloque.demanda_l_m2_dia)
         bloques.append(
             BloqueGenerado(
                 id=bloque.id,
                 cultivo_codigo=bloque.cultivo_codigo,
                 color=cultivo.color if cultivo is not None else "#4CAF50",
                 poligono=geometria.poligono_dict(puntos),
-                area_m2=float(bloque.area_m2),
+                area_m2=area,
                 centroide=geometria.punto_dict(geometria.centroide(puntos)),
+                nombre=bloque.etiqueta or (cultivo.nombre if cultivo is not None else None),
+                porcentaje=(
+                    round(area / float(terreno.area_m2) * 100.0, 2)
+                    if float(terreno.area_m2) > 0
+                    else None
+                ),
+                demanda_pico_l_dia=round(area * demanda, 2),
+                siembra=bloque.siembra,
+                cosecha=bloque.cosecha,
+                ciclo_dias=cultivo.ciclo_dias if cultivo is not None else None,
+                kc=(
+                    float(cultivo.kc)
+                    if cultivo is not None and cultivo.kc is not None
+                    else None
+                ),
+                imagen_url=imagenes.get(bloque.cultivo_codigo)
+                or getattr(cultivo, "imagen_url", None),
             )
         )
 
-    return ResultadoProyectoOut(
+    cifras = _cifras_motor(db, proyecto, bloques_db, diseno)
+    calendario = [
+        CalendarioBloque(
+            bloque_id=bloque.id,
+            cultivo_codigo=bloque.cultivo_codigo,
+            etiqueta=bloque.etiqueta,
+            siembra=bloque.siembra,
+            cosecha=bloque.cosecha,
+        )
+        for bloque in bloques_db
+    ]
+
+    presupuesto_bs, costo_total_bs, presupuesto_excedido = _presupuesto_informe(
+        corrida, propuesta
+    )
+    resultado = ResultadoProyectoOut(
         proyecto_id=proyecto.id,
         nombre=proyecto.nombre,
         estado=proyecto.estado,
@@ -745,9 +1351,51 @@ def resultado_proyecto(db: Session, proyecto: Proyecto) -> ResultadoProyectoOut:
             red=diseno.red,
             computo=diseno.computo,
             advertencias=diseno.advertencias,
+            cifras=cifras,
+            cifras_agente=propuesta.cifras if propuesta is not None else None,
+            eficiencia_pct=(
+                propuesta.cifras.eficiencia_pct if propuesta is not None else None
+            ),
+            calendario=calendario,
+            materiales=(
+                list(propuesta.materiales) if propuesta is not None else []
+            ),
+            presupuesto_bs=presupuesto_bs,
+            costo_total_bs=costo_total_bs,
+            presupuesto_excedido=presupuesto_excedido,
+            recomendaciones=_recomendaciones_informe(db, corrida, propuesta),
+            fuentes=(
+                [
+                    FuenteOut.model_validate(fuente)
+                    for fuente in agente_fuente_repo.list_by_corrida(db, corrida.id)
+                ]
+                if corrida is not None
+                else []
+            ),
+            ajustes=_ajustes_motor(propuesta, diseno, cifras, bloques),
         ),
-        advertencias=diseno.advertencias,
+        advertencias=list(diseno.advertencias),
     )
+
+    # La comparación contra el presupuesto del paso 3 se muestra en el informe, no
+    # solo en la corrida cruda. Si la salida congelada ya la trae, no se duplica.
+    alerta_presupuesto = _advertencia_presupuesto(presupuesto_bs, costo_total_bs)
+    if alerta_presupuesto is not None:
+        existente = next(
+            (
+                alerta
+                for alerta in resultado.advertencias
+                if alerta.codigo == alerta_presupuesto.codigo
+            ),
+            None,
+        )
+        if existente is None:
+            resultado.advertencias.append(alerta_presupuesto)
+        else:
+            # El aviso de la corrida no trae montos; el del informe sí.
+            existente.mensaje = alerta_presupuesto.mensaje
+            existente.campo = alerta_presupuesto.campo
+    return resultado
 
 
 # --------------------------------------------------------------------------- #

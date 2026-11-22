@@ -73,12 +73,17 @@ def _advertencia(
 
 
 def normalizar(texto: str) -> str:
-    """Minúsculas y sin acentos, para comparar nombres de cultivo."""
+    """Minúsculas, sin acentos y con los espacios internos colapsados.
+
+    Colapsar los espacios es lo que evita que "PVC 32 mm" y "PVC  32  mm" se traten
+    como materiales distintos hasta llegar al upsert de precios.
+    """
 
     descompuesto = unicodedata.normalize("NFKD", texto)
-    return "".join(
+    sin_acentos = "".join(
         caracter for caracter in descompuesto if not unicodedata.combining(caracter)
-    ).strip().lower()
+    )
+    return " ".join(sin_acentos.split()).lower()
 
 
 def _mas_cercano(valor: float, permitidos: tuple[float, ...]) -> float:
@@ -399,11 +404,16 @@ def _corregir_materiales(materiales: list[MaterialAgente]) -> list[MaterialAgent
                 descripcion=material.descripcion.strip()[:200],
                 cantidad=cantidad,
                 unidad=material.unidad.strip()[:20],
+                moneda=material.moneda,
                 precio_unitario_bs=_positivo(
                     material.precio_unitario_bs, PRECIO_UNITARIO_MAX_BS
                 ),
                 total_bs=_positivo(material.total_bs, TOTAL_MAX_BS),
                 fuente_url=_url_http(material.fuente_url),
+                # La fecha en que el agente recuperó el precio sobrevive a la
+                # corrección: es la que decide la vigencia al guardarlo en la base.
+                recuperado_en=material.recuperado_en,
+                reutilizado=material.reutilizado,
             )
         )
         if len(limpios) >= MATERIALES_MAX:

@@ -152,7 +152,7 @@ def test_corrida_termina_ok_y_congela_el_snapshot(cliente_autenticado: TestClien
     assert detalle["duracion_ms"] is not None
     assert detalle["terminado_en"] is not None
     assert detalle["error_detalle"] is None
-    assert detalle["prompt_version"] == "v2"
+    assert detalle["prompt_version"] == "v3"
     assert detalle["motor_version"]
 
     propuesta = PropuestaAgente.model_validate(detalle["salida"])
