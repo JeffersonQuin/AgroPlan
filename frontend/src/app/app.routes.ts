@@ -43,5 +43,12 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./features/riego/riego.page').then((m) => m.RiegoPage),
   },
+  {
+    path: 'proyectos/:proyectoId/resultado',
+    title: 'Informe · AgroPlan',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/resumen/resumen.page').then((m) => m.ResumenPage),
+  },
   { path: '**', redirectTo: 'login' },
 ];

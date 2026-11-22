@@ -1,5 +1,7 @@
 /** Contratos y modelos del paso 2 (cultivos), espejo de `app/schemas/cultivo.py`. */
 
+import { FuenteAguaApi } from '../../terrain/models/terrain.model';
+
 export type ModoReparto = 'porcentaje' | 'poligono';
 export type EstadoBalance = 'correcto' | 'ajustado' | 'excedido';
 
@@ -75,6 +77,10 @@ export interface CultivoCatalogoApi {
   profundidad_raiz_cm: number | null;
   meses_siembra: number[] | null;
   activo: boolean;
+  /** Imagen de la ficha curada del cultivo; `null` deja el placeholder (S4). */
+  imagen_url: string | null;
+  /** Atribución de la foto, para mostrarla debajo. */
+  imagen_credito: string | null;
 }
 
 /** `POST /proyectos/{id}/cultivos`. */
@@ -105,11 +111,14 @@ export interface CultivoRespuestaApi {
   advertencias: AdvertenciaApi[];
 }
 
-/** Datos del terreno que el paso 2 muestra en la cabecera. */
+/** Datos del terreno que el paso 2 muestra en la cabecera y el paso 4 en el modal. */
 export interface ResumenTerrenoApi {
+  nombre_parcela: string;
   area_m2: number;
+  caudal_disponible_m3h: number | null;
   caudal_efectivo_m3h: number;
   suelo_codigo: string;
+  fuente_agua: FuenteAguaApi;
   geometria: { vertices: { x: number; y: number }[] };
 }
 
@@ -123,10 +132,18 @@ export interface ProductoElegido {
   color: string;
 }
 
+/** Restricciones del paso 3, tal como viajan congeladas en la corrida. */
+export interface RestriccionesCorridaApi {
+  energia: string;
+  tanque_l: number | null;
+  presupuesto_bs: number | null;
+}
+
 /** `POST /proyectos/{id}/agente`. */
 export interface IniciarCorridaApi {
   productos: { cultivo_codigo?: string; producto_texto?: string }[];
   siembra: string | null;
+  restricciones?: RestriccionesCorridaApi | null;
 }
 
 /** `202` del disparo. */
