@@ -11,8 +11,15 @@ Branch: `feat/paso3-riego` (base `dev`). Feature: `frontend/src/app/features/rie
   números calculados. Distribución de área, sistema de riego, trazo, sectores, turnos, presión y
   cómputo de materiales son salida del agente y aparecen recién en el paso 4.
 - **S2** Los inputs del paso 3 son tres: energía disponible (`Red eléctrica` | `Solar`, por
-  defecto `Red eléctrica`), si ya tiene tanque (`No tiene` | `2.500 L` | `5.000 L` | `10.000 L`,
-  por defecto `No tiene`) y presupuesto en Bs, opcional.
+  defecto `Red eléctrica`), almacenamiento y presupuesto en Bs, opcional. El input de
+  almacenamiento cambia con la fuente que declaró el paso 1: si la fuente es `Tanque` o `Cisterna`
+  el paso ya sabe que hay un depósito y sólo pide **su capacidad** (`2.500 L` | `5.000 L` |
+  `10.000 L` | `No sé (lo estima el agente)`, sin opción "no tiene"); si la fuente es `Pozo`,
+  `Red presión` o `Pila` pide **si ya tiene tanque** (`No tiene` | `2.500 L` | `5.000 L` |
+  `10.000 L`, por defecto `No tiene`). El tanque es el depósito de cabecera, no la fuente: el
+  pozo lo llena, y desacopla la bomba de los turnos y da autonomía cuando la bomba es solar.
+  `tanque_l: null` significa "no tiene tanque" cuando la fuente no es un depósito y "capacidad
+  desconocida" cuando la fuente ya es uno; el agente lo distingue por `fuente_agua`.
 - **S3** El presupuesto es opcional y cuando se informa el paso 3 explica su uso:
   "Si ponés un presupuesto, el agente elige los materiales dentro de ese presupuesto."
 - **S4** El presupuesto tiene un piso de **100 Bs** (sirve también para un jardín chico de patio).
@@ -33,13 +40,14 @@ Branch: `feat/paso3-riego` (base `dev`). Feature: `frontend/src/app/features/rie
 - [x] **T1** Restricciones en el borrador: modelo `restricciones.model.ts` + `WizardDraftStore` (energía, tanque, presupuesto con piso) + spec del borrador — S2, S3, S4, S6 — commit `b463728`
 - [x] **T2** Feature `riego`: `riego.model.ts`, `riego.api.ts`, `RiegoStore` de sólo lectura, `RiegoPage`, `RiegoForm`, ruta y spec de página — S1, S2, S3, S5, S7 (ruta) — commit `86bf626`
 - [x] **T3** Navegación paso 2 → 3: "A Sistema" navega a `/proyectos/:id/riego` y "Continuar a Resultado" queda deshabilitado — S7 — commit `84229d7`
+- [x] **T4** Pregunta de almacenamiento según la fuente del paso 1 (capacidad del depósito declarado vs. ¿ya tenés tanque?) — S2 — commit `bd0108d`
 
 Cortes de revisión: cada commit es un corte (`b463728` borrador, `86bf626` pantalla, `84229d7`
 entrega del paso 2).
 
 ## Evidencia
 
-- `ng test --watch=false` (Angular 22 vía `npx -y -p node@24 node ./node_modules/@angular/cli/bin/ng.js test`): **22 archivos, 135 tests verdes**, incluidos los 5 de `riego.page.spec.ts` y los 6 nuevos de `wizard-draft.store.spec.ts`.
+- `ng test --watch=false` (Angular 22 vía `npx -y -p node@24 node ./node_modules/@angular/cli/bin/ng.js test`): **22 archivos, 137 tests verdes**, incluidos los 7 de `riego.page.spec.ts` y los 6 nuevos de `wizard-draft.store.spec.ts`.
 - El spec de la página verifica lo que el paso **no** hace: `http.expectNone('.../agente')` y `http.verify()` en `afterEach` (ninguna escritura).
 - Specs nombrados por regla: fuente y caudal del paso 1 (S5), restricciones y payload (S2, S6), aviso por debajo del piso (S4), copia del presupuesto opcional (S3), aviso sin caudal (S5), enlace del paso 2 (S7).
 
@@ -67,3 +75,7 @@ entrega del paso 2).
   el equipo en el paso 4. El tanque del paso 3 es sólo "ya tiene / no tiene y de cuántos litros".
 
 - **L9** (verificación independiente) Todos los ítems S1–S7 en `pass`. Hallazgo real: `normalizarMonto` redondeaba, así que un presupuesto de 99,6 Bs pasaba el piso de 100 al enviarse. Corregido a truncado (`Math.floor`) y cubierto con un test propio en `wizard-draft.store.spec.ts`.
+- **L10** (usuario) "hay algo que no entiendo muy bien en la parte dice "Fuente de Agua", fuente pozo pero en la parte de ya tenes tanque? que entra ahi? osea si es un pozo para que el tanque digo ubicas?, y tambien si tengo pila? o los predefinidos"
+- **L11** (usuario, decisión) "Pregunta según la fuente": si el paso 1 ya declara `Tanque` o
+  `Cisterna` como fuente, el paso 3 pide sólo la capacidad de ese depósito; si declara `Pozo`,
+  `Red presión` o `Pila`, mantiene "¿Ya tenés tanque?" con la explicación de para qué sirve.
