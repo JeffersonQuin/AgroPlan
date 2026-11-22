@@ -150,6 +150,40 @@ describe('CultivosPage', () => {
     expect(generar.disabled).toBe(true);
   });
 
+  it('explains why the add button does nothing with an empty name', async () => {
+    const harness = await montar([]);
+    const html = harness.routeNativeElement as HTMLElement;
+
+    const agregar = Array.from(
+      html.querySelectorAll('button') as NodeListOf<HTMLButtonElement>,
+    ).find((boton) => boton.textContent?.trim() === 'Agregar')!;
+    expect(agregar.disabled).toBe(false);
+
+    agregar.click();
+    await harness.fixture.whenStable();
+
+    expect(html.textContent).toContain('Escribí al menos 2 letras del producto');
+  });
+
+  it('writes a new product and adds it to the list', async () => {
+    const harness = await montar([]);
+    const html = harness.routeNativeElement as HTMLElement;
+
+    const campo = html.querySelector('#nuevo-producto') as HTMLInputElement;
+    campo.value = 'yuca';
+    campo.dispatchEvent(new Event('input', { bubbles: true }));
+    await harness.fixture.whenStable();
+
+    const agregar = Array.from(
+      html.querySelectorAll('button') as NodeListOf<HTMLButtonElement>,
+    ).find((boton) => boton.textContent?.trim() === 'Agregar')!;
+    agregar.click();
+    await harness.fixture.whenStable();
+
+    expect(html.textContent).toContain('Productos elegidos (1)');
+    expect(html.textContent).toContain('yuca');
+  });
+
   it('adds a product and asks for confirmation before generating', async () => {
     // Sin distribución previa: el paso 2 está en modo "elegir productos".
     const harness = await montar([]);

@@ -18,6 +18,8 @@ export class CultivoForm {
 
   protected readonly codigo = signal<string | null>(null);
   protected readonly nuevo = signal('');
+  /** Motivo visible cuando el botón de agregar no hace nada. */
+  protected readonly aviso = signal<string | null>(null);
 
   protected readonly opciones = computed(() =>
     this.store
@@ -40,8 +42,24 @@ export class CultivoForm {
 
   protected agregarNuevo(): void {
     const texto = this.nuevo().trim();
-    if (texto.length < 2) return;
+    if (texto.length < 2) {
+      this.aviso.set('Escribí al menos 2 letras del producto (por ejemplo: yuca).');
+      return;
+    }
+    this.aviso.set(null);
     this.store.agregarProducto(null, texto);
     this.nuevo.set('');
   }
+
+  protected onNuevo(valor: string): void {
+    this.nuevo.set(valor);
+    if (this.aviso() !== null) this.aviso.set(null);
+  }
+
+  /** Por qué el botón del catálogo no puede agregar nada. */
+  protected readonly motivoSinCatalogo = computed(() => {
+    if (this.store.generado()) return 'La distribución ya está generada';
+    if (this.opciones().length === 0) return 'Ya agregaste todos los cultivos del catálogo';
+    return null;
+  });
 }
