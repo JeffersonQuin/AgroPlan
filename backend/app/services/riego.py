@@ -144,6 +144,13 @@ def _caudal_y_goteros(area: float, sistema: SistemaRiego) -> tuple[int, Decimal]
 
 
 def _laterales_sector(sistema: SistemaRiego, sector: Sector) -> list[list[geometria.Punto]]:
+    """Laterales rectos recortados al polígono del sector.
+
+    La cantidad sale del alto (o ancho) real del sector; cada recta se corta contra el
+    contorno, así que un lateral nunca se dibuja fuera del terreno y puede quedar
+    partido en varios tramos si el polígono es cóncavo.
+    """
+
     try:
         puntos = geometria.normalizar_vertices(sector.poligono.get("anillo", []))
     except (KeyError, TypeError, ValueError):
@@ -156,55 +163,54 @@ def _laterales_sector(sistema: SistemaRiego, sector: Sector) -> list[list[geomet
     if separacion <= 0:
         separacion = 1.0
 
+    laterales: list[list[geometria.Punto]] = []
     if sistema.orientacion in (Orientacion.ESTE_OESTE.value, Orientacion.OESTE_ESTE.value):
         if alto <= 1e-6 or ancho <= 1e-6:
             return []
         cantidad = max(1, int(alto / separacion))
         cantidad = min(cantidad, MAX_LATERALES_POR_SECTOR)
         paso = alto / cantidad
-        return [
-            [
-                (x_min, y_min + paso / 2 + indice * paso),
-                (x_max, y_min + paso / 2 + indice * paso),
-            ]
-            for indice in range(cantidad)
-        ]
+        for indice in range(cantidad):
+            y = y_min + paso / 2 + indice * paso
+            for inicio, fin in geometria.segmentos_horizontales(puntos, y):
+                laterales.append([inicio, fin])
+        return laterales[:MAX_LATERALES_POR_SECTOR]
 
     if ancho <= 1e-6 or alto <= 1e-6:
         return []
     cantidad = max(1, int(ancho / separacion))
     cantidad = min(cantidad, MAX_LATERALES_POR_SECTOR)
     paso = ancho / cantidad
-    return [
-        [
-            (x_min + paso / 2 + indice * paso, y_min),
-            (x_min + paso / 2 + indice * paso, y_max),
-        ]
-        for indice in range(cantidad)
-    ]
+    for indice in range(cantidad):
+        x = x_min + paso / 2 + indice * paso
+        for inicio, fin in geometria.segmentos_verticales(puntos, x):
+            laterales.append([inicio, fin])
+    return laterales[:MAX_LATERALES_POR_SECTOR]
 
 
 def _centroide_sector(sector: Sector) -> geometria.Punto:
     puntos = geometria.normalizar_vertices(sector.poligono.get("anillo", []))
-    return geometria.centroide(puntos)
+    return geometria.punto_interior(puntos)
 
 
 def _poligono_franja(
     terreno: Terreno, indice: int, total: int
 ) -> tuple[dict, float]:
+    """Franja de sector recortada al terreno, con su área usable real."""
+
     puntos = _puntos_terreno(terreno)
-    x_min, y_min, x_max, y_max = geometria.caja(puntos)
-    ancho = x_max - x_min
-    if ancho <= 1e-6 or total <= 0:
-        return geometria.poligono_dict(puntos), float(terreno.area_m2)
+    banda, area = geometria.banda_por_area(puntos, indice, total, eje="x")
+    if banda:
+        return geometria.poligono_dict(banda), area
 
-    x0 = x_min + ancho * indice / total
-    x1 = x_min + ancho * (indice + 1) / total
-    franja = geometria.rectangulo(x0, y_min, x1, y_max)
-    return geometria.poligono_dict(franja), geometria.area_poligono(franja)
+    # Terreno sin superficie repartible (o fuera de rango): se conserva el polígono
+    # completo como antes, en lugar de persistir un sector sin geometría.
+    return geometria.poligono_dict(puntos), float(terreno.area_m2)
 
 
-def _poligono_desde_bloques(bloques: list) -> dict | None:
+def _poligono_desde_bloques(
+    bloques: list, terreno: Terreno | None = None
+) -> dict | None:
     puntos: list[geometria.Punto] = []
     for bloque in bloques:
         try:
@@ -216,6 +222,14 @@ def _poligono_desde_bloques(bloques: list) -> dict | None:
     if not puntos:
         return None
     x_min, y_min, x_max, y_max = geometria.caja(puntos)
+    if terreno is not None:
+        # La caja de los bloques puede salirse del terreno: se recorta al polígono.
+        recorte = geometria.recortar_rectangulo(
+            _puntos_terreno(terreno), (x_min, y_min, x_max, y_max)
+        )
+        if not recorte:
+            return None
+        return geometria.poligono_dict(recorte)
     return geometria.poligono_dict(
         geometria.rectangulo(x_min, y_min, x_max, y_max)
     )
@@ -280,11 +294,11 @@ def _generar_sectores_auto(
             indice = max(0, min(total - 1, indice))
         grupos[indice].append(bloque)
 
-    area_terreno = float(terreno.area_m2)
     sectores: list[Sector] = []
     for indice, grupo in enumerate(grupos):
-        poligono, _ = _poligono_franja(terreno, indice, total)
-        area = max(area_terreno / total, sum(float(b.area_m2) for b in grupo))
+        # El área del sector es la del polígono recortado: con un trapecio, las
+        # franjas de la caja envolvente incluían superficie que no existe.
+        poligono, area = _poligono_franja(terreno, indice, total)
         sectores.append(
             _crear_sector(
                 db,
@@ -292,7 +306,7 @@ def _generar_sectores_auto(
                 numero=indice + 1,
                 etiqueta=f"Sector {indice + 1}",
                 poligono=poligono,
-                area=area,
+                area=max(area, 0.01),
                 secuencia=indice + 1,
                 bloques=grupo,
             )
@@ -335,7 +349,7 @@ def _generar_sectores_desde_payload(
             float(bloque.area_m2) / apariciones.get(bloque.id, 1) for bloque in grupo
         )
         area = area_bloques if grupo else float(sector_in.area_m2)
-        poligono = _poligono_desde_bloques(grupo)
+        poligono = _poligono_desde_bloques(grupo, terreno)
         if poligono is None:
             poligono, _ = _poligono_franja(terreno, indice, len(data.sectores))
 
@@ -376,7 +390,7 @@ def _generar_red(
     sectores: list[Sector],
 ) -> None:
     puntos_terreno = _puntos_terreno(terreno)
-    centro = geometria.centro_caja(puntos_terreno)
+    centro = geometria.punto_interior(puntos_terreno)
     conexion = _punto_conexion(sistema)
     caudal_terreno = min(_dec(float(terreno.caudal_efectivo_m3h), 3), CAUDAL_MAXIMO)
 
@@ -703,7 +717,7 @@ def preview(db: Session, proyecto: Proyecto) -> PreviewOut:
     )
 
     puntos_terreno = _puntos_terreno(terreno)
-    centro = geometria.centro_caja(puntos_terreno)
+    centro = geometria.punto_interior(puntos_terreno)
     conexion = _punto_conexion(sistema)
     x_min, y_min, x_max, y_max = geometria.caja(puntos_terreno)
     diagonal = math.hypot(x_max - x_min, y_max - y_min)

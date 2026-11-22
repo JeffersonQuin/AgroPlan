@@ -9,6 +9,7 @@ from __future__ import annotations
 import math
 import re
 import time
+import unicodedata
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -290,6 +291,7 @@ def iniciar_corrida(
     productos: list[ProductoSolicitado] | None = None,
     siembra=None,
     restricciones: RestriccionesEntrada | None = None,
+    regenerar: bool = False,
 ) -> InicioCorrida:
     """Crea la corrida del intake actual o devuelve la vigente, sin ejecutarla.
 
@@ -299,7 +301,9 @@ def iniciar_corrida(
     quedan congeladas con la corrida.
 
     La ejecución la dispara el router como tarea de fondo: el request nunca espera al
-    modelo. Repetir el pedido con el mismo intake no gasta otra llamada.
+    modelo. Repetir el pedido con el mismo intake no gasta otra llamada, salvo con
+    ``regenerar=True``: mientras se prueban cambios del motor hace falta volver a correr
+    el agente sobre el mismo intake. Es una palanca de desarrollo, no de producto.
     """
 
     terreno = _terreno_requerido(db, proyecto)
@@ -344,7 +348,7 @@ def iniciar_corrida(
     )
     huella = entrada.huella()
 
-    vigente = _corrida_vigente(db, proyecto, huella)
+    vigente = None if regenerar else _corrida_vigente(db, proyecto, huella)
     if vigente is not None:
         if vigente.estado == EstadoCorrida.OK.value:
             return InicioCorrida(
@@ -1182,25 +1186,145 @@ def _ajustes_motor(
     return ajustes
 
 
-def _recomendaciones_informe(
-    db: Session, corrida: AgenteCorrida | None, propuesta: PropuestaAgente | None
-) -> list[RecomendacionInforme]:
-    """Recomendaciones finales (S7): las persistidas y las de la corrida congelada."""
+# Forma de los diagnósticos que escribe ``ejecutar_corrida`` en el título de la fila
+# (el ``mensaje`` de la advertencia). Se clasifica por esa forma y no por una marca
+# suelta: una recomendación real puede nombrar la siembra elegida en su detalle (S5).
+_FRASES_DIAGNOSTICO_INTERNO = (
+    ("la corrida se resolvio con el catalogo interno",),
+    (
+        "se uso la siembra elegida",
+        "en lugar de la que propuso el agente",
+    ),
+)
 
-    recomendaciones: list[RecomendacionInforme] = []
-    if propuesta is not None:
-        recomendaciones.extend(
-            RecomendacionInforme(
-                tipo="final",
-                titulo=recomendacion.titulo,
-                detalle=recomendacion.detalle,
-                justificacion=recomendacion.justificacion or None,
-            )
-            for recomendacion in propuesta.recomendaciones
+# Variables de entorno del pipeline: si el título las nombra, es un diagnóstico del
+# agente y no algo que le convenga al usuario.
+_VARIABLES_ENTORNO_AGENTE = ("agente_modo", "agente_api_key")
+
+
+def _texto_comparable(texto: str) -> str:
+    """Clave para comparar textos: sin espacios de más, mayúsculas ni punto final."""
+
+    return " ".join(texto.split()).casefold().rstrip(".")
+
+
+def _texto_sin_tildes(texto: str) -> str:
+    return "".join(
+        letra
+        for letra in unicodedata.normalize("NFD", texto)
+        if unicodedata.category(letra) != "Mn"
+    )
+
+
+def _es_diagnostico_interno(*textos: str | None) -> bool:
+    """Si el título habla de la configuración interna del pipeline, no del usuario.
+
+    Sólo se mira el título (el primer texto): los diagnósticos de ``ejecutar_corrida``
+    son las frases del pipeline o nombran ``AGENTE_MODO``/``AGENTE_API_KEY``. El
+    detalle y la justificación de una recomendación real pueden mencionar la siembra
+    elegida sin que la recomendación sea un diagnóstico (S5).
+    """
+
+    titulo = textos[0] if textos else None
+    if not titulo:
+        return False
+    normalizado = _texto_sin_tildes(_texto_comparable(titulo))
+    if any(variable in normalizado for variable in _VARIABLES_ENTORNO_AGENTE):
+        return True
+    return any(
+        all(fragmento in normalizado for fragmento in frase)
+        for frase in _FRASES_DIAGNOSTICO_INTERNO
+    )
+
+
+def _sin_repetir(
+    titulo: str, detalle: str | None, justificacion: str | None
+) -> tuple[str | None, str | None]:
+    """Quita detalle y justificación cuando repiten el título o entre sí (S5).
+
+    No se inventa una justificación: si el pipeline repitió el mismo texto en los
+    tres campos, el informe lo muestra una sola vez.
+    """
+
+    clave_titulo = _texto_comparable(titulo)
+    if detalle and _texto_comparable(detalle) == clave_titulo:
+        detalle = None
+    if justificacion:
+        clave_justificacion = _texto_comparable(justificacion)
+        if clave_justificacion == clave_titulo or (
+            detalle and clave_justificacion == _texto_comparable(detalle)
+        ):
+            justificacion = None
+    return detalle, justificacion
+
+
+def _deduplicar_recomendaciones(
+    entradas: list[tuple[RecomendacionInforme, str | None]],
+) -> list[RecomendacionInforme]:
+    """Una sola entrada por título; si aplica a varios cultivos, los menciona (S5)."""
+
+    vistas: dict[str, RecomendacionInforme] = {}
+    cultivos: dict[str, list[str]] = {}
+    for recomendacion, cultivo in entradas:
+        clave = _texto_comparable(recomendacion.titulo)
+        if clave in vistas:
+            if cultivo and cultivo not in cultivos[clave]:
+                cultivos[clave].append(cultivo)
+            continue
+        vistas[clave] = recomendacion
+        cultivos[clave] = [cultivo] if cultivo else []
+
+    for clave, recomendacion in vistas.items():
+        if len(cultivos[clave]) < 2:
+            continue
+        nota = f"Aplica a: {', '.join(cultivos[clave])}."
+        recomendacion.detalle = (
+            f"{recomendacion.detalle} {nota}"[:1000] if recomendacion.detalle else nota
         )
+    return list(vistas.values())
+
+
+def _recomendaciones_y_advertencias(
+    db: Session, corrida: AgenteCorrida | None, propuesta: PropuestaAgente | None
+) -> tuple[list[RecomendacionInforme], list[Advertencia]]:
+    """Recomendaciones finales legibles y avisos técnicos del informe (S5, S6).
+
+    Las filas tipo ``advertencia`` de ``agente_recomendaciones`` son diagnósticos del
+    pipeline, no recomendaciones: las internas (modo del agente, siembra pisada) se
+    descartan y las operativas van al banner de advertencias, que es su lugar. Las
+    recomendaciones se deduplican por título y no repiten el mismo texto tres veces.
+    """
+
+    entradas: list[tuple[RecomendacionInforme, str | None]] = []
+    avisos: list[Advertencia] = []
+
+    if propuesta is not None:
+        for recomendacion in propuesta.recomendaciones:
+            if _es_diagnostico_interno(
+                recomendacion.titulo,
+                recomendacion.detalle,
+                recomendacion.justificacion,
+            ):
+                continue
+            detalle, justificacion = _sin_repetir(
+                recomendacion.titulo,
+                recomendacion.detalle,
+                recomendacion.justificacion or None,
+            )
+            entradas.append(
+                (
+                    RecomendacionInforme(
+                        tipo="final",
+                        titulo=recomendacion.titulo,
+                        detalle=detalle,
+                        justificacion=justificacion,
+                    ),
+                    None,
+                )
+            )
 
     if corrida is None:
-        return recomendaciones
+        return _deduplicar_recomendaciones(entradas), avisos
 
     for fila in agente_recomendacion_repo.list_by_corrida(db, corrida.id):
         payload = fila.payload or {}
@@ -1210,18 +1334,44 @@ def _recomendaciones_informe(
             or payload.get("mensaje")
             or fila.tipo
         )
+        titulo = str(titulo)[:300]
         detalle = payload.get("detalle") or payload.get("mensaje")
-        recomendaciones.append(
-            RecomendacionInforme(
-                id=fila.id,
-                tipo=fila.tipo,
-                titulo=str(titulo)[:300],
-                detalle=str(detalle)[:1000] if detalle else None,
-                justificacion=fila.justificacion,
-                aplicada=fila.aplicada,
+        detalle = str(detalle)[:1000] if detalle else None
+        justificacion = fila.justificacion
+
+        if _es_diagnostico_interno(titulo, detalle, justificacion):
+            continue
+
+        if fila.tipo == TipoRecomendacion.ADVERTENCIA.value:
+            campo = payload.get("campo")
+            avisos.append(
+                Advertencia(
+                    codigo=str(payload.get("codigo") or "ADVERTENCIA_AGENTE")[:40],
+                    mensaje=str(payload.get("mensaje") or titulo)[:300],
+                    campo=str(campo)[:40] if campo else None,
+                )
+            )
+            continue
+
+        detalle, justificacion = _sin_repetir(titulo, detalle, justificacion)
+        cultivo = payload.get("cultivo_codigo")
+        if not cultivo and fila.tipo == TipoRecomendacion.CULTIVO.value:
+            cultivo = payload.get("nombre")
+        entradas.append(
+            (
+                RecomendacionInforme(
+                    id=fila.id,
+                    tipo=fila.tipo,
+                    titulo=titulo,
+                    detalle=detalle,
+                    justificacion=justificacion,
+                    aplicada=fila.aplicada,
+                ),
+                str(cultivo) if cultivo else None,
             )
         )
-    return recomendaciones
+
+    return _deduplicar_recomendaciones(entradas), avisos
 
 
 def _presupuesto_informe(
@@ -1376,6 +1526,9 @@ def resultado_proyecto(db: Session, proyecto: Proyecto) -> ResultadoProyectoOut:
     presupuesto_bs, costo_total_bs, presupuesto_excedido = _presupuesto_informe(
         corrida, propuesta
     )
+    recomendaciones, avisos_agente = _recomendaciones_y_advertencias(
+        db, corrida, propuesta
+    )
     resultado = ResultadoProyectoOut(
         proyecto_id=proyecto.id,
         nombre=proyecto.nombre,
@@ -1399,7 +1552,7 @@ def resultado_proyecto(db: Session, proyecto: Proyecto) -> ResultadoProyectoOut:
             presupuesto_bs=presupuesto_bs,
             costo_total_bs=costo_total_bs,
             presupuesto_excedido=presupuesto_excedido,
-            recomendaciones=_recomendaciones_informe(db, corrida, propuesta),
+            recomendaciones=recomendaciones,
             fuentes=(
                 [
                     FuenteOut.model_validate(fuente)
@@ -1412,6 +1565,16 @@ def resultado_proyecto(db: Session, proyecto: Proyecto) -> ResultadoProyectoOut:
         ),
         advertencias=list(diseno.advertencias),
     )
+
+    # S6: los diagnósticos operativos del pipeline (por ejemplo, que el motor no pudo
+    # generar la red) van al banner de advertencias, no a las recomendaciones.
+    for aviso in avisos_agente:
+        repetido = any(
+            existente.codigo == aviso.codigo and existente.mensaje == aviso.mensaje
+            for existente in resultado.advertencias
+        )
+        if not repetido:
+            resultado.advertencias.append(aviso)
 
     # La comparación contra el presupuesto del paso 3 se muestra en el informe, no
     # solo en la corrida cruda. Si la salida congelada ya la trae, no se duplica.

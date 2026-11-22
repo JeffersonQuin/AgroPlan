@@ -115,6 +115,8 @@ export class ResumenStore {
   /** Un proyecto con informe no se regenera (S2). */
   readonly tieneInforme = computed(() => this._resultado() !== null);
 
+  readonly generando = computed(() => this._estado() === 'generando');
+
   /** Avisos del motor y del agente que acompañan al informe (S3). */
   readonly advertencias = computed<AdvertenciaApi[]>(() => this._resultado()?.advertencias ?? []);
 
@@ -191,6 +193,8 @@ export class ResumenStore {
                     ?.label ?? '',
                 caudalM3h: terreno.caudal_efectivo_m3h,
                 pendientePct: terreno.pendiente_pct,
+                // La geometría se guarda tal cual: el plano del informe dibuja el borde real.
+                geometria: terreno.geometria ?? { vertices: [] },
               },
         );
 
@@ -224,28 +228,32 @@ export class ResumenStore {
    * Se manda **una sola vez**: si ya hay informe o ya hay una corrida en curso, no
    * vuelve a gastar tokens.
    */
-  generar(): void {
+  generar(regenerar = false): void {
     const proyectoId = this._proyectoId();
     if (proyectoId === '') return;
-    if (this._estado() === 'generando' || this._resultado() !== null) return;
+    if (this._estado() === 'generando') return;
+    if (!regenerar && this._resultado() !== null) return;
     if (this.borrador.vacio()) return;
 
     const { productos, siembra, restricciones } = this.borrador.aPayload();
 
     this._modalAbierto.set(false);
     this._error.set(null);
+    if (regenerar) this._resultado.set(null);
     this._estado.set('generando');
     this._estadoCorrida.set(null);
     this._corridaId.set(null);
 
-    this.cultivosApi.iniciarCorrida(proyectoId, { productos, siembra, restricciones }).subscribe({
-      next: (inicio) => {
-        this._corridaId.set(inicio.corrida_id);
-        this._estadoCorrida.set(inicio.estado);
-        this.sondear(proyectoId, inicio.corrida_id);
-      },
-      error: (error: HttpErrorResponse) => this.fallar(error),
-    });
+    this.cultivosApi
+      .iniciarCorrida(proyectoId, { productos, siembra, restricciones, regenerar })
+      .subscribe({
+        next: (inicio) => {
+          this._corridaId.set(inicio.corrida_id);
+          this._estadoCorrida.set(inicio.estado);
+          this.sondear(proyectoId, inicio.corrida_id);
+        },
+        error: (error: HttpErrorResponse) => this.fallar(error),
+      });
   }
 
   /**

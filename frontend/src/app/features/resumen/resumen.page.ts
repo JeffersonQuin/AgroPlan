@@ -27,6 +27,7 @@ import { RecomendacionesInforme } from './components/recomendaciones-informe/rec
 import { TecnologiaInforme } from './components/tecnologia-informe/tecnologia-informe';
 import { TerrenoInforme } from './components/terreno-informe/terreno-informe';
 import { ZonificacionInforme } from './components/zonificacion-informe/zonificacion-informe';
+import { PERMITIR_REGENERAR } from './resumen.config';
 import { ResumenStore } from './state/resumen.store';
 
 /**
@@ -74,6 +75,9 @@ import { ResumenStore } from './state/resumen.store';
 export class ResumenPage implements OnDestroy {
   protected readonly store = inject(ResumenStore);
   protected readonly borrador = inject(WizardDraftStore);
+
+  /** Palanca de desarrollo: mientras se prueban cambios del motor se puede regenerar. */
+  protected readonly permiteRegenerar = PERMITIR_REGENERAR;
   private readonly route = inject(ActivatedRoute);
 
   protected readonly proyectoId = signal('');

@@ -175,6 +175,25 @@ def _corrida(pid: str, db_session: Session, salida: dict, *, estado: str = "ok",
     return corrida
 
 
+def _recomendacion(
+    db_session: Session,
+    corrida: AgenteCorrida,
+    tipo: str,
+    payload: dict,
+    justificacion: str | None = None,
+) -> None:
+    db_session.add(
+        AgenteRecomendacion(
+            corrida_id=corrida.id,
+            tipo=tipo,
+            payload=payload,
+            justificacion=justificacion,
+            aplicada=False,
+        )
+    )
+    db_session.commit()
+
+
 def _aplicar(cliente: TestClient, pid: str, corrida_id: uuid.UUID) -> dict:
     respuesta = cliente.post(f"/proyectos/{pid}/agente/corridas/{corrida_id}/aplicar")
     assert respuesta.status_code == 200, respuesta.text
@@ -611,10 +630,11 @@ def test_turnos_y_sectores_que_no_coinciden_generan_ajuste(
         db_session,
         _salida_con_sectores(
             2,
-            # El bloque (centroide a la derecha) cae en el sector 2, que es el de
-            # 200 m² y 2666 L/h; el sector 1 queda con la franja vacía de 100 m².
+            # El bloque (centroide a la derecha) cae en el sector 2. Cada franja mide
+            # la mitad del terreno (100 m²) y rinde 1334 L/h; el sector 1 no tiene
+            # ningún bloque asignado.
             turnos=[
-                {"sector": 2, "horas": 2.0, "caudal_lh": 2666.0},
+                {"sector": 2, "horas": 2.0, "caudal_lh": 1334.0},
                 {"sector": 5, "horas": 2.0, "caudal_lh": 900.0},
             ],
         ),
@@ -898,3 +918,195 @@ def test_corrida_vieja_sin_claves_de_imagen_usa_la_de_la_ficha(
     assert bloque["imagen_credito"] == "Foto: Ficha curada AgroPlan, CC BY-SA 4.0"
     detalle = cliente_autenticado.get(f"/proyectos/{pid}/agente/corridas/{corrida.id}")
     assert detalle.status_code == 200, detalle.text
+
+
+# --------------------------------------------------------------------------- #
+# S5/S6 — recomendaciones legibles: sin diagnósticos internos ni repetidos
+# --------------------------------------------------------------------------- #
+
+MODO_CATALOGO = (
+    "La corrida se resolvió con el catálogo interno: AGENTE_MODO está en 'catalogo'."
+)
+SIEMBRA_PISADA = (
+    "Se usó la siembra elegida (2026-11-21) en lugar de la que propuso el agente."
+)
+
+
+def _diagnosticos_del_pipeline(
+    db_session: Session, corrida: AgenteCorrida, cultivos: list[str]
+) -> None:
+    """Reproduce las filas de ``agente_recomendaciones`` del informe del usuario.
+
+    El pipeline escribe los mismos dos diagnósticos una vez por cultivo, con el
+    mensaje repetido como justificación.
+    """
+
+    for _ in cultivos:
+        _recomendacion(
+            db_session,
+            corrida,
+            "advertencia",
+            {"codigo": "AGENTE_SIN_CREDENCIALES", "mensaje": MODO_CATALOGO},
+            MODO_CATALOGO,
+        )
+        _recomendacion(
+            db_session,
+            corrida,
+            "advertencia",
+            {"codigo": "FECHAS_AJUSTADAS", "mensaje": SIEMBRA_PISADA},
+            SIEMBRA_PISADA,
+        )
+
+
+def _textos(recomendaciones: list[dict]) -> list[str]:
+    textos: list[str] = []
+    for recomendacion in recomendaciones:
+        textos.extend(
+            valor
+            for valor in (
+                recomendacion["titulo"],
+                recomendacion["detalle"],
+                recomendacion["justificacion"],
+            )
+            if valor
+        )
+    return textos
+
+
+def test_las_recomendaciones_no_muestran_diagnosticos_internos(
+    cliente_autenticado: TestClient, db_session: Session
+) -> None:
+    """S5: con filas reales del pipeline, el informe muestra solo lo recomendable."""
+    cliente = cliente_autenticado
+    pid = _proyecto(cliente)
+    corrida = _corrida(pid, db_session, _salida())
+    _diagnosticos_del_pipeline(
+        db_session, corrida, ["papa", "maiz", "tomate", "lechuga", "zanahoria"]
+    )
+    _recomendacion(
+        db_session,
+        corrida,
+        "distribucion",
+        {"titulo": "Regar de noche", "detalle": "Reduce la evaporación."},
+        "El suelo franco retiene bien el agua.",
+    )
+
+    recomendaciones = _aplicar(cliente, pid, corrida.id)["diseno"]["recomendaciones"]
+
+    assert [recomendacion["titulo"] for recomendacion in recomendaciones] == [
+        "Regar de noche"
+    ]
+    unica = recomendaciones[0]
+    assert unica["detalle"] == "Reduce la evaporación."
+    assert unica["justificacion"] == "El suelo franco retiene bien el agua."
+    textos = _textos(recomendaciones)
+    assert not any("AGENTE_MODO" in texto for texto in textos)
+    assert not any("siembra elegida" in texto for texto in textos)
+    assert not any("catálogo interno" in texto for texto in textos)
+
+
+def test_el_filtro_sigue_descartando_los_diagnosticos_del_pipeline() -> None:
+    """S5: la forma del diagnóstico del pipeline sigue clasificando como interno."""
+    assert agente_service._es_diagnostico_interno(MODO_CATALOGO)
+    assert agente_service._es_diagnostico_interno(
+        "La corrida se resolvió con el catálogo interno: no hay credenciales del "
+        "modelo configuradas."
+    )
+    assert agente_service._es_diagnostico_interno(SIEMBRA_PISADA)
+    assert agente_service._es_diagnostico_interno(
+        "AGENTE_API_KEY vacía para correr en modo catálogo"
+    )
+    # La forma del título manda: el detalle de una recomendación real puede nombrar
+    # la siembra elegida sin que la recomendación sea un diagnóstico.
+    assert not agente_service._es_diagnostico_interno(
+        "Adelantar la siembra del maíz",
+        "La siembra elegida (2026-11-21) cae fuera de la ventana térmica.",
+        "El maíz necesita 12 °C de suelo.",
+    )
+
+
+def test_la_misma_recomendacion_por_cultivo_se_muestra_una_vez(
+    cliente_autenticado: TestClient, db_session: Session
+) -> None:
+    """S5: una recomendación que aplica a varios cultivos se dice una sola vez."""
+    cliente = cliente_autenticado
+    pid = _proyecto(cliente)
+    corrida = _corrida(pid, db_session, _salida())
+    for cultivo in ("papa", "maiz"):
+        _recomendacion(
+            db_session,
+            corrida,
+            "distribucion",
+            {"titulo": "Regar de noche", "cultivo_codigo": cultivo},
+            "Reduce la evaporación.",
+        )
+
+    recomendaciones = _aplicar(cliente, pid, corrida.id)["diseno"]["recomendaciones"]
+
+    assert len(recomendaciones) == 1
+    assert recomendaciones[0]["titulo"] == "Regar de noche"
+    assert "papa" in recomendaciones[0]["detalle"]
+    assert "maiz" in recomendaciones[0]["detalle"]
+
+
+def test_el_texto_repetido_no_se_muestra_tres_veces(
+    cliente_autenticado: TestClient, db_session: Session
+) -> None:
+    """S5: título, detalle y justificación iguales no se repiten en el informe."""
+    cliente = cliente_autenticado
+    pid = _proyecto(cliente)
+    corrida = _corrida(pid, db_session, _salida())
+    texto = "Cubrir el suelo con mulch para retener la humedad."
+    _recomendacion(
+        db_session,
+        corrida,
+        "distribucion",
+        {"titulo": texto, "detalle": texto},
+        texto,
+    )
+
+    recomendaciones = _aplicar(cliente, pid, corrida.id)["diseno"]["recomendaciones"]
+
+    assert len(recomendaciones) == 1
+    assert recomendaciones[0]["titulo"] == texto
+    assert recomendaciones[0]["detalle"] is None
+    assert recomendaciones[0]["justificacion"] is None
+
+
+def test_sin_recomendaciones_reales_la_seccion_no_informa(
+    cliente_autenticado: TestClient, db_session: Session
+) -> None:
+    """S6: sin recomendaciones reales no se pintan los diagnósticos internos."""
+    cliente = cliente_autenticado
+    pid = _proyecto(cliente)
+    corrida = _corrida(pid, db_session, _salida())
+    _diagnosticos_del_pipeline(db_session, corrida, ["papa", "maiz"])
+
+    diseno = _aplicar(cliente, pid, corrida.id)["diseno"]
+
+    assert diseno["recomendaciones"] == []
+
+
+def test_el_diagnostico_operativo_va_al_banner_de_advertencias(
+    cliente_autenticado: TestClient, db_session: Session
+) -> None:
+    """S6: lo que importa operativamente no se pierde: va a advertencias."""
+    cliente = cliente_autenticado
+    pid = _proyecto(cliente)
+    corrida = _corrida(pid, db_session, _salida())
+    mensaje = "El motor no pudo generar la red de riego: faltan datos del terreno."
+    _recomendacion(
+        db_session,
+        corrida,
+        "advertencia",
+        {"codigo": "RED_NO_GENERADA", "mensaje": mensaje, "campo": "red"},
+        mensaje,
+    )
+
+    cuerpo = _aplicar(cliente, pid, corrida.id)
+
+    assert cuerpo["diseno"]["recomendaciones"] == []
+    avisos = [alerta for alerta in cuerpo["advertencias"] if alerta["codigo"] == "RED_NO_GENERADA"]
+    assert len(avisos) == 1
+    assert avisos[0]["mensaje"] == mensaje
+    assert avisos[0]["campo"] == "red"

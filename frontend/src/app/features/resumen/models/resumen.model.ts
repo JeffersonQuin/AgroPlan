@@ -235,6 +235,8 @@ export interface TerrenoResumen {
   caudalM3h: number;
   /** Pendiente del paso 1; `null` cuando el terreno no la informó. */
   pendientePct: number | null;
+  /** Vértices del polígono que dibujó el usuario, en metros (paso 1). */
+  geometria: { vertices: { x: number; y: number }[] };
 }
 
 /** Restricciones del paso 3 tal como se muestran antes de generar. */
