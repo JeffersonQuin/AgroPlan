@@ -233,6 +233,8 @@ export interface TerrenoResumen {
   sueloNombre: string;
   fuenteLabel: string;
   caudalM3h: number;
+  /** Pendiente del paso 1; `null` cuando el terreno no la informó. */
+  pendientePct: number | null;
 }
 
 /** Restricciones del paso 3 tal como se muestran antes de generar. */

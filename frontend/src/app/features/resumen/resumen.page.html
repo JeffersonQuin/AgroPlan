@@ -362,66 +362,56 @@
             </div>
           </header>
 
-          <div class="grid grid-cols-1 xl:grid-cols-[260px_1fr_300px] gap-3 items-start">
-            <aside class="bg-white rounded-xl border border-agro-border p-4 shadow-sm">
-              <h2 class="flex items-center gap-1.5 text-sm font-bold text-slate-800 mb-2">
-                <ng-icon
-                  class="text-agro-600"
-                  name="matLocationOnOutline"
-                  size="18"
-                  aria-hidden="true"
-                />
-                Terreno
-              </h2>
-              <dl class="text-[11px] flex flex-col gap-1.5">
-                <div class="flex justify-between gap-2">
-                  <dt class="text-slate-500">Parcela</dt>
-                  <dd class="font-bold text-slate-800">{{ store.terreno()?.nombre }}</dd>
-                </div>
-                <div class="flex justify-between gap-2">
-                  <dt class="text-slate-500">Área</dt>
-                  <dd class="font-bold text-slate-800">{{ store.terreno()?.areaM2 }} m²</dd>
-                </div>
-                <div class="flex justify-between gap-2">
-                  <dt class="text-slate-500">Suelo</dt>
-                  <dd class="font-bold text-slate-800">{{ store.terreno()?.sueloNombre }}</dd>
-                </div>
-                <div class="flex justify-between gap-2">
-                  <dt class="text-slate-500">Fuente</dt>
-                  <dd class="font-bold text-slate-800">{{ store.terreno()?.fuenteLabel }}</dd>
-                </div>
-                <div class="flex justify-between gap-2">
-                  <dt class="text-slate-500">Caudal efectivo</dt>
-                  <dd class="font-bold text-slate-800">{{ store.terreno()?.caudalM3h }} m³/h</dd>
-                </div>
-              </dl>
-            </aside>
+          <!-- Advertencias arriba de todo: un ajuste del motor no va al pie (S3) -->
+          <app-advertencias-informe [advertencias]="advertenciasInforme()" />
 
-            <!-- Las secciones del informe (zonificación, cabezal, plano, balance,
-                 cómputo, calendario y recomendaciones) se agregan acá. -->
-            <div class="flex flex-col gap-3" data-secciones-informe></div>
-
-            <aside class="bg-white rounded-xl border border-agro-border p-4 shadow-sm">
-              <h2 class="flex items-center gap-1.5 text-sm font-bold text-slate-800 mb-2">
-                <ng-icon
-                  class="text-agro-600"
-                  name="matWaterOutline"
-                  size="18"
-                  aria-hidden="true"
+          @if (store.resultado(); as informe) {
+            <div
+              class="grid grid-cols-1 xl:grid-cols-[280px_minmax(0,1fr)_320px] gap-3 items-start"
+              data-secciones-informe
+            >
+              <!-- Columna izquierda: terreno, zonificación y cabezal -->
+              <aside class="flex flex-col gap-3 min-w-0">
+                <app-terreno-informe [proyectoId]="proyectoId()" />
+                <app-zonificacion-informe [bloques]="informe.diseno.bloques" />
+                <app-tecnologia-informe
+                  [sistema]="informe.diseno.sistema"
+                  [eficiencia]="informe.diseno.eficiencia_pct"
                 />
-                Advertencias
-              </h2>
-              @if (store.advertencias().length === 0) {
-                <p class="text-[11px] text-slate-500">Sin advertencias del motor.</p>
-              } @else {
-                <ul class="text-[11px] flex flex-col gap-1.5">
-                  @for (advertencia of store.advertencias(); track advertencia.codigo) {
-                    <li class="text-slate-600 leading-snug">{{ advertencia.mensaje }}</li>
-                  }
-                </ul>
-              }
-            </aside>
-          </div>
+              </aside>
+
+              <!-- Columna central: el plano 2D desde la red real -->
+              <section class="flex flex-col gap-3 min-w-0">
+                <app-plano-red
+                  [red]="informe.diseno.red"
+                  [bloques]="informe.diseno.bloques"
+                  [sectores]="informe.diseno.sectores"
+                  [sistema]="informe.diseno.sistema"
+                />
+              </section>
+
+              <!-- Columna derecha: balance, cómputo, calendario, recomendaciones y fuentes -->
+              <aside class="flex flex-col gap-3 min-w-0">
+                <app-balance-informe
+                  [cifras]="informe.diseno.cifras"
+                  [cifrasAgente]="informe.diseno.cifras_agente"
+                  [eficiencia]="informe.diseno.eficiencia_pct"
+                  [ajustes]="informe.diseno.ajustes"
+                />
+                <app-computo-informe
+                  [materiales]="informe.diseno.materiales"
+                  [costoTotalBs]="informe.diseno.costo_total_bs"
+                  [presupuestoBs]="informe.diseno.presupuesto_bs"
+                  [presupuestoExcedido]="informe.diseno.presupuesto_excedido"
+                />
+                <app-calendario-informe [calendario]="informe.diseno.calendario" />
+                <app-recomendaciones-informe
+                  [recomendaciones]="informe.diseno.recomendaciones"
+                />
+                <app-fuentes-informe [fuentes]="informe.diseno.fuentes" />
+              </aside>
+            </div>
+          }
         </section>
       }
     }

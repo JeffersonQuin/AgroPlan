@@ -1,4 +1,4 @@
-import { Component, OnDestroy, inject, signal } from '@angular/core';
+import { Component, OnDestroy, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import {
@@ -13,11 +13,19 @@ import {
   matPaymentsOutline,
   matProgressActivityOutline,
   matSummarizeOutline,
-  matWaterDropOutline,
-  matWaterOutline,
 } from '@ng-icons/material-symbols/outline';
 import { WizardHeader } from '../wizard/components/wizard-header/wizard-header';
 import { WizardDraftStore } from '../wizard/state/wizard-draft.store';
+import { AdvertenciasInforme } from './components/advertencias-informe/advertencias-informe';
+import { BalanceInforme } from './components/balance-informe/balance-informe';
+import { CalendarioInforme } from './components/calendario-informe/calendario-informe';
+import { ComputoInforme } from './components/computo-informe/computo-informe';
+import { FuentesInforme } from './components/fuentes-informe/fuentes-informe';
+import { PlanoRed } from './components/plano-red/plano-red';
+import { RecomendacionesInforme } from './components/recomendaciones-informe/recomendaciones-informe';
+import { TecnologiaInforme } from './components/tecnologia-informe/tecnologia-informe';
+import { TerrenoInforme } from './components/terreno-informe/terreno-informe';
+import { ZonificacionInforme } from './components/zonificacion-informe/zonificacion-informe';
 import { ResumenStore } from './state/resumen.store';
 
 /**
@@ -29,7 +37,21 @@ import { ResumenStore } from './state/resumen.store';
  */
 @Component({
   selector: 'app-resumen-page',
-  imports: [RouterLink, WizardHeader, NgIcon],
+  imports: [
+    RouterLink,
+    WizardHeader,
+    NgIcon,
+    AdvertenciasInforme,
+    BalanceInforme,
+    CalendarioInforme,
+    ComputoInforme,
+    FuentesInforme,
+    PlanoRed,
+    RecomendacionesInforme,
+    TecnologiaInforme,
+    TerrenoInforme,
+    ZonificacionInforme,
+  ],
   viewProviders: [
     provideIcons({
       matArrowBackOutline,
@@ -43,8 +65,6 @@ import { ResumenStore } from './state/resumen.store';
       matPaymentsOutline,
       matProgressActivityOutline,
       matSummarizeOutline,
-      matWaterDropOutline,
-      matWaterOutline,
     }),
   ],
   templateUrl: './resumen.page.html',
@@ -55,6 +75,15 @@ export class ResumenPage implements OnDestroy {
   private readonly route = inject(ActivatedRoute);
 
   protected readonly proyectoId = signal('');
+
+  /**
+   * Advertencias visibles arriba de todo el informe: las del resultado y las que
+   * dejó el diseño generado (por ejemplo, un ajuste del motor).
+   */
+  protected readonly advertenciasInforme = computed(() => [
+    ...this.store.advertencias(),
+    ...(this.store.resultado()?.diseno.advertencias ?? []),
+  ]);
 
   constructor() {
     const proyectoId = this.route.snapshot.paramMap.get('proyectoId') ?? '';

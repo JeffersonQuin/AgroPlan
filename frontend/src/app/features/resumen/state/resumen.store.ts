@@ -7,6 +7,7 @@ import {
   AdvertenciaApi,
   CultivoCatalogoApi,
   CorridaDetalleApi,
+  ResumenTerrenoApi,
 } from '../../cultivos/models/cultivos.model';
 import { ProjectsApi } from '../../projects/projects.api';
 import { EstadoProyectoApi } from '../../projects/models/project.model';
@@ -184,6 +185,7 @@ export class ResumenStore {
                   WATER_SOURCE_OPTIONS.find((opcion) => opcion.value === terreno.fuente_agua)
                     ?.label ?? '',
                 caudalM3h: terreno.caudal_efectivo_m3h,
+                pendientePct: terreno.pendiente_pct,
               },
         );
 
@@ -332,6 +334,10 @@ export class ResumenStore {
   }
 }
 
+/**
+ * Pendiente del terreno. `ResumenTerrenoApi` todavía no la declara, pero el backend
+ * responde `TerrenoOut` completo: se lee sin inventar un valor cuando falta.
+ */
 /** Nombre del suelo del catálogo; si no vino, el código se vuelve legible. */
 function nombreDeSuelo(suelos: SueloApi[], codigo: string): string {
   const suelo = suelos.find((opcion) => opcion.codigo === codigo);

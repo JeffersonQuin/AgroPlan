@@ -1,0 +1,303 @@
+<section
+  class="bg-white rounded-xl border border-agro-border overflow-hidden flex flex-col shadow-sm"
+  data-plano-red
+>
+  <div class="bg-gradient-to-r from-agro-700 to-agro-800 px-4 py-3 flex flex-wrap items-center justify-between gap-2">
+    <div class="min-w-0">
+      <h2 class="text-sm font-bold text-white leading-tight">
+        Plano 2D — Distribución y red hidráulica final
+      </h2>
+      <p class="text-[10.5px] text-agro-100">
+        @if (sistema(); as sistema) {
+          @if (sistema.emisor) {
+            Cabezal, matriz PVC Ø{{ sistema.diametro_principal_mm }} mm y laterales
+            {{ sistema.emisor.tipo }} cada {{ sistema.emisor.separacion_m }} m
+          } @else {
+            Red hidráulica generada por el motor
+          }
+        } @else {
+          Red hidráulica generada por el motor
+        }
+      </p>
+    </div>
+    <div class="flex items-center gap-2">
+      <span class="text-[10px] font-bold text-agro-100 bg-black/20 px-2 py-1 rounded-lg">
+        {{ red().tramos.length }} tramos · {{ red().nodos.length }} nodos ·
+        {{ totalTuberia() }} m de tubería
+      </span>
+    </div>
+  </div>
+
+  @if (vacio()) {
+    <div class="p-6 flex flex-col items-center justify-center text-center gap-1" data-plano-vacio>
+      <p class="text-xs font-bold text-slate-700">Todavía no hay red hidráulica generada</p>
+      <p class="text-[11px] text-slate-500 max-w-md leading-snug">
+        El plano sale de los nodos, tramos y emisores reales del motor. Cuando la corrida genere
+        la red, se dibuja acá.
+      </p>
+    </div>
+  } @else {
+    <div class="relative bg-slate-50/60 border-b border-slate-100">
+      <!-- Herramientas del croquis, las mismas del paso 1 -->
+      <div
+        class="absolute top-3 right-3 z-10 bg-white/95 backdrop-blur-sm border border-slate-200 rounded-lg shadow-sm p-1 flex items-center gap-1"
+      >
+        <button
+          class="p-1.5 rounded transition-colors"
+          [class]="
+            cuadricula() ? 'bg-emerald-50 text-agro-600' : 'text-slate-600 hover:bg-slate-100'
+          "
+          type="button"
+          [attr.aria-pressed]="cuadricula()"
+          [title]="cuadricula() ? 'Ocultar cuadrícula' : 'Mostrar cuadrícula'"
+          (click)="alternarCuadricula()"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M3 3h18v18H3z"></path>
+            <path d="M3 9h18M3 15h18M9 3v18M15 3v18"></path>
+          </svg>
+        </button>
+        <button
+          class="p-1.5 rounded text-slate-600 hover:bg-slate-100 transition-colors"
+          type="button"
+          title="Centrar plano"
+          (click)="centrar()"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M12 3v18M3 12h18"></path>
+            <circle cx="12" cy="12" r="4"></circle>
+          </svg>
+        </button>
+        <button
+          class="p-1.5 rounded text-slate-600 hover:bg-slate-100 transition-colors"
+          type="button"
+          title="Zoom +"
+          (click)="acercar()"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <circle cx="11" cy="11" r="7"></circle>
+            <path d="m21 21-4.3-4.3M11 8v6M8 11h6"></path>
+          </svg>
+        </button>
+        <button
+          class="p-1.5 rounded text-slate-600 hover:bg-slate-100 transition-colors"
+          type="button"
+          title="Zoom −"
+          (click)="alejar()"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <circle cx="11" cy="11" r="7"></circle>
+            <path d="m21 21-4.3-4.3M8 11h6"></path>
+          </svg>
+        </button>
+        <span class="text-[11px] font-bold text-slate-500 tabular-nums w-11 text-center">
+          {{ zoomLabel() }}
+        </span>
+      </div>
+
+      <svg
+        #lienzo
+        class="w-full h-auto select-none touch-none cursor-move"
+        data-plano-svg
+        viewBox="0 0 900 520"
+        role="img"
+        aria-label="Plano 2D de la red hidráulica"
+        (pointerdown)="onPointerDown($event)"
+        (pointermove)="onPointerMove($event)"
+        (pointerup)="onPointerUp()"
+        (pointercancel)="onPointerUp()"
+        (pointerleave)="onPointerUp()"
+      >
+        <defs>
+          <pattern id="plano-cuadricula" width="20" height="20" patternUnits="userSpaceOnUse">
+            <path d="M20 0H0V20" fill="none" stroke="#e2e8f0" stroke-width="1"></path>
+          </pattern>
+        </defs>
+
+        <rect x="0" y="0" width="900" height="520" fill="#ffffff"></rect>
+        @if (cuadricula()) {
+          <rect x="0" y="0" width="900" height="520" fill="url(#plano-cuadricula)"></rect>
+        }
+
+        <g [attr.transform]="transformacion()">
+          <!-- Bloques de cultivo: el borde que el motor ya calculó -->
+          @for (bloque of dibujo().bloques; track bloque.id) {
+            <polygon
+              fill="none"
+              [attr.points]="bloque.puntos"
+              [attr.stroke]="bloque.color"
+              stroke-dasharray="5,4"
+              stroke-linejoin="round"
+              stroke-width="1.5"
+            ></polygon>
+          }
+
+          <!-- Sectores: polígonos reales, pintados con el color de su cultivo -->
+          @for (sector of dibujo().sectores; track sector.id) {
+            <polygon
+              [attr.fill]="sector.color"
+              fill-opacity="0.18"
+              [attr.points]="sector.puntos"
+              stroke="#166534"
+              stroke-linejoin="round"
+              stroke-width="2"
+            ></polygon>
+            <g>
+              <rect
+                [attr.x]="sector.centro.x - 42"
+                [attr.y]="sector.centro.y - 20"
+                fill="#ffffff"
+                height="26"
+                rx="6"
+                stroke="#cbd5e1"
+                stroke-width="1"
+                width="84"
+              ></rect>
+              <text
+                [attr.x]="sector.centro.x"
+                [attr.y]="sector.centro.y - 2"
+                fill="#0f172a"
+                font-size="11"
+                font-weight="700"
+                text-anchor="middle"
+              >
+                {{ sector.etiqueta }}
+              </text>
+            </g>
+          }
+
+          <!-- Laterales y matriz: un polyline por tramo real -->
+          @for (tramo of dibujo().tramos; track tramo.id) {
+            <polyline
+              fill="none"
+              [attr.points]="tramo.puntos"
+              [attr.stroke]="tramo.color"
+              stroke-linejoin="round"
+              [attr.stroke-width]="tramo.ancho"
+            ></polyline>
+          }
+
+          <!-- Goteros posicionados por el backend -->
+          @for (emisor of dibujo().emisores; track $index) {
+            <circle
+              [attr.cx]="emisor.x"
+              [attr.cy]="emisor.y"
+              fill="#0284c7"
+              r="2.6"
+              stroke="#ffffff"
+              stroke-width="1"
+            ></circle>
+          }
+
+          <!-- Nodos: tanque, bomba, cabezal y válvulas -->
+          @for (nodo of dibujo().nodos; track nodo.id) {
+            <g>
+              @if (esValvula(nodo)) {
+                <circle
+                  [attr.cx]="nodo.x"
+                  [attr.cy]="nodo.y"
+                  fill="#ffffff"
+                  r="8"
+                  stroke="#dc2626"
+                  stroke-width="2"
+                ></circle>
+                <line
+                  [attr.x1]="nodo.x - 4"
+                  [attr.y1]="nodo.y - 4"
+                  [attr.x2]="nodo.x + 4"
+                  [attr.y2]="nodo.y + 4"
+                  stroke="#dc2626"
+                  stroke-width="2"
+                ></line>
+                <line
+                  [attr.x1]="nodo.x + 4"
+                  [attr.y1]="nodo.y - 4"
+                  [attr.x2]="nodo.x - 4"
+                  [attr.y2]="nodo.y + 4"
+                  stroke="#dc2626"
+                  stroke-width="2"
+                ></line>
+              } @else {
+                <circle
+                  [attr.cx]="nodo.x"
+                  [attr.cy]="nodo.y"
+                  [attr.fill]="esTanque(nodo) ? '#0284c7' : '#1e3a8a'"
+                  r="9"
+                  stroke="#ffffff"
+                  stroke-width="2"
+                ></circle>
+              }
+              <text
+                [attr.x]="nodo.x"
+                [attr.y]="nodo.y + 20"
+                fill="#334155"
+                font-size="9.5"
+                font-weight="700"
+                text-anchor="middle"
+              >
+                {{ etiquetaNodo(nodo) }}
+              </text>
+            </g>
+          }
+        </g>
+      </svg>
+    </div>
+  }
+
+  <!-- Leyenda técnica: sólo los diámetros que traen los tramos -->
+  <div
+    class="px-4 py-3 flex flex-col gap-2 border-t border-slate-100 bg-white"
+    data-leyenda-plano
+  >
+    <div class="flex items-center justify-between">
+      <h3 class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Leyenda técnica</h3>
+      <span class="text-[10px] text-slate-400">Simbología del plano</span>
+    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-[11px]">
+      @for (item of dibujo().leyenda; track item.clave) {
+        <div class="flex items-center gap-2">
+          <span
+            class="w-5 h-1.5 rounded-full shrink-0"
+            [style.background-color]="item.color"
+            aria-hidden="true"
+          ></span>
+          <span class="text-slate-700 font-medium truncate">{{ item.texto }}</span>
+        </div>
+      }
+      @if (sistema(); as sistema) {
+        @if (sistema.emisor) {
+        <div class="flex items-center gap-2">
+          <span
+            class="w-2.5 h-2.5 rounded-full bg-sky-600 ring-2 ring-sky-200 shrink-0 ml-1"
+            aria-hidden="true"
+          ></span>
+          <span class="text-slate-700 font-medium">
+            Emisor {{ sistema.emisor.caudal_lh }} L/h ({{ sistema.emisor.separacion_m }} m)
+          </span>
+        </div>
+        }
+      }
+      <div class="flex items-center gap-2">
+        <span
+          class="w-4 h-4 rounded-full border-2 border-red-600 bg-white shrink-0"
+          aria-hidden="true"
+        ></span>
+        <span class="text-slate-700 font-medium">Válvula de control</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span
+          class="w-4 h-4 rounded-full bg-sky-600 ring-2 ring-sky-200 shrink-0"
+          aria-hidden="true"
+        ></span>
+        <span class="text-slate-700 font-medium">Tanque / bomba</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span
+          class="w-4 h-3 rounded-xs border border-slate-400 border-dashed shrink-0"
+          aria-hidden="true"
+        ></span>
+        <span class="text-slate-700 font-medium">Bloque de cultivo</span>
+      </div>
+    </div>
+  </div>
+</section>

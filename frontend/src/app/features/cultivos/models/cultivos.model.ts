@@ -119,6 +119,7 @@ export interface ResumenTerrenoApi {
   caudal_efectivo_m3h: number;
   suelo_codigo: string;
   fuente_agua: FuenteAguaApi;
+  pendiente_pct: number;
   geometria: { vertices: { x: number; y: number }[] };
 }
 
