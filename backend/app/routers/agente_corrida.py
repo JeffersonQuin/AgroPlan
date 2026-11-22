@@ -48,6 +48,7 @@ def _iniciar(
             productos=cuerpo.productos if cuerpo is not None else None,
             siembra=cuerpo.siembra if cuerpo is not None else None,
             restricciones=cuerpo.restricciones if cuerpo is not None else None,
+            regenerar=cuerpo.regenerar if cuerpo is not None else False,
         )
     except AgenteServiceError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc

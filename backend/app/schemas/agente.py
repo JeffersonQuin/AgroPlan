@@ -491,6 +491,7 @@ class CorridaIniciarIn(BaseModel):
     productos: list[ProductoSolicitado] = Field(default_factory=list, max_length=8)
     siembra: date | None = None
     restricciones: RestriccionesEntrada | None = None
+    regenerar: bool = False
 
 
 class CorridaIniciadaOut(BaseModel):

@@ -145,6 +145,8 @@ export interface IniciarCorridaApi {
   productos: { cultivo_codigo?: string; producto_texto?: string }[];
   siembra: string | null;
   restricciones?: RestriccionesCorridaApi | null;
+  /** Palanca de desarrollo: fuerza una corrida nueva con el mismo intake. */
+  regenerar?: boolean;
 }
 
 /** `202` del disparo. */

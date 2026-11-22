@@ -290,6 +290,7 @@ def iniciar_corrida(
     productos: list[ProductoSolicitado] | None = None,
     siembra=None,
     restricciones: RestriccionesEntrada | None = None,
+    regenerar: bool = False,
 ) -> InicioCorrida:
     """Crea la corrida del intake actual o devuelve la vigente, sin ejecutarla.
 
@@ -299,7 +300,9 @@ def iniciar_corrida(
     quedan congeladas con la corrida.
 
     La ejecución la dispara el router como tarea de fondo: el request nunca espera al
-    modelo. Repetir el pedido con el mismo intake no gasta otra llamada.
+    modelo. Repetir el pedido con el mismo intake no gasta otra llamada, salvo con
+    ``regenerar=True``: mientras se prueban cambios del motor hace falta volver a correr
+    el agente sobre el mismo intake. Es una palanca de desarrollo, no de producto.
     """
 
     terreno = _terreno_requerido(db, proyecto)
@@ -344,7 +347,7 @@ def iniciar_corrida(
     )
     huella = entrada.huella()
 
-    vigente = _corrida_vigente(db, proyecto, huella)
+    vigente = None if regenerar else _corrida_vigente(db, proyecto, huella)
     if vigente is not None:
         if vigente.estado == EstadoCorrida.OK.value:
             return InicioCorrida(

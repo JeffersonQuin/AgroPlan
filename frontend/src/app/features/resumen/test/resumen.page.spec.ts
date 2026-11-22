@@ -8,6 +8,7 @@ import { TestBed } from '@angular/core/testing';
 import { vi } from 'vitest';
 import { provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
+import { PERMITIR_REGENERAR } from '../resumen.config';
 import { ResumenPage } from '../resumen.page';
 import { RESUMEN_POLL_MS } from '../state/resumen.store';
 
@@ -263,6 +264,7 @@ describe('ResumenPage (paso 4: flujo del informe)', () => {
       productos: [{ cultivo_codigo: 'papa' }],
       siembra: '2026-11-21',
       restricciones: { energia: 'solar', tanque_l: 5000, presupuesto_bs: 1500 },
+      regenerar: false,
     });
     disparo.flush({ corrida_id: 'c-1', estado: 'pendiente', intake_hash: 'h-1' });
     await harness.fixture.whenStable();
@@ -304,9 +306,9 @@ describe('ResumenPage (paso 4: flujo del informe)', () => {
     expect(html.textContent).toContain('Informe generado');
     expect(html.textContent).toContain('El motor ajustó la presión de trabajo a 1.5 bar.');
 
+    // La palanca de desarrollo habilita regenerar, pero nada se dispara solo.
     const regenerar = boton(html, 'Regenerar');
-    expect(regenerar.disabled).toBe(true);
-    expect(regenerar.title).toBe('Plan premium');
+    expect(regenerar.disabled).toBe(PERMITIR_REGENERAR ? false : true);
 
     // Una sola generación: ni otro disparo ni más sondeos.
     expect(http.match(`${BASE}/p-1/agente`).length).toBe(0);
@@ -358,9 +360,9 @@ describe('ResumenPage (paso 4: flujo del informe)', () => {
     expect(html.textContent).toContain('Cómputo listo');
     expect(html.textContent).toContain('El motor ajustó la presión de trabajo a 1.5 bar.');
 
+    // La palanca de desarrollo habilita regenerar, pero nada se dispara solo.
     const regenerar = boton(html, 'Regenerar');
-    expect(regenerar.disabled).toBe(true);
-    expect(regenerar.title).toBe('Plan premium');
+    expect(regenerar.disabled).toBe(PERMITIR_REGENERAR ? false : true);
 
     http.expectNone(`${BASE}/p-1/agente`);
     expect(http.match(`${BASE}/p-1/agente/corridas/c-1`).length).toBe(0);

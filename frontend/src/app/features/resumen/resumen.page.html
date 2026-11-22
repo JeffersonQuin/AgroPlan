@@ -369,10 +369,11 @@
                 Descargar Informe Técnico Completo
               </button>
               <button
-                class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-slate-200 text-slate-500 text-xs font-semibold cursor-not-allowed"
+                class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-agro-300 text-agro-700 text-xs font-semibold hover:bg-agro-50 disabled:opacity-60 disabled:cursor-not-allowed"
                 type="button"
-                title="Plan premium"
-                disabled
+                [attr.title]="permiteRegenerar ? 'Vuelve a generar el informe con el mismo borrador' : 'Plan premium'"
+                [disabled]="!permiteRegenerar || store.generando()"
+                (click)="store.generar(true)"
               >
                 Regenerar
               </button>
