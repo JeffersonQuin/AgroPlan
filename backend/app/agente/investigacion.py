@@ -279,13 +279,27 @@ def _acumular(acumulado: dict[str, Any], resultado: dict[str, Any]) -> None:
 # --------------------------------------------------------------------------- #
 
 
+def _sin_cerco(texto: str) -> str:
+    """Quita el cerco de markdown con el que el modelo envuelve el JSON.
+
+    El contenido es válido: descartarlo por las tres comillas costaba la investigación
+    entera y el usuario veía "no se encontraron datos" cuando el modelo sí respondió.
+    """
+
+    limpio = texto.strip()
+    if limpio.startswith("```"):
+        limpio = re.sub(r"^```[A-Za-z0-9_-]*\s*", "", limpio)
+        limpio = re.sub(r"\s*```$", "", limpio)
+    return limpio.strip()
+
+
 def _contenido(respuesta: Any) -> Any:
     contenido = getattr(respuesta, "content", None)
     if isinstance(contenido, (list, dict)):
         return contenido
     if isinstance(contenido, str):
         try:
-            return json.loads(contenido)
+            return json.loads(_sin_cerco(contenido))
         except json.JSONDecodeError:
             logger.warning("La búsqueda web devolvió contenido no-JSON: %r", contenido[:200])
             return []

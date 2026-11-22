@@ -252,7 +252,7 @@ def test_error_generico_termina_en_error(cliente_compartido, monkeypatch) -> Non
     cliente, _ = cliente_compartido
     proyecto_id = _proyecto(cliente)
 
-    def boom(_contexto):
+    def boom(_contexto, on_fase=None):
         raise RuntimeError("falla inesperada del gateway")
 
     monkeypatch.setattr(agente_service, "ejecutar_agente", boom)

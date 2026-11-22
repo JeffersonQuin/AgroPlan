@@ -64,7 +64,7 @@ class FichaCultivo:
     imagen: str | None = None
     imagen_fuente: str | None = None
     # Atribución obligatoria de la licencia de la foto. Texto libre, puede faltar en
-    # una ficha vieja; las 14 curadas lo traen y un test lo exige.
+    # una ficha vieja; las curadas lo traen y un test lo exige.
     imagen_credito: str | None = None
 
 

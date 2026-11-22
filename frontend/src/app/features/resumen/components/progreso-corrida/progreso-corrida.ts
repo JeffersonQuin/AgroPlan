@@ -7,9 +7,10 @@ import {
 } from '@ng-icons/material-symbols/outline';
 import {
   ESPERA_LARGA_MODELO_SEGUNDOS,
-  FASE_MODELO,
   FASES_CORRIDA,
   MODELO_TARDA_SEGUNDOS,
+  esFaseDelModelo,
+  etiquetaDeFase,
   indiceDeFase,
 } from '../../fases-corrida';
 
@@ -58,6 +59,13 @@ export class ProgresoCorrida implements OnDestroy {
   readonly fase = input<string | null>(null);
   /** Marca ISO con zona en la que el backend entró en la fase actual (S4). */
   readonly faseDesde = input<string | null>(null);
+  /**
+   * Presupuesto de espera del modelo en segundos (`AGENTE_TIMEOUT_S`).
+   *
+   * Llega del backend con la corrida: `null` en corridas viejas, y entonces el techo
+   * simplemente no se muestra.
+   */
+  readonly timeoutS = input<number | null>(null);
 
   protected readonly fases = FASES_CORRIDA;
   protected readonly segundosDeEspera = MODELO_TARDA_SEGUNDOS;
@@ -76,10 +84,7 @@ export class ProgresoCorrida implements OnDestroy {
     this.tickMs,
   );
 
-  protected readonly etiquetaActual = computed(() => {
-    const indice = this.indiceActual();
-    return indice < 0 ? '' : this.fases[indice].etiqueta;
-  });
+  protected readonly etiquetaActual = computed(() => etiquetaDeFase(this.fase()));
 
   /**
    * El cronómetro se evalúa en cada vuelta de detección de cambios (no es un
@@ -93,7 +98,14 @@ export class ProgresoCorrida implements OnDestroy {
 
   protected esperaLarga(): boolean {
     this.pulso();
-    return this.fase() === FASE_MODELO && this.segundosEnFase() >= ESPERA_LARGA_MODELO_SEGUNDOS;
+    // El reintento es la misma espera larga: el step no cambia, el reloj tampoco.
+    return esFaseDelModelo(this.fase()) && this.segundosEnFase() >= ESPERA_LARGA_MODELO_SEGUNDOS;
+  }
+
+  /** El techo de espera sólo tiene sentido en la consulta al modelo: es la única fase
+   *  que puede agotar el ``timeout``. En el resto de las fases sería un número ajeno. */
+  protected enEsperaDelModelo(): boolean {
+    return esFaseDelModelo(this.fase());
   }
 
   ngOnDestroy(): void {

@@ -120,6 +120,39 @@ def test_producto_con_ficha_curada_se_da_de_alta(
     assert quinoa.ciclo_dias > 0
 
 
+def test_el_agente_disenia_con_un_producto_de_ficha_curada(
+    cliente_autenticado: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """El caso que rompía la demo: un producto fuera del catálogo con ficha curada.
+
+    El paso 4 resuelve el producto antes de correr: sin ficha y sin web la corrida
+    moría con 422. Con la ficha de chía la corrida termina y recomienda el cultivo.
+    """
+
+    from app.core.config import settings
+
+    cliente = cliente_autenticado
+    proyecto_id = _proyecto(cliente)
+    # Sin clave el agente corre en modo catálogo: determinístico y sin gastar tokens.
+    monkeypatch.setattr(settings, "AGENTE_API_KEY", "", raising=False)
+
+    disparo = cliente.post(
+        f"/proyectos/{proyecto_id}/agente",
+        json={"productos": [{"producto_texto": "Chía"}]},
+    )
+    assert disparo.status_code == 202, disparo.text
+
+    corrida = cliente.get(f"/agente/corridas/{disparo.json()['corrida_id']}").json()
+    assert (corrida["estado"], corrida["fase"]) == ("ok", "listo")
+
+    codigos = [aviso["codigo"] for aviso in corrida["salida"]["advertencias"]]
+    assert "PRODUCTO_NO_RECONOCIDO" not in codigos
+    assert any(
+        (cultivo["cultivo_codigo"] or "").startswith("chia")
+        for cultivo in corrida["salida"]["cultivos"]
+    )
+
+
 def test_producto_con_ficha_curada_no_duplica_el_cultivo(
     cliente_autenticado: TestClient, db_session: Session
 ) -> None:
@@ -340,6 +373,11 @@ def test_producto_sin_ficha_y_sin_web_no_se_inventa(
     )
     assert alta["status"] == 422, alta
     assert "No se pudo verificar" in alta["cuerpo"]["detail"]
+    # El motivo real es lo único accionable: sustituirlo por un texto fijo deja al
+    # usuario sin saber si le falta la clave, la ficha o la respuesta de la web.
+    assert "AGENTE_API_KEY" in alta["cuerpo"]["detail"]
+    # El mismo tope de 300 que usan las demás advertencias: el detalle viaja al usuario.
+    assert len(alta["cuerpo"]["detail"]) <= 300
 
     bloques = cliente.get(f"/proyectos/{proyecto_id}/cultivos").json()
     assert bloques == []

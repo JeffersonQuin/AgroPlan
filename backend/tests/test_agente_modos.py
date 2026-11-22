@@ -53,7 +53,7 @@ def test_modo_catalogo_no_llama_al_modelo_aunque_haya_clave(
     modo("catalogo", "sk-prueba")
     llamado = False
 
-    def no_deberia(_contexto):
+    def no_deberia(_contexto, on_fase=None):
         nonlocal llamado
         llamado = True
         raise AssertionError("AGENTE_MODO=catalogo no debe llamar al modelo")
@@ -110,7 +110,9 @@ def test_modo_llm_con_clave_usa_el_modelo(modo, monkeypatch: pytest.MonkeyPatch)
             num_sectores=1,
         ),
     )
-    monkeypatch.setattr(cliente, "_propuesta_llm", lambda _contexto: (cruda, 10, 20))
+    monkeypatch.setattr(
+        cliente, "_propuesta_llm", lambda _contexto, on_fase=None: (cruda, 10, 20)
+    )
 
     resultado = ejecutar(_contexto())
 

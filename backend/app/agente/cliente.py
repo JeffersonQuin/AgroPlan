@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import math
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
@@ -45,6 +46,13 @@ JUSTIFICACION_CATALOGO = (
 
 class ErrorAgente(Exception):
     """La corrida no se pudo completar: el servicio la marca como ``error``."""
+
+
+# Sub-fase real del modelo: sólo se publica cuando el cliente arranca un segundo
+# intento. Sirve para que el stepper no parezca congelado durante la espera larga sin
+# inventar porcentajes de una llamada que bloquea y no transmite nada (16 caracteres,
+# entra en ``agente_corridas.fase``, que es ``String(20)``).
+FASE_MODELO_REINTENTO = "modelo_reintento"
 
 
 @dataclass(slots=True)
@@ -264,7 +272,10 @@ def _tokens(respuesta: Any, nombre: str) -> int | None:
     return int(valor) if isinstance(valor, (int, float)) else None
 
 
-def _propuesta_llm(contexto: ContextoAgente) -> tuple[PropuestaAgente, int | None, int | None]:
+def _propuesta_llm(
+    contexto: ContextoAgente,
+    on_fase: Callable[[str], None] | None = None,
+) -> tuple[PropuestaAgente, int | None, int | None]:
     Agent, OpenAILike = _importar_agno()
 
     modelo = OpenAILike(
@@ -302,7 +313,11 @@ def _propuesta_llm(contexto: ContextoAgente) -> tuple[PropuestaAgente, int | Non
 
     intentos = 1 + max(settings.AGENTE_REINTENTOS, 0)
     ultimo_error: Exception | None = None
-    for _ in range(intentos):
+    for intento in range(intentos):
+        if intento > 0 and on_fase is not None:
+            # El reintento es lo único que se sabe de este intento antes de que el
+            # modelo responda: se avisa acá, no antes de la primera llamada.
+            on_fase(FASE_MODELO_REINTENTO)
         respuesta = agente.run(mensaje)
         contenido = getattr(respuesta, "content", None)
         try:
@@ -345,8 +360,15 @@ def _propuesta_llm(contexto: ContextoAgente) -> tuple[PropuestaAgente, int | Non
 # --------------------------------------------------------------------------- #
 
 
-def ejecutar(contexto: ContextoAgente) -> ResultadoAgente:
-    """Corre el agente y devuelve la propuesta ya corregida y validada."""
+def ejecutar(
+    contexto: ContextoAgente,
+    on_fase: Callable[[str], None] | None = None,
+) -> ResultadoAgente:
+    """Corre el agente y devuelve la propuesta ya corregida y validada.
+
+    ``on_fase`` es opcional y por defecto no hace nada: el servicio lo usa para
+    publicar el reintento del modelo en la corrida, sin cambiar el contrato de salida.
+    """
 
     catalogo_por_codigo = {
         str(cultivo["codigo"]): cultivo for cultivo in contexto.catalogo
@@ -355,7 +377,7 @@ def ejecutar(contexto: ContextoAgente) -> ResultadoAgente:
     usar_modelo = settings.AGENTE_MODO == "llm" and bool(settings.AGENTE_API_KEY)
 
     if usar_modelo:
-        propuesta, tokens_entrada, tokens_salida = _propuesta_llm(contexto)
+        propuesta, tokens_entrada, tokens_salida = _propuesta_llm(contexto, on_fase=on_fase)
         fuentes = [
             FuenteRecuperada(
                 tipo="catalogo_interno",

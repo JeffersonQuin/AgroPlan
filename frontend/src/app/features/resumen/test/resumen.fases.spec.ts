@@ -286,4 +286,79 @@ describe('ResumenPage (progreso real del agente: S2, S3, S4)', () => {
 
     harness.fixture.destroy();
   });
+
+  it('el reintento del modelo no agrega un paso: se muestra dentro del mismo (S2)', async () => {
+    sembrarBorrador();
+    const harness = await montar();
+    const html = await generando(harness, {
+      fase: 'modelo_reintento',
+      fase_desde: haceSegundos(3),
+      timeout_s: 240,
+    });
+
+    // El stepper sigue teniendo los mismos 6 pasos y el del modelo es el actual.
+    expect(html.querySelectorAll('[data-fase]').length).toBe(6);
+    expect(fase(html, 'contexto').getAttribute('data-estado-fase')).toBe('cumplida');
+    expect(fase(html, 'modelo').getAttribute('data-estado-fase')).toBe('actual');
+    for (const pendiente of ['validacion', 'precios', 'red', 'listo']) {
+      expect(fase(html, pendiente).getAttribute('data-estado-fase')).toBe('pendiente');
+    }
+
+    // La sub-fase se nombra: es lo único que cambió del lado del servidor.
+    expect(html.textContent).toContain('Reintentando la consulta al modelo');
+    expect(html.querySelector('[data-cronometro]')?.textContent?.trim()).toBe('0:03');
+
+    // El techo de espera lo publica el backend: no es una estimación del navegador.
+    expect(html.querySelector('[data-presupuesto-espera]')?.textContent?.trim()).toBe('/ 240 s');
+
+    harness.fixture.destroy();
+  });
+
+  it('el reintento también explica la espera larga del modelo (S2)', async () => {
+    sembrarBorrador();
+    const harness = await montar();
+    const html = await generando(harness, {
+      fase: 'modelo_reintento',
+      fase_desde: haceSegundos(5),
+      timeout_s: 240,
+    });
+
+    await avanzar(harness, 16);
+    expect(html.querySelector('[data-espera-larga]')).not.toBeNull();
+
+    harness.fixture.destroy();
+  });
+
+  it('sin timeout_s se oculta el techo de espera y el cronómetro sigue (S2)', async () => {
+    sembrarBorrador();
+    const harness = await montar();
+    const html = await generando(harness, {
+      fase: 'modelo',
+      fase_desde: haceSegundos(3),
+      timeout_s: null,
+    });
+
+    expect(html.querySelector('[data-cronometro]')?.textContent?.trim()).toBe('0:03');
+    expect(html.querySelector('[data-presupuesto-espera]')).toBeNull();
+    expect(html.textContent).not.toContain('/ 240 s');
+
+    harness.fixture.destroy();
+  });
+  it('el techo de espera no aparece fuera de la fase del modelo (S2)', async () => {
+    sembrarBorrador();
+    const harness = await montar();
+
+    // El timeout es del modelo: en las demás fases ese número no significa nada.
+    for (const faseFuera of ['contexto', 'validacion', 'precios', 'red', 'listo']) {
+      const html = await generando(harness, {
+        fase: faseFuera,
+        fase_desde: haceSegundos(3),
+        timeout_s: 240,
+      });
+
+      expect(html.querySelector('[data-presupuesto-espera]')).toBeNull();
+    }
+
+    harness.fixture.destroy();
+  });
 });

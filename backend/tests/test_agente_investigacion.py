@@ -19,6 +19,7 @@ from app.agente.investigacion import (
     FRAGMENTO_MAX,
     InvestigacionError,
     ProductoNoReconocido,
+    _contenido,
     investigar,
 )
 from app.core.config import settings
@@ -119,6 +120,33 @@ def test_ficha_curada_gana_sin_red() -> None:
     assert resultado.meses_siembra == [3, 4, 9, 10]
     assert [fuente.tipo for fuente in resultado.fuentes] == ["manual"]
     assert resultado.fuentes[0].url is None
+
+
+def test_ficha_curada_de_chia_resuelve_sin_red() -> None:
+    """La chía no está en el catálogo: la ficha curada la resuelve sin gastar búsquedas."""
+
+    def fake(consulta: str) -> list[dict]:
+        raise AssertionError("la ficha curada no debe consultar la web")
+
+    resultado = investigar("Chía", catalogo=CATALOGO_VACIO, busqueda_web=fake)
+
+    assert resultado.codigo == "chia"
+    assert resultado.origen == "ficha"
+    assert resultado.busquedas == 0
+    assert 0 < resultado.demanda_agua_l_m2_dia <= 20
+    assert 1 <= resultado.ciclo_dias <= 730
+
+
+def test_json_envuelto_en_cerco_de_markdown_se_parsea() -> None:
+    """El modelo devuelve el JSON entre ```json: descartarlo perdía la investigación."""
+
+    class Respuesta:
+        content = '```json\n{"nombre": "Chía", "demanda_agua_l_m2_dia": 2.0}\n```'
+
+    assert _contenido(Respuesta()) == {
+        "nombre": "Chía",
+        "demanda_agua_l_m2_dia": 2.0,
+    }
 
 
 def test_web_valida_cita_url_y_recorta_fragmento() -> None:

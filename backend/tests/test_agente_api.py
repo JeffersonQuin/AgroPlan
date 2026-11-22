@@ -256,7 +256,7 @@ def test_corrida_error_registra_el_detalle(
     cliente = cliente_autenticado
     proyecto_id = _proyecto_con_cultivos(cliente)
 
-    def fallar(_contexto):
+    def fallar(_contexto, on_fase=None):
         raise ErrorAgente("el gateway no respondió")
 
     monkeypatch.setattr(agente_service, "ejecutar_agente", fallar)
