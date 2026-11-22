@@ -9,11 +9,16 @@ import {
 import { WATER_SOURCE_OPTIONS, WaterSource } from '../../models/terrain.model';
 import { TerrainStore } from '../../state/terrain.store';
 
-/** The icon each validation state renders. */
-const VALIDACION_ICONS = {
-  ok: matCheckCircleOutline,
-  warning: matErrorOutline,
-} as const;
+/**
+ * The registry name of the icon each validation state renders.
+ *
+ * `provideIcons({ matCheckCircleOutline })` registers that name as the key and the SVG as the
+ * value, so the name `[name]` receives must be the string, never the SVG constant.
+ */
+const VALIDACION_ICONS: Record<'ok' | 'warning', string> = {
+  ok: 'matCheckCircleOutline',
+  warning: 'matErrorOutline',
+};
 
 /** Right rail of the terrain step: geometry summary, validations and water. */
 @Component({

@@ -16,10 +16,15 @@ import {
 import { WizardDraftStore } from '../../../wizard/state/wizard-draft.store';
 import { RiegoStore } from '../../state/riego.store';
 
-/** The icon each `EnergiaIcono` key renders. */
+/**
+ * The registry name of the icon each `EnergiaIcono` key renders.
+ *
+ * `provideIcons({ matBoltOutline })` registers that name as the key and the SVG as the value,
+ * so the name `[name]` receives must be the string, never the SVG constant.
+ */
 const ENERGIA_ICONS: Record<EnergiaIcono, string> = {
-  bolt: matBoltOutline,
-  solar_power: matSolarPowerOutline,
+  bolt: 'matBoltOutline',
+  solar_power: 'matSolarPowerOutline',
 };
 
 /**

@@ -12,17 +12,18 @@ import { FieldTree, FormField } from '@angular/forms/signals';
 export type RegisterFieldIcon = 'badge' | 'mail' | 'lock' | 'lock_reset';
 
 /**
- * Typed map from the dynamic icon key to the imported SVG icon.
+ * Registry name of the icon each `RegisterFieldIcon` key renders.
  *
- * The map is also the per-component icon registry: `provideIcons(FIELD_ICONS)`
- * registers each key, so `<ng-icon [name]="icon()" />` resolves without a
- * global registry and the tree-shaking of the icon set is preserved.
+ * `provideIcons({ matBadgeOutline })` registers that name as the key and the SVG as the value,
+ * so the name `[name]` receives must be the string, never the SVG constant. The map key is also
+ * normalised by `NgIcon` (`lock_reset` → `lockReset`), which is why the underscore key must not
+ * reach `[name]` directly.
  */
 const FIELD_ICONS: Record<RegisterFieldIcon, string> = {
-  badge: matBadgeOutline,
-  mail: matMailOutline,
-  lock: matLockOutline,
-  lock_reset: matLockResetOutline,
+  badge: 'matBadgeOutline',
+  mail: 'matMailOutline',
+  lock: 'matLockOutline',
+  lock_reset: 'matLockResetOutline',
 };
 
 /**
@@ -35,14 +36,16 @@ const FIELD_ICONS: Record<RegisterFieldIcon, string> = {
 @Component({
   selector: 'app-register-field',
   imports: [FormField, NgIcon],
-  viewProviders: [provideIcons(FIELD_ICONS)],
+  viewProviders: [
+    provideIcons({ matBadgeOutline, matMailOutline, matLockOutline, matLockResetOutline }),
+  ],
   template: `
     <div class="flex flex-col gap-space-xs">
       <label class="text-label-md text-on-surface" [attr.for]="inputId()">{{ label() }}</label>
       <div class="relative flex items-center">
         <ng-icon
           class="absolute left-3 text-on-surface-variant"
-          [name]="icon()"
+          [name]="FIELD_ICONS[icon()]"
           size="20"
           aria-hidden="true"
         />
@@ -76,6 +79,9 @@ export class RegisterFormField {
   readonly autocomplete = input<string>('off');
   /** Touched-only error message computed by the parent. */
   readonly error = input('');
+
+  /** Icon registry names, exposed to the template. */
+  protected readonly FIELD_ICONS = FIELD_ICONS;
 
   protected readonly invalid = computed(() => this.error().length > 0);
 }

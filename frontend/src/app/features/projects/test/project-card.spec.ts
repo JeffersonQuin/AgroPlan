@@ -63,6 +63,18 @@ describe('ProjectCard', () => {
     expect(text).toContain('Abrir proyecto');
   });
 
+  it('renders an inline SVG for every icon of the three fixtures', async () => {
+    for (const index of [0, 1, 2]) {
+      const fixture = await render(index);
+      const icons = Array.from(
+        fixture.nativeElement.querySelectorAll('ng-icon') as NodeListOf<HTMLElement>,
+      );
+
+      expect(icons.length).toBeGreaterThan(0);
+      expect(icons.filter((icon) => icon.querySelector('svg') === null).length).toBe(0);
+    }
+  });
+
   it('labels an in-progress project with the step it resumes', async () => {
     const fixture = await render(1);
     const text = fixture.nativeElement.textContent as string;

@@ -240,6 +240,18 @@ describe('RegisterForm', () => {
     expect(fixture.nativeElement.textContent).toContain('¿Ya tienes una cuenta activa?');
     expect(fixture.nativeElement.querySelector('a[href="/login"]')).not.toBeNull();
   });
+
+  it('renders an inline SVG for each of the four field icons', async () => {
+    const fixture = await render();
+    const icons = Array.from(
+      fixture.nativeElement.querySelectorAll(
+        'app-register-field ng-icon',
+      ) as NodeListOf<HTMLElement>,
+    );
+
+    expect(icons.length).toBe(4);
+    expect(icons.filter((icon) => icon.querySelector('svg') === null).length).toBe(0);
+  });
 });
 
 interface Fixture {

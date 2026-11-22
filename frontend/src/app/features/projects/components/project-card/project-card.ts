@@ -20,14 +20,19 @@ import { Project, ProjectCardIcon } from '../../models/project.model';
 import { formatArea, formatModifiedAt } from '../../utils/project-format';
 import { ProjectPreview } from '../project-preview/project-preview';
 
-/** The icon each `ProjectCardIcon` key renders. */
+/**
+ * The registry name of the icon each `ProjectCardIcon` key renders.
+ *
+ * `provideIcons({ matVerifiedOutline })` registers that name as the key and the SVG as the
+ * value, so the name `[name]` receives must be the string, never the SVG constant.
+ */
 const CARD_ICONS: Record<ProjectCardIcon, string> = {
-  verified: matVerifiedOutline,
-  pending: matPendingOutline,
-  check_circle: matCheckCircleOutline,
-  edit_note: matEditNoteOutline,
-  tune: matTuneOutline,
-  settings: matSettingsOutline,
+  verified: 'matVerifiedOutline',
+  pending: 'matPendingOutline',
+  check_circle: 'matCheckCircleOutline',
+  edit_note: 'matEditNoteOutline',
+  tune: 'matTuneOutline',
+  settings: 'matSettingsOutline',
 };
 
 /** One project in the dashboard grid, with its schematic and key metrics. */
