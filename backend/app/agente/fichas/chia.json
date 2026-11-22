@@ -1,0 +1,81 @@
+{
+  "codigo": "chia",
+  "nombre": "Chía",
+  "icono": "C",
+  "color": "#4E6E58",
+  "demanda_agua_l_m2_dia": 2.0,
+  "ciclo_dias": 140,
+  "meses_siembra": [
+    10,
+    11,
+    12,
+    1
+  ],
+  "notas": "Cultivo de ciclo medio, tolerante a la sequía y a suelos pobres; muy sensible al anegamiento durante la floración. Conviene sembrarlo temprano y regar en pulsos cortos. Ficha curada de un cultivo que no está en el catálogo sembrado.",
+  "imagen": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b0/Salvia_hispanica_-_leaf.jpg/1280px-Salvia_hispanica_-_leaf.jpg",
+  "imagen_fuente": "https://commons.wikimedia.org/wiki/File:Salvia_hispanica_-_leaf.jpg",
+  "imagen_credito": "Foto: Eiku en exil / Wikimedia Commons, CC BY-SA 4.0",
+  "fuentes": [
+    {
+      "tipo": "manual",
+      "titulo": "Ficha técnica curada AgroPlan",
+      "url": null,
+      "fragmento": "Ficha de referencia para el camino híbrido de investigación"
+    }
+  ],
+  "kc": 0.85,
+  "densidad_plantas_m2": 10.0,
+  "profundidad_raiz_cm": 60,
+  "aptitud_suelo": {
+    "franco": {
+      "veredicto": "apto",
+      "motivo": "Se adapta bien; el drenaje del franco evita el anegamiento que la afecta.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "arenoso": {
+      "veredicto": "apto",
+      "motivo": "Tolera suelos sueltos y pobres, con riego más frecuente.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "arcilloso": {
+      "veredicto": "no_apto",
+      "motivo": "Drenaje lento: un encharcamiento en floración arruina el cultivo.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "limoso": {
+      "veredicto": "condicionado",
+      "motivo": "Apto con drenaje asegurado y surcos altos.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "franco_arenoso": {
+      "veredicto": "apto",
+      "motivo": "Suelo de referencia del cultivo: suelto y con buen drenaje.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "franco_arcilloso": {
+      "veredicto": "condicionado",
+      "motivo": "Rinde con drenaje asegurado; riesgo de exceso de humedad en floración.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "salino": {
+      "veredicto": "condicionado",
+      "motivo": "Tolera salinidad moderada, con una merma de desarrollo.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "calcareo": {
+      "veredicto": "apto",
+      "motivo": "Se desarrolla bien en suelos calcáreos.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "pedregoso": {
+      "veredicto": "condicionado",
+      "motivo": "Tolera, con menor desarrollo radicular y más riego.",
+      "fuente": "Ficha curada AgroPlan"
+    },
+    "organico": {
+      "veredicto": "condicionado",
+      "motivo": "Exceso de nitrógeno provoca mucho follaje y poca semilla.",
+      "fuente": "Ficha curada AgroPlan"
+    }
+  }
+}

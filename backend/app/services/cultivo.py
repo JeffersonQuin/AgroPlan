@@ -281,14 +281,15 @@ def _resolver_producto(
 
     try:
         investigacion = investigar(texto, catalogo=filas)
-    except ProductoNoReconocido:
+    except ProductoNoReconocido as exc:
+        # El motivo real (sin clave, la web no devolvió demanda y ciclo, agno ausente) es
+        # la única información útil que puede accionar el usuario: sustituirlo por un
+        # texto fijo lo manda a un callejón sin salida.
+        motivo = str(exc).strip() or "no hay con qué verificar el producto"
         return None, [
             Advertencia(
                 codigo="PRODUCTO_NO_RECONOCIDO",
-                mensaje=(
-                    f"No se pudo verificar '{texto}': no hay ficha curada y la búsqueda "
-                    "web no está disponible. Cargá la ficha o configurá el agente."
-                )[:300],
+                mensaje=(f"No se pudo verificar '{texto}': {motivo}")[:300],
                 bloqueante=True,
                 campo="producto_texto",
             )
