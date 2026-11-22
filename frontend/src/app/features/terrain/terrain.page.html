@@ -1,4 +1,4 @@
-<div class="bg-agro-surface text-slate-800 font-sans min-h-screen flex flex-col antialiased select-none">
+<div class="bg-agro-surface text-slate-800 font-sans min-h-screen flex flex-col antialiased">
   <app-wizard-header
     [paso]="1"
     [nombreProyecto]="store.nombreProyecto()"
@@ -6,10 +6,10 @@
     (guardar)="store.guardar()"
   />
   <main
-    class="flex-1 p-4 grid grid-cols-1 lg:grid-cols-[300px_1fr_320px] gap-4 max-w-[1920px] mx-auto w-full items-start overflow-hidden"
+    class="flex-1 w-full max-w-[1920px] mx-auto grid grid-cols-1 lg:grid-cols-[300px_1fr_320px] items-start gap-space-md sm:gap-space-lg lg:gap-space-xl p-space-md sm:p-space-lg lg:p-space-xl"
   >
-    <app-terrain-form (continuar)="onContinuar()" />
-    <app-terrain-canvas />
-    <app-terrain-summary />
+    <app-terrain-form class="min-w-0" (continuar)="onContinuar()" />
+    <app-terrain-canvas class="min-w-0 select-none" />
+    <app-terrain-summary class="min-w-0" />
   </main>
 </div>

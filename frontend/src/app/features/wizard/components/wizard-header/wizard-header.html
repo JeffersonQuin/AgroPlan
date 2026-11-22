@@ -1,8 +1,8 @@
 <header
-  class="h-16 bg-white border-b border-agro-border px-5 flex items-center justify-between sticky top-0 z-50 shrink-0"
+  class="min-h-16 lg:h-16 bg-white border-b border-agro-border px-space-sm sm:px-space-lg lg:px-5 py-space-sm lg:py-0 flex flex-wrap lg:flex-nowrap items-center justify-between gap-space-sm lg:gap-0 sticky top-0 z-50 shrink-0"
 >
   <!-- Brand identity -->
-  <div class="flex items-center gap-3 w-[290px]">
+  <div class="order-1 flex min-w-0 items-center gap-3 lg:w-[290px]">
     <div
       class="w-10 h-10 rounded-xl bg-gradient-to-tr from-agro-700 to-emerald-500 flex items-center justify-center text-white shadow-sm ring-2 ring-emerald-100"
     >
@@ -22,10 +22,10 @@
         <path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"></path>
       </svg>
     </div>
-    <div>
+    <div class="min-w-0">
       <h1 class="text-xl font-extrabold tracking-tight text-agro-800 leading-none">AgroPlan</h1>
       <p
-        class="text-[11px] text-slate-500 font-medium tracking-tight mt-0.5 max-w-[220px] truncate"
+        class="text-[11px] text-slate-500 font-medium tracking-tight mt-0.5 max-w-[140px] sm:max-w-[220px] truncate"
         [title]="nombreProyecto()"
       >
         {{ nombreProyecto() }}
@@ -33,7 +33,10 @@
     </div>
   </div>
   <!-- Stepper Navigation -->
-  <nav aria-label="Progreso del proyecto" class="flex items-center gap-2 md:gap-3">
+  <nav
+    aria-label="Progreso del proyecto"
+    class="order-3 flex w-full items-center justify-center gap-1 sm:gap-2 md:gap-3 lg:order-2 lg:w-auto"
+  >
     @for (paso of pasos; track paso.numero; let ultimo = $last) {
       <div
         class="flex items-center gap-2"
@@ -56,7 +59,7 @@
           }
         </span>
         <span
-          class="text-xs md:text-sm"
+          class="hidden text-xs md:inline md:text-sm"
           [class]="
             estadoPaso(paso.numero) === 'activo'
               ? 'font-bold text-agro-700 border-b-2 border-agro-500 pb-0.5'
@@ -77,10 +80,10 @@
     }
   </nav>
   <!-- Header actions -->
-  <div class="flex items-center gap-3">
+  <div class="order-2 flex items-center gap-2 md:gap-3 lg:order-3">
     <!-- Autosave pill -->
     <div
-      class="hidden xl:flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-medium border border-emerald-200/80"
+      class="hidden xl:flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-medium border border-emerald-200/80 whitespace-nowrap"
     >
       <svg
         class="w-3.5 h-3.5 text-emerald-600"
@@ -98,7 +101,7 @@
     </div>
     <!-- Export PDF button -->
     <button
-      class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-slate-300 text-slate-400 text-xs font-semibold shadow-sm"
+      class="inline-flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-lg border border-slate-300 text-slate-400 text-xs font-semibold shadow-sm whitespace-nowrap"
       type="button"
       title="Exportar PDF: próximamente"
       disabled
@@ -118,11 +121,11 @@
         <path d="M10 12v6"></path>
         <path d="m13 15-3 3-3-3"></path>
       </svg>
-      Exportar PDF
+      <span class="hidden sm:inline">Exportar PDF</span>
     </button>
     <!-- Primary Save button -->
     <button
-      class="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-agro-500 hover:bg-agro-600 active:bg-agro-700 text-white text-xs font-semibold shadow-sm shadow-emerald-700/20 transition-all duration-150"
+      class="inline-flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-lg bg-agro-500 hover:bg-agro-600 active:bg-agro-700 text-white text-xs font-semibold shadow-sm shadow-emerald-700/20 transition-all duration-150 whitespace-nowrap"
       type="button"
       (click)="guardar.emit()"
     >
