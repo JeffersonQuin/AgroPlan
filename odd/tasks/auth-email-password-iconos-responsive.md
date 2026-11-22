@@ -41,6 +41,20 @@ Convención de implementación de S3 (obligatoria para todas las pantallas):
 - Nombres dinámicos (un `signal`/propiedad que devuelve un nombre de ícono) se resuelven con un
   `const` map tipado de la clave dinámica al const del ícono importado, y todos los íconos del
   map se declaran en `provideIcons`.
+- **El map debe devolver el nombre del ícono como string, nunca el const importado**, porque
+  `provideIcons({ matFooOutline })` registra la clave `matFooOutline` cuyo valor es el SVG:
+  `NgIcon` normaliza el `name` con `toPropertyName()` y busca esa clave
+  (`@ng-icons/core/fesm2022/ng-icons-core.mjs:335-341,425-451`), así que recibir el SVG produce
+  `No icon named … was found` y el ícono queda en blanco. Por la misma normalización, una clave
+  con guion bajo (`lock_reset` → `lockReset`) no coincide: el valor que llega a `[name]` tiene
+  que ser el nombre camelCase del ícono.
+- Alternativa aceptada, usada por `register-hero` para sus cuatro capacidades: registrar el SVG
+  bajo una clave semántica propia (`provideIcons({ ...FEATURE_ICONS })` con claves
+  `architecture`/`eco`/`valve`/`summarize`) y pasar esa misma clave a `[name]`. Vale mientras la
+  clave registrada y la que llega al template sean idénticas; no mezclar los dos patrones dentro
+  del mismo componente.
+- Cada grupo de íconos dinámicos tiene un test que exige que el `<ng-icon>` contenga un `<svg>`:
+  sin eso, un nombre mal resuelto queda en blanco sin romper ningún test.
 - Al final no queda ninguna referencia a `material-symbols-outlined` en `src/` ni el `<link>`
   de Google Fonts de Material Symbols en `src/index.html`.
 
@@ -103,6 +117,7 @@ tocar la rama en la que trabaja el otro agente.
 - `da94b83` — `feat(register)`: registro con correo y contraseña + responsive de `/register` +
   íconos de `register/**`.
 - `4bda26d` — `refactor(icons)`: 61 spans del resto del app a SVG inline y quita de la fuente.
+- `8fc881a` — `fix(icons)`: los cuatro grupos dinámicos resuelven el nombre del registro (S3).
 
 
 ## Log
@@ -167,3 +182,19 @@ fuera de esta tarea.
 **L14** — Limpieza: prettier reformateó archivos fuera del alcance (specs, `google-sign-in`,
 `terrain-canvas`, `*-api.ts`, stores y previews). Se revirtieron para que el diff contenga
 sólo los cambios de la tarea.
+
+**L15** — Hallazgo del verificador independiente: S3 fallaba en cuatro grupos de íconos
+(`project-card` cabecera y estado, `riego-form` energía, `terrain-summary` validaciones y
+`form-field` `lock_reset`) porque los mapas devolvían el SVG en lugar de la clave del registro,
+y `lock_reset` no sobrevive la normalización a `lockReset`. El chequeo estructural propio no lo
+detectaba porque validaba que el componente mencionara el ícono, no que el `name` binding
+coincidiera con una clave registrada. Corregido en `8fc881a`.
+
+**L16** — Evidencia: `ng test --watch=false` → 22 archivos / 147 tests verdes y cero warnings
+`No icon named`. Los cuatro tests nuevos fallan sobre el código anterior (4 failed / 25 passed,
+nueve warnings) y pasan después: son la prueba durable de S3.
+
+**L17** — Riesgo residual aceptado: `register-hero` registra sus cuatro capacidades bajo claves
+semánticas propias; funciona y queda documentado como patrón alternativo en S3. Si se renombra
+una de esas claves, el ícono queda en blanco, y ese grupo no tiene test propio: queda anotado
+como deuda.
