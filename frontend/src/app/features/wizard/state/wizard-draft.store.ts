@@ -1,4 +1,11 @@
 import { Service, computed, signal } from '@angular/core';
+import {
+  EnergiaDisponible,
+  PRESUPUESTO_MINIMO_BS,
+  RESTRICCIONES_INICIALES,
+  RestriccionesBorrador,
+  normalizarMonto,
+} from '../models/restricciones.model';
 
 /** Un producto que el usuario quiere sembrar, mientras arma el proyecto. */
 export interface ProductoBorrador {
@@ -16,6 +23,8 @@ interface Borrador {
   proyectoId: string;
   productos: ProductoBorrador[];
   siembra: string;
+  /** Opcional: los borradores guardados antes del paso 3 no lo tienen. */
+  restricciones?: RestriccionesBorrador;
 }
 
 /**
@@ -31,13 +40,30 @@ interface Borrador {
 export class WizardDraftStore {
   private readonly _productos = signal<ProductoBorrador[]>([]);
   private readonly _siembra = signal(hoy());
+  private readonly _restricciones = signal<RestriccionesBorrador>({ ...RESTRICCIONES_INICIALES });
   private readonly _proyectoId = signal('');
 
   readonly productos = this._productos.asReadonly();
   readonly siembra = this._siembra.asReadonly();
+  readonly restricciones = this._restricciones.asReadonly();
 
   readonly cantidad = computed(() => this._productos().length);
   readonly vacio = computed(() => this._productos().length === 0);
+
+  readonly energia = computed(() => this._restricciones().energia);
+  readonly tanqueL = computed(() => this._restricciones().tanque_l);
+  readonly presupuestoBs = computed(() => this._restricciones().presupuesto_bs);
+
+  /** El monto que realmente se manda: por debajo del piso no viaja al agente. */
+  readonly presupuestoEfectivo = computed(() => {
+    const monto = this._restricciones().presupuesto_bs;
+    return monto === null || monto < PRESUPUESTO_MINIMO_BS ? null : monto;
+  });
+
+  readonly presupuestoBajoElPiso = computed(() => {
+    const monto = this._restricciones().presupuesto_bs;
+    return monto !== null && monto < PRESUPUESTO_MINIMO_BS;
+  });
 
   /** Carga el borrador del proyecto, si había uno guardado. */
   cargar(proyectoId: string): void {
@@ -46,10 +72,12 @@ export class WizardDraftStore {
     if (guardado === null) {
       this._productos.set([]);
       this._siembra.set(hoy());
+      this._restricciones.set({ ...RESTRICCIONES_INICIALES });
       return;
     }
     this._productos.set(guardado.productos);
     this._siembra.set(guardado.siembra);
+    this._restricciones.set({ ...RESTRICCIONES_INICIALES, ...guardado.restricciones });
   }
 
   agregarProducto(
@@ -81,10 +109,29 @@ export class WizardDraftStore {
     this.guardar();
   }
 
+  setEnergia(energia: EnergiaDisponible): void {
+    this._restricciones.update((restricciones) => ({ ...restricciones, energia }));
+    this.guardar();
+  }
+
+  setTanqueL(tanqueL: number | null): void {
+    this._restricciones.update((restricciones) => ({ ...restricciones, tanque_l: tanqueL }));
+    this.guardar();
+  }
+
+  setPresupuestoBs(valor: string | number | null): void {
+    this._restricciones.update((restricciones) => ({
+      ...restricciones,
+      presupuesto_bs: normalizarMonto(valor),
+    }));
+    this.guardar();
+  }
+
   /** Payload para el disparo del agente en el paso 4. */
   aPayload(): {
     productos: { cultivo_codigo?: string; producto_texto?: string }[];
     siembra: string;
+    restricciones: RestriccionesBorrador;
   } {
     return {
       productos: this._productos().map((producto) =>
@@ -93,12 +140,17 @@ export class WizardDraftStore {
           : { producto_texto: producto.texto },
       ),
       siembra: this._siembra(),
+      restricciones: {
+        ...this._restricciones(),
+        presupuesto_bs: this.presupuestoEfectivo(),
+      },
     };
   }
 
   limpiar(): void {
     this._productos.set([]);
     this._siembra.set(hoy());
+    this._restricciones.set({ ...RESTRICCIONES_INICIALES });
     this.guardar();
   }
 
@@ -110,6 +162,7 @@ export class WizardDraftStore {
         proyectoId,
         productos: this._productos(),
         siembra: this._siembra(),
+        restricciones: this._restricciones(),
       };
       localStorage.setItem(CLAVE, JSON.stringify(borrador));
     } catch {

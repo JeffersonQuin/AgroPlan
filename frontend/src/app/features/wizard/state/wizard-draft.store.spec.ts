@@ -64,4 +64,61 @@ describe('WizardDraftStore', () => {
 
     expect(store.productos().map((producto) => producto.etiqueta)).toEqual(['Lechuga']);
   });
+
+  it('starts the step 3 restrictions with the defaults', () => {
+    expect(store.energia()).toBe('red-electrica');
+    expect(store.tanqueL()).toBeNull();
+    expect(store.presupuestoBs()).toBeNull();
+    expect(store.presupuestoBajoElPiso()).toBe(false);
+    expect(store.aPayload().restricciones).toEqual({
+      energia: 'red-electrica',
+      tanque_l: null,
+      presupuesto_bs: null,
+    });
+  });
+
+  it('keeps the restrictions across a reload', () => {
+    store.setEnergia('solar');
+    store.setTanqueL(5000);
+    store.setPresupuestoBs('1500');
+
+    const otro = TestBed.inject(WizardDraftStore);
+    otro.cargar('p-1');
+
+    expect(otro.energia()).toBe('solar');
+    expect(otro.tanqueL()).toBe(5000);
+    expect(otro.presupuestoBs()).toBe(1500);
+  });
+
+  it('keeps a budget below the floor out of the payload and flags it', () => {
+    store.setPresupuestoBs('50');
+
+    expect(store.presupuestoBajoElPiso()).toBe(true);
+    expect(store.presupuestoEfectivo()).toBeNull();
+    expect(store.aPayload().restricciones.presupuesto_bs).toBeNull();
+  });
+
+  it('accepts a budget at or above the floor and ignores empty input', () => {
+    store.setPresupuestoBs('100');
+    expect(store.aPayload().restricciones.presupuesto_bs).toBe(100);
+
+    store.setPresupuestoBs('');
+    expect(store.presupuestoBs()).toBeNull();
+    expect(store.presupuestoBajoElPiso()).toBe(false);
+    expect(store.aPayload().restricciones.presupuesto_bs).toBeNull();
+  });
+
+  it('loads a draft saved before step 3 with the default restrictions', () => {
+    localStorage.setItem(
+      'agroplan.borrador',
+      JSON.stringify({ proyectoId: 'p-1', productos: [], siembra: '2026-12-01' }),
+    );
+
+    store.cargar('p-1');
+
+    expect(store.siembra()).toBe('2026-12-01');
+    expect(store.energia()).toBe('red-electrica');
+    expect(store.tanqueL()).toBeNull();
+    expect(store.presupuestoBs()).toBeNull();
+  });
 });
