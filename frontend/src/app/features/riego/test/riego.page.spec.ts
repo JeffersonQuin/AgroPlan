@@ -49,12 +49,12 @@ describe('RiegoPage (paso 3: sólo restricciones)', () => {
 
   afterEach(() => http.verify());
 
-  async function montar(caudalEfectivo = 1.8) {
+  async function montar(caudalEfectivo = 1.8, fuente: 'pozo' | 'pila' | 'tanque' | 'cisterna' = 'pozo') {
     const harness = await RouterTestingHarness.create('/proyectos/p-1/riego');
     http.expectOne('http://localhost:8000/proyectos/p-1').flush(PROYECTO);
     http
       .expectOne('http://localhost:8000/proyectos/p-1/terreno')
-      .flush({ ...TERRENO, caudal_efectivo_m3h: caudalEfectivo });
+      .flush({ ...TERRENO, fuente_agua: fuente, caudal_efectivo_m3h: caudalEfectivo });
     await harness.fixture.whenStable();
     return harness;
   }
@@ -134,5 +134,35 @@ describe('RiegoPage (paso 3: sólo restricciones)', () => {
     expect(html.textContent).toContain('El terreno no tiene caudal informado');
     // Avisa, no bloquea: el formulario sigue disponible.
     expect((html.querySelector('#presupuesto') as HTMLInputElement).disabled).toBe(false);
+  });
+
+  it('asks for the capacity of the tank the terrain already declares', async () => {
+    const harness = await montar(1.8, 'tanque');
+    const html = harness.routeNativeElement as HTMLElement;
+    const tanque = html.querySelector('#tanque') as HTMLSelectElement;
+    const etiquetas = Array.from(tanque.options).map((opcion) => opcion.textContent?.trim());
+
+    // La fuente ya es un depósito: preguntar "¿ya tenés tanque?" sería redundante.
+    expect(html.textContent).toContain('Capacidad de tu tanque');
+    expect(html.textContent).not.toContain('¿Ya tenés tanque?');
+    expect(html.textContent).toContain('El paso 1 ya declara tanque como fuente');
+    expect(etiquetas).toEqual(['2.500 L', '5.000 L', '10.000 L', 'No sé (lo estima el agente)']);
+    expect(html.textContent).toContain('Sin dato');
+  });
+
+  it('asks whether a tank exists when the source is a tap', async () => {
+    const harness = await montar(1.8, 'pila');
+    const html = harness.routeNativeElement as HTMLElement;
+    const tanque = html.querySelector('#tanque') as HTMLSelectElement;
+
+    expect(html.textContent).toContain('¿Ya tenés tanque?');
+    expect(html.textContent).toContain('El tanque es el depósito de cabecera, no la fuente');
+    expect(Array.from(tanque.options).map((opcion) => opcion.textContent?.trim())).toEqual([
+      'No tiene',
+      '2.500 L',
+      '5.000 L',
+      '10.000 L',
+    ]);
+    expect(html.textContent).toContain('No tiene');
   });
 });

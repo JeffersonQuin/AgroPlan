@@ -37,6 +37,17 @@ export const TANQUE_OPTIONS: readonly OpcionTanque[] = [
 ];
 
 /**
+ * Capacidades cuando la fuente del paso 1 **ya es** un depósito: no tiene sentido
+ * preguntar si tiene tanque, sólo cuánto guarda.
+ */
+export const TANQUE_DEPOSITO_OPTIONS: readonly OpcionTanque[] = [
+  { value: 2500, label: '2.500 L' },
+  { value: 5000, label: '5.000 L' },
+  { value: 10000, label: '10.000 L' },
+  { value: null, label: 'No sé (lo estima el agente)' },
+];
+
+/**
  * Piso del presupuesto informado.
  *
  * Sirve también para un jardín chico de patio, así que es bajo: por debajo de este monto

@@ -46,6 +46,18 @@ export class RiegoStore {
   /** Sin caudal el diseño queda condicionado: el paso avisa, no bloquea. */
   readonly sinCaudal = computed(() => this._caudalM3h() <= 0);
 
+  /**
+   * El paso 1 ya declara un depósito como fuente (tanque o cisterna): preguntar
+   * "¿ya tenés tanque?" sería preguntar dos veces lo mismo.
+   */
+  readonly fuenteEsDeposito = computed(
+    () => this._fuenteAgua() === 'tanque' || this._fuenteAgua() === 'cisterna',
+  );
+
+  readonly fuenteDepositoLabel = computed(() =>
+    this._fuenteAgua() === 'cisterna' ? 'cisterna' : 'tanque',
+  );
+
   cargar(proyectoId: string): void {
     this._estado.set('cargando');
     this._error.set(null);
