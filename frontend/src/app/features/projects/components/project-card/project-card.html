@@ -6,13 +6,13 @@
       <div class="flex flex-col min-w-0">
         <div class="flex items-center gap-space-xs">
           <h2 class="text-headline-md text-on-surface truncate">{{ project().name }}</h2>
-          <span
-            class="material-symbols-outlined text-[18px]"
+          <ng-icon
+            [name]="iconName(project().headerIcon)"
             [class]="project().headerTone"
             [attr.title]="project().headerTitle"
+            size="18"
             aria-hidden="true"
-            >{{ project().headerIcon }}</span
-          >
+          />
         </div>
         <span class="text-body-sm text-on-surface-variant"
           >{{ project().location }} · Modificado {{ modifiedLabel() }}</span
@@ -23,7 +23,7 @@
         <summary
           class="list-none p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-bright hover:text-on-surface transition-colors cursor-pointer"
         >
-          <span class="material-symbols-outlined text-[20px]" aria-hidden="true">more_vert</span>
+          <ng-icon name="matMoreVertOutline" size="20" aria-hidden="true" />
           <span class="sr-only">Opciones de {{ project().name }}</span>
         </summary>
         <div
@@ -34,16 +34,14 @@
             type="button"
             (click)="open.emit(project())"
           >
-            <span class="material-symbols-outlined text-[16px]" aria-hidden="true">edit</span>
+            <ng-icon name="matEditOutline" size="16" aria-hidden="true" />
             {{ project().nextStep.step ? 'Continuar wizard' : 'Abrir wizard' }}
           </button>
           <button
             class="w-full flex items-center gap-2 px-3 py-2 text-left text-label-sm text-on-surface hover:bg-surface-bright"
             type="button"
           >
-            <span class="material-symbols-outlined text-[16px]" aria-hidden="true"
-              >content_copy</span
-            >
+            <ng-icon name="matContentCopyOutline" size="16" aria-hidden="true" />
             Duplicar
           </button>
           <div class="h-px bg-surface-container-high my-1"></div>
@@ -51,7 +49,7 @@
             class="w-full flex items-center gap-2 px-3 py-2 text-left text-label-sm text-error hover:bg-error-container/30"
             type="button"
           >
-            <span class="material-symbols-outlined text-[16px]" aria-hidden="true">delete</span>
+            <ng-icon name="matDeleteOutline" size="16" aria-hidden="true" />
             Eliminar
           </button>
         </div>
@@ -83,18 +81,19 @@
 
     <div class="grid grid-cols-2 gap-space-xs mb-space-sm">
       <div class="flex items-center gap-1.5 p-2 rounded-lg bg-surface-bright">
-        <span class="material-symbols-outlined text-primary-container text-[18px]" aria-hidden="true"
-          >straighten</span
-        >
+        <ng-icon
+          class="text-primary-container"
+          name="matStraightenOutline"
+          size="18"
+          aria-hidden="true"
+        />
         <div class="flex flex-col min-w-0">
           <span class="text-label-sm text-on-surface-variant">Superficie</span>
           <span class="text-tabular-data text-on-surface font-semibold">{{ areaLabel() }}</span>
         </div>
       </div>
       <div class="flex items-center gap-1.5 p-2 rounded-lg bg-surface-bright">
-        <span class="material-symbols-outlined text-secondary text-[18px]" aria-hidden="true"
-          >eco</span
-        >
+        <ng-icon class="text-secondary" name="matEcoOutline" size="18" aria-hidden="true" />
         <div class="flex flex-col min-w-0">
           <span class="text-label-sm text-on-surface-variant">Especies</span>
           <span class="text-label-md text-on-surface">{{ project().speciesLabel }}</span>
@@ -107,11 +106,12 @@
     >
       <div class="flex items-center justify-between">
         <span class="inline-flex items-center gap-1 text-on-surface">
-          <span
-            class="material-symbols-outlined text-[16px] text-primary-container"
+          <ng-icon
+            class="text-primary-container"
+            name="matWaterDropOutline"
+            size="16"
             aria-hidden="true"
-            >water_drop</span
-          >
+          />
           {{ project().irrigationType }}
         </span>
         <span class="text-label-sm text-primary font-semibold">{{ project().sectorsLabel }}</span>
@@ -122,9 +122,12 @@
 
   <div class="pt-space-sm flex items-center justify-between gap-space-sm">
     <div class="flex items-center gap-1.5 text-on-surface-variant">
-      <span class="material-symbols-outlined text-[16px]" [class]="project().statusTone" aria-hidden="true">{{
-        project().statusIcon
-      }}</span>
+      <ng-icon
+        [name]="iconName(project().statusIcon)"
+        [class]="project().statusTone"
+        size="16"
+        aria-hidden="true"
+      />
       <span class="text-label-sm">{{ project().statusLabel }}</span>
     </div>
     <button
@@ -133,7 +136,7 @@
       (click)="open.emit(project())"
     >
       <span>{{ project().nextStep.label }}</span>
-      <span class="material-symbols-outlined text-[16px]" aria-hidden="true">arrow_forward</span>
+      <ng-icon name="matArrowForwardOutline" size="16" aria-hidden="true" />
     </button>
   </div>
 </article>

@@ -1,5 +1,16 @@
 import { Component, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
+import { NgIcon, provideIcons } from '@ng-icons/core';
+import {
+  matArrowBackOutline,
+  matArrowForwardOutline,
+  matBoltOutline,
+  matCheckCircleOutline,
+  matLocationOnOutline,
+  matPaymentsOutline,
+  matWaterDropOutline,
+  matWaterOutline,
+} from '@ng-icons/material-symbols/outline';
 import { WizardHeader } from '../wizard/components/wizard-header/wizard-header';
 import { WizardDraftStore } from '../wizard/state/wizard-draft.store';
 import { RiegoForm } from './components/riego-form/riego-form';
@@ -14,7 +25,19 @@ import { RiegoStore } from './state/riego.store';
  */
 @Component({
   selector: 'app-riego-page',
-  imports: [RouterLink, WizardHeader, RiegoForm],
+  imports: [RouterLink, WizardHeader, RiegoForm, NgIcon],
+  viewProviders: [
+    provideIcons({
+      matArrowBackOutline,
+      matArrowForwardOutline,
+      matBoltOutline,
+      matCheckCircleOutline,
+      matLocationOnOutline,
+      matPaymentsOutline,
+      matWaterDropOutline,
+      matWaterOutline,
+    }),
+  ],
   templateUrl: './riego.page.html',
 })
 export class RiegoPage {

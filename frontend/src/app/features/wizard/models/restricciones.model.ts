@@ -1,11 +1,14 @@
 /** Energía disponible en la parcela: la declara el usuario, el agente no la elige. */
 export type EnergiaDisponible = 'red-electrica' | 'solar';
 
+/** Icon key of an energy option; the component maps it to its `@ng-icons` constant. */
+export type EnergiaIcono = 'bolt' | 'solar_power';
+
 export interface OpcionEnergia {
   value: EnergiaDisponible;
   label: string;
   detalle: string;
-  icono: string;
+  icono: EnergiaIcono;
 }
 
 export const ENERGIA_OPTIONS: readonly OpcionEnergia[] = [

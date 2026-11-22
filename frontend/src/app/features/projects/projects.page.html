@@ -2,9 +2,7 @@
 
 <main class="w-full pt-16 bg-surface min-h-[calc(100vh-64px)]">
   <div class="flex flex-col w-full">
-    <div
-      class="w-full max-w-7xl mx-auto px-margin-desktop py-space-lg flex flex-col gap-space-lg"
-    >
+    <div class="w-full max-w-7xl mx-auto px-margin-desktop py-space-lg flex flex-col gap-space-lg">
       <app-projects-toolbar
         [activeCount]="store.projects().length"
         [emptyStateSimulated]="emptySimulated()"
@@ -46,20 +44,17 @@
             <span
               class="w-14 h-14 rounded-full bg-surface-container-low flex items-center justify-center text-primary mb-space-sm group-hover:bg-primary-container group-hover:text-on-primary transition-colors"
             >
-              <span class="material-symbols-outlined text-[28px]" aria-hidden="true">add</span>
+              <ng-icon name="matAddOutline" size="28" aria-hidden="true" />
             </span>
             <span class="text-headline-sm text-on-surface">Creá tu nuevo plano</span>
             <span
               class="inline-flex items-center gap-1 text-label-md text-primary mt-space-sm group-hover:gap-2 transition-all"
             >
               Comenzar diseño
-              <span class="material-symbols-outlined text-[16px]" aria-hidden="true"
-                >arrow_forward</span
-              >
+              <ng-icon name="matArrowForwardOutline" size="16" aria-hidden="true" />
             </span>
           </button>
         </div>
-
       }
 
       <app-technical-footnote />

@@ -1,4 +1,6 @@
 import { Component, computed, input, output } from '@angular/core';
+import { NgIcon, provideIcons } from '@ng-icons/core';
+import { matCheckOutline } from '@ng-icons/material-symbols/outline';
 
 interface PasoWizard {
   numero: number;
@@ -19,6 +21,8 @@ const PASOS: readonly PasoWizard[] = [
  */
 @Component({
   selector: 'app-wizard-header',
+  imports: [NgIcon],
+  viewProviders: [provideIcons({ matCheckOutline })],
   templateUrl: './wizard-header.html',
 })
 export class WizardHeader {

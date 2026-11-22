@@ -23,17 +23,17 @@
     <div
       class="flex items-center gap-2 text-slate-700 font-bold text-[11px] uppercase tracking-wider mb-1.5"
     >
-      <span class="material-symbols-outlined text-[16px]" aria-hidden="true">info</span>
+      <ng-icon name="matInfoOutline" size="16" aria-hidden="true" />
       Detalle del reparto
     </div>
     <p class="text-[11px] text-slate-600">
       @if (borrador.vacio()) {
-        Agregá los productos que querés sembrar. El área, la demanda y las fechas se
-        calculan en el resumen final.
+        Agregá los productos que querés sembrar. El área, la demanda y las fechas se calculan en el
+        resumen final.
       } @else {
         Con {{ borrador.cantidad() }} producto(s) el agente va a repartir los
-        {{ store.areaM2() }} m² en el <strong>resumen final</strong>. Ahí vas a ver las
-        parcelas, la demanda de agua, la fecha de cosecha y el sistema de riego.
+        {{ store.areaM2() }} m² en el <strong>resumen final</strong>. Ahí vas a ver las parcelas, la
+        demanda de agua, la fecha de cosecha y el sistema de riego.
       }
     </p>
     <p class="text-[10px] text-slate-400 mt-2">
@@ -48,33 +48,23 @@
     </h2>
     <ul class="space-y-1 text-[11px] text-slate-600">
       <li class="flex items-center gap-1.5">
-        <span class="material-symbols-outlined text-[14px] text-agro-600" aria-hidden="true"
-          >grid_view</span
-        >
+        <ng-icon class="text-agro-600" name="matGridViewOutline" size="14" aria-hidden="true" />
         Reparto del área entre los productos
       </li>
       <li class="flex items-center gap-1.5">
-        <span class="material-symbols-outlined text-[14px] text-agro-600" aria-hidden="true"
-          >water_drop</span
-        >
+        <ng-icon class="text-agro-600" name="matWaterDropOutline" size="14" aria-hidden="true" />
         Demanda de agua total y por cultivo
       </li>
       <li class="flex items-center gap-1.5">
-        <span class="material-symbols-outlined text-[14px] text-agro-600" aria-hidden="true"
-          >event</span
-        >
+        <ng-icon class="text-agro-600" name="matEventOutline" size="14" aria-hidden="true" />
         Siembra y cosecha estimada
       </li>
       <li class="flex items-center gap-1.5">
-        <span class="material-symbols-outlined text-[14px] text-agro-600" aria-hidden="true"
-          >valve</span
-        >
+        <ng-icon class="text-agro-600" name="matValveOutline" size="14" aria-hidden="true" />
         Sistema de riego recomendado
       </li>
       <li class="flex items-center gap-1.5">
-        <span class="material-symbols-outlined text-[14px] text-agro-600" aria-hidden="true"
-          >verified</span
-        >
+        <ng-icon class="text-agro-600" name="matVerifiedOutline" size="14" aria-hidden="true" />
         Aptitud del suelo y fuentes citadas
       </li>
     </ul>

@@ -1,5 +1,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
+import { NgIcon, provideIcons } from '@ng-icons/core';
+import { matAddOutline, matArrowForwardOutline } from '@ng-icons/material-symbols/outline';
 import { Project } from './models/project.model';
 import { ProjectsStore } from './state/projects.store';
 import { AppHeader } from './components/app-header/app-header';
@@ -28,7 +30,9 @@ import { TechnicalFootnote } from './components/technical-footnote/technical-foo
     ProjectsEmptyState,
     TechnicalFootnote,
     ProjectCreateModal,
+    NgIcon,
   ],
+  viewProviders: [provideIcons({ matAddOutline, matArrowForwardOutline })],
   templateUrl: './projects.page.html',
 })
 export class ProjectsPage {
@@ -45,7 +49,6 @@ export class ProjectsPage {
   constructor() {
     this.store.cargar();
   }
-
 
   protected openModal(): void {
     this.modalOpen.set(true);
