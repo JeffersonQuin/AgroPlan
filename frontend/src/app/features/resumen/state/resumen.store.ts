@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { InjectionToken, Service, computed, inject, signal } from '@angular/core';
 import { Subscription, forkJoin, of, throwError, timer } from 'rxjs';
-import { catchError, exhaustMap, takeWhile } from 'rxjs/operators';
+import { catchError, exhaustMap, takeUntil, takeWhile } from 'rxjs/operators';
 import { CultivosApi } from '../../cultivos/cultivos.api';
 import {
   AdvertenciaApi,
@@ -16,6 +16,7 @@ import { SueloApi, WATER_SOURCE_OPTIONS } from '../../terrain/models/terrain.mod
 import { TerrainApi } from '../../terrain/terrain.api';
 import { ENERGIA_OPTIONS, PRESUPUESTO_MINIMO_BS } from '../../wizard/models/restricciones.model';
 import { WizardDraftStore } from '../../wizard/state/wizard-draft.store';
+import { mensajeDeFallo } from '../fases-corrida';
 import { ResumenApi } from '../resumen.api';
 import { descargarBlob, nombreDeArchivo } from '../descarga-pdf';
 import {
@@ -43,6 +44,15 @@ const CORRIDA_TERMINAL: readonly string[] = ['ok', 'error', 'descartada'];
  * Es un token para que los tests no esperen dos segundos reales por cada sondeo; en
  * producción vale 2 s (S2: el botón dispara, el usuario ve el progreso).
  */
+/** Tope de espera del sondeo: pasado este tiempo se le dice al usuario qué pasa. */
+export const MAX_ESPERA_CORRIDA_MS = 5 * 60 * 1000;
+
+/** Inyectable para que los tests no tengan que esperar cinco minutos. */
+export const RESUMEN_MAX_ESPERA_MS = new InjectionToken<number>('RESUMEN_MAX_ESPERA_MS', {
+  providedIn: 'root',
+  factory: () => MAX_ESPERA_CORRIDA_MS,
+});
+
 export const RESUMEN_POLL_MS = new InjectionToken<number>('RESUMEN_POLL_MS', {
   factory: () => 2000,
 });
@@ -76,6 +86,7 @@ export class ResumenStore {
   private readonly terrainApi = inject(TerrainApi);
   private readonly borrador = inject(WizardDraftStore);
   private readonly pollMs = inject(RESUMEN_POLL_MS);
+  private readonly maxEsperaMs = inject(RESUMEN_MAX_ESPERA_MS);
 
   private readonly _proyectoId = signal('');
   private readonly _nombreProyecto = signal('');
@@ -87,6 +98,8 @@ export class ResumenStore {
   private readonly _error = signal<string | null>(null);
   private readonly _corridaId = signal<string | null>(null);
   private readonly _estadoCorrida = signal<string | null>(null);
+  private readonly _faseCorrida = signal<string | null>(null);
+  private readonly _faseDesdeCorrida = signal<string | null>(null);
   private readonly _descargandoPdf = signal(false);
   private readonly _errorPdf = signal<string | null>(null);
 
@@ -99,6 +112,15 @@ export class ResumenStore {
   readonly error = this._error.asReadonly();
   readonly corridaId = this._corridaId.asReadonly();
   readonly estadoCorrida = this._estadoCorrida.asReadonly();
+
+  /**
+   * Fase real de la corrida y desde cuándo (S1, S2, S4).
+   *
+   * Las corridas viejas llegan sin fase: la pantalla muestra entonces la espera de
+   * siempre, sin stepper ni cronómetro.
+   */
+  readonly faseCorrida = this._faseCorrida.asReadonly();
+  readonly faseDesdeCorrida = this._faseDesdeCorrida.asReadonly();
   readonly descargandoPdf = this._descargandoPdf.asReadonly();
   readonly errorPdf = this._errorPdf.asReadonly();
 
@@ -114,6 +136,8 @@ export class ResumenStore {
 
   /** Un proyecto con informe no se regenera (S2). */
   readonly tieneInforme = computed(() => this._resultado() !== null);
+
+  readonly generando = computed(() => this._estado() === 'generando');
 
   /** Avisos del motor y del agente que acompañan al informe (S3). */
   readonly advertencias = computed<AdvertenciaApi[]>(() => this._resultado()?.advertencias ?? []);
@@ -191,6 +215,8 @@ export class ResumenStore {
                     ?.label ?? '',
                 caudalM3h: terreno.caudal_efectivo_m3h,
                 pendientePct: terreno.pendiente_pct,
+                // La geometría se guarda tal cual: el plano del informe dibuja el borde real.
+                geometria: terreno.geometria ?? { vertices: [] },
               },
         );
 
@@ -224,28 +250,34 @@ export class ResumenStore {
    * Se manda **una sola vez**: si ya hay informe o ya hay una corrida en curso, no
    * vuelve a gastar tokens.
    */
-  generar(): void {
+  generar(regenerar = false): void {
     const proyectoId = this._proyectoId();
     if (proyectoId === '') return;
-    if (this._estado() === 'generando' || this._resultado() !== null) return;
+    if (this._estado() === 'generando') return;
+    if (!regenerar && this._resultado() !== null) return;
     if (this.borrador.vacio()) return;
 
     const { productos, siembra, restricciones } = this.borrador.aPayload();
 
     this._modalAbierto.set(false);
     this._error.set(null);
+    if (regenerar) this._resultado.set(null);
     this._estado.set('generando');
     this._estadoCorrida.set(null);
+    this._faseCorrida.set(null);
+    this._faseDesdeCorrida.set(null);
     this._corridaId.set(null);
 
-    this.cultivosApi.iniciarCorrida(proyectoId, { productos, siembra, restricciones }).subscribe({
-      next: (inicio) => {
-        this._corridaId.set(inicio.corrida_id);
-        this._estadoCorrida.set(inicio.estado);
-        this.sondear(proyectoId, inicio.corrida_id);
-      },
-      error: (error: HttpErrorResponse) => this.fallar(error),
-    });
+    this.cultivosApi
+      .iniciarCorrida(proyectoId, { productos, siembra, restricciones, regenerar })
+      .subscribe({
+        next: (inicio) => {
+          this._corridaId.set(inicio.corrida_id);
+          this._estadoCorrida.set(inicio.estado);
+          this.sondear(proyectoId, inicio.corrida_id);
+        },
+        error: (error: HttpErrorResponse) => this.fallar(error),
+      });
   }
 
   /**
@@ -302,11 +334,30 @@ export class ResumenStore {
       .pipe(
         exhaustMap(() => this.cultivosApi.obtenerCorrida(proyectoId, corridaId)),
         takeWhile((detalle) => !CORRIDA_TERMINAL.includes(detalle.estado), true),
+        takeUntil(timer(this.maxEsperaMs)),
       )
       .subscribe({
         next: (detalle) => this.alTerminarCorrida(detalle, proyectoId, corridaId),
         error: (error: HttpErrorResponse) => this.fallar(error),
+        complete: () => this.alAgotarLaEspera(),
       });
+  }
+
+  /**
+   * Se acabó el tiempo de espera sin estado terminal.
+   *
+   * El agente puede tardar minutos y el usuario no tiene que quedarse mirando un
+   * spinner eterno creyendo que la app se colgó: se le dice qué pasa y qué puede hacer.
+   */
+  private alAgotarLaEspera(): void {
+    const estado = this._estadoCorrida();
+    if (estado !== null && CORRIDA_TERMINAL.includes(estado)) return;
+    this._estado.set('error');
+    this._error.set(
+      `El agente tardó más de ${Math.round(this.maxEsperaMs / 60000)} minutos y ` +
+        'todavía no terminó. Puede seguir trabajando en el servidor: recargá la página ' +
+        'en un rato o generá el informe de nuevo.',
+    );
   }
 
   private alTerminarCorrida(
@@ -315,12 +366,13 @@ export class ResumenStore {
     corridaId: string,
   ): void {
     this._estadoCorrida.set(detalle.estado);
+    this._faseCorrida.set(detalle.fase ?? null);
+    this._faseDesdeCorrida.set(detalle.fase_desde ?? null);
     if (!CORRIDA_TERMINAL.includes(detalle.estado)) return;
 
     if (detalle.estado !== 'ok') {
-      this._error.set(
-        detalle.error_detalle ?? 'El agente no pudo generar el informe. Probá de nuevo.',
-      );
+      // El mensaje dice en qué fase quedó, no un genérico (S3).
+      this._error.set(mensajeDeFallo(detalle.fase, detalle.error_detalle));
       this._estado.set('error');
       return;
     }
@@ -357,6 +409,8 @@ export class ResumenStore {
     this._modalAbierto.set(false);
     this._error.set(null);
     this._estadoCorrida.set(null);
+    this._faseCorrida.set(null);
+    this._faseDesdeCorrida.set(null);
     this._corridaId.set(null);
     this._estado.set('informe');
   }

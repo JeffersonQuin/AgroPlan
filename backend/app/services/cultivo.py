@@ -56,47 +56,96 @@ def _validar_fechas(siembra: date | None, cosecha: date | None) -> None:
         )
 
 
+def _repartir_zonas(
+    puntos: list[geometria.Punto], areas: list[float]
+) -> list[list[geometria.Punto]]:
+    """Una zona por área, pelando capas alternadas del terreno (S2).
+
+    Las zonas se construyen en el orden de los bloques y cada una pela del resto una
+    franja del área exacta que le toca, alternando el eje: las pares crecen desde
+    abajo en ``y`` y las impares desde la derecha en ``x``. Así dos productos con
+    áreas distintas quedan con zonas de superficies y formas distintas (no son cortes
+    iguales), cada zona sigue el contorno porque el recorte es contra el polígono, y
+    ninguna invade a las anteriores. Como la zona ``k`` sólo depende de las áreas
+    ``0..k``, agregar un bloque después no redibuja los que ya estaban.
+    """
+
+    region = list(puntos)
+    zonas: list[list[geometria.Punto]] = []
+    for indice, area in enumerate(areas):
+        superficie = geometria.area_poligono(region) if len(region) >= 3 else 0.0
+        if superficie <= geometria.AREA_MINIMA:
+            zonas.append([])
+            continue
+        if area >= superficie - geometria.AREA_MINIMA:
+            # El pedido cierra el reparto: la zona es el resto exacto del terreno.
+            zonas.append(region)
+            region = []
+            continue
+
+        x_min, y_min, _, _ = geometria.caja(region)
+        if indice % 2 == 0:
+            corte = geometria.corte_por_area(region, "y", y_min, area)
+            zona = geometria.recortar_franja(region, "y", y_min, corte)
+            region = geometria.recortar_franja(region, "y", corte, None)
+        else:
+            # Desde la derecha: el corte donde lo que queda a la izquierda mide
+            # ``superficie - area``, y el recorte de la zona es el complemento.
+            corte = geometria.corte_por_area(region, "x", x_min, superficie - area)
+            zona = geometria.recortar_franja(region, "x", corte, None)
+            region = geometria.recortar_franja(region, "x", x_min, corte)
+        zonas.append(zona)
+    return zonas
+
+
 def _poligono_porcentaje(
     terreno: Terreno,
     porcentaje: float,
     existentes: list[ProyectoCultivo],
     excluir_id: uuid.UUID | None = None,
 ) -> tuple[dict, float]:
-    """Dibuja una franja horizontal cuya área es ``porcentaje`` del terreno."""
+    """Dibuja la zona del reparto que sigue el contorno del terreno.
+
+    El terreno se reparte en capas de superficie proporcional al área de cada
+    producto (``_repartir_zonas``) y la zona que se devuelve es la del bloque nuevo.
+    El área de la zona es la del recorte real contra el polígono: en un trapecio, cada
+    zona sigue la diagonal en vez de usar la caja envolvente.
+    """
 
     try:
         puntos = geometria.normalizar_vertices(terreno.geometria.get("vertices", []))
     except (KeyError, TypeError, ValueError) as exc:
         raise CultivoServiceError(422, "El terreno no tiene geometría válida") from exc
 
-    x_min, y_min, x_max, y_max = geometria.caja(puntos)
-    ancho = x_max - x_min
-    alto = y_max - y_min
     area_terreno = float(terreno.area_m2)
-    if ancho <= 0 or alto <= 0 or area_terreno <= 0:
+    if geometria.area_poligono(puntos) <= geometria.AREA_MINIMA or area_terreno <= 0:
         raise CultivoServiceError(422, "El terreno no tiene una superficie utilizable")
 
-    area_objetivo = area_terreno * porcentaje / 100.0
-    area_ocupada = sum(
+    areas = [
         float(bloque.area_m2)
         for bloque in existentes
         if excluir_id is None or bloque.id != excluir_id
-    )
-
-    y_inicio = y_min + (area_ocupada / area_terreno) * alto
-    if y_inicio >= y_max - 1e-6:
+    ]
+    area_ocupada = sum(areas)
+    if area_ocupada >= area_terreno - geometria.AREA_MINIMA:
         raise CultivoServiceError(
             422, "No queda superficie libre para asignar otro bloque"
         )
 
-    alto_bloque = min(area_objetivo / ancho, y_max - y_inicio)
-    if alto_bloque <= 1e-6:
+    # La cuota se recorta a lo que queda libre para cerrar el 100 % sin salirse del
+    # polígono; el área de la zona es siempre la del recorte, nunca la pedida.
+    area_objetivo = min(
+        area_terreno * porcentaje / 100.0, area_terreno - area_ocupada
+    )
+    zonas = _repartir_zonas(puntos, [*areas, area_objetivo])
+    franja = zonas[-1]
+    area = geometria.area_poligono(franja) if len(franja) >= 3 else 0.0
+    if area <= geometria.AREA_MINIMA:
         raise CultivoServiceError(
             422, "El porcentaje solicitado no cabe en la superficie disponible"
         )
 
-    franja = geometria.rectangulo(x_min, y_inicio, x_max, y_inicio + alto_bloque)
-    return geometria.poligono_dict(franja), geometria.area_poligono(franja)
+    return geometria.poligono_dict(franja), area
 
 
 def _poligono_desde_entrada(poligono) -> tuple[dict, float]:

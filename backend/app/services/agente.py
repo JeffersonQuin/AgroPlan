@@ -9,9 +9,11 @@ from __future__ import annotations
 import math
 import re
 import time
+import unicodedata
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from decimal import Decimal
 
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
@@ -19,11 +21,13 @@ from sqlalchemy.orm import Session
 from app.agente import PROMPT_VERSION, ContextoAgente
 from app.agente import ejecutar as ejecutar_agente
 from app.agente import fichas as fichas_agente
+from app.agente.cliente import MODO_CATALOGO_ADVERTENCIA
 from app.agente.validacion import repartir_porcentajes
 from app.models.agente import AgenteCorrida, AgenteFuente, AgenteRecomendacion
 from app.models.enums import (
     EstadoCorrida,
     FuenteAgua,
+    TipoFuenteAgente,
     TipoRecomendacion,
 )
 from app.models.proyecto import Proyecto, Terreno
@@ -290,6 +294,7 @@ def iniciar_corrida(
     productos: list[ProductoSolicitado] | None = None,
     siembra=None,
     restricciones: RestriccionesEntrada | None = None,
+    regenerar: bool = False,
 ) -> InicioCorrida:
     """Crea la corrida del intake actual o devuelve la vigente, sin ejecutarla.
 
@@ -299,7 +304,9 @@ def iniciar_corrida(
     quedan congeladas con la corrida.
 
     La ejecución la dispara el router como tarea de fondo: el request nunca espera al
-    modelo. Repetir el pedido con el mismo intake no gasta otra llamada.
+    modelo. Repetir el pedido con el mismo intake no gasta otra llamada, salvo con
+    ``regenerar=True``: mientras se prueban cambios del motor hace falta volver a correr
+    el agente sobre el mismo intake. Es una palanca de desarrollo, no de producto.
     """
 
     terreno = _terreno_requerido(db, proyecto)
@@ -344,7 +351,7 @@ def iniciar_corrida(
     )
     huella = entrada.huella()
 
-    vigente = _corrida_vigente(db, proyecto, huella)
+    vigente = None if regenerar else _corrida_vigente(db, proyecto, huella)
     if vigente is not None:
         if vigente.estado == EstadoCorrida.OK.value:
             return InicioCorrida(
@@ -592,12 +599,509 @@ def _advertir_presupuesto(propuesta: PropuestaAgente, entrada: EntradaAgente) ->
     )
 
 
+# --------------------------------------------------------------------------- #
+# Reparto agronómico del área (S1)
+# --------------------------------------------------------------------------- #
+#
+# Criterio (revisable con el equipo agronómico cambiando estas constantes):
+#
+#   W    = caudal_efectivo_m3h × 1000 × HORAS_RIEGO_JORNADA   [L/día disponibles]
+#   d_i  = demanda de agua del cultivo                          [L/m²/día]
+#   p_i  = FACTOR_PRIORIDAD^(n - rango_i)
+#          × (1 + ELASTICIDAD_CICLO    × log2(ciclo_i   / CICLO_REFERENCIA_DIAS))
+#          × (1 + ELASTICIDAD_DENSIDAD × log2(densidad_i / DENSIDAD_REFERENCIA_M2))
+#          × PESO_APTITUD[veredicto_i]
+#   b_i  = p_i / d_i        (superficie que esa cuota de agua riega)
+#   Área_i = A × b_i / Σb_j  (cuantizada al 0,01 % del terreno)
+#
+# Supuestos:
+#
+# * El área se reparte según el agua que cada cultivo consume por metro cuadrado y por
+#   la necesidad de superficie de su ciclo y su densidad de plantas, no en partes
+#   iguales. b_i divide por d_i: a igual prioridad, ciclo y densidad, el cultivo que
+#   pide más agua por m² recibe menos superficie. Ciclo y densidad también pesan, así
+#   que pueden invertir ese orden: el criterio no promete que el cultivo de mayor
+#   demanda reciba siempre menos área.
+# * La jornada de riego es de HORAS_RIEGO_JORNADA horas útiles de la fuente. Es un
+#   supuesto de operación, no un dato del terreno: el informe lo usa para el techo.
+# * Prioridad: el usuario numera lo que quiere primero (1 es lo más importante). Cada
+#   escalón de prioridad reduce el peso al 1/FACTOR_PRIORIDAD, así la primera elección
+#   no puede quedar con el área mínima.
+# * Ciclo y densidad entran con elasticidad logarítmica y acotada: sirven para
+#   desempatar, no para tapar la demanda de agua. Si el dato falta, aportan 1.
+# * Aptitud del suelo: un cultivo condicionado o no apto recibe menos superficie, pero
+#   nunca cero.
+# * El reparto cubre el terreno completo y ningún cultivo queda en cero.
+# * Ningún cultivo queda por debajo de un **área mínima viable** (ver
+#   MINIMO_VIABLE_PCT y MINIMO_VIABLE_M2): una superficie de juguete es cero en la
+#   práctica y no se informa como si fuera un cultivo.
+# * Si el reparto ponderado supera el techo de la jornada, el agua manda: se busca un
+#   reparto factible desplazando superficie hacia los cultivos de menor demanda, pero
+#   sin bajar a nadie del mínimo viable. Cuando el mínimo de todos entra en la
+#   jornada, se interpola entre el reparto mínimo viable y el prioritario y se toma
+#   el punto más prioritario que todavía entra en el caudal.
+# * Si con el caudal disponible no se puede dar el mínimo viable a todos los
+#   productos, no se inventa un reparto absurdo: se devuelve el reparto prioritario
+#   de siempre (el de b_i = p_i / d_i, sin áreas de juguete) y el llamador emite
+#   DEMANDA_EXCEDE_CAUDAL como aviso bloqueante con el agua que haría falta para el
+#   mínimo de todos y qué puede hacer el usuario: quién decide es el usuario.
+
+HORAS_RIEGO_JORNADA = 16.0
+DEMANDA_MINIMA_L_M2_DIA = 0.1
+CICLO_REFERENCIA_DIAS = 90.0
+DENSIDAD_REFERENCIA_M2 = 4.0
+ELASTICIDAD_CICLO = 0.15
+ELASTICIDAD_DENSIDAD = 0.15
+FACTOR_PRIORIDAD = 1.5
+PESO_APTITUD = {"apto": 1.0, "condicionado": 0.85, "no_apto": 0.7}
+PESO_MINIMO, PESO_MAXIMO = 0.5, 2.0
+# Área mínima viable por producto. Un producto que no la alcanza no puede aparecer
+# con una superficie de juguete: con 0,2 m² el reparto dice "está" pero en el campo
+# no hay cosecha que justifique el lateral ni el manejo.
+#
+#   * MINIMO_VIABLE_PCT: por debajo del 5 % del terreno el producto pierde su papel
+#     en la rotación y su cosecha no paga la instalación; es el supuesto agronómico
+#     de esta constante.
+#   * MINIMO_VIABLE_M2: piso absoluto para terrenos chicos, pensado como una cama de
+#     2 × 5 m, la unidad mínima que se riega y se cosecha por separado.
+#
+# Se toma el mayor de los dos. En el terreno de este informe (2.100 m²) el mínimo son
+# 105 m² por producto. Revisable con el equipo agronómico cambiando estas constantes.
+MINIMO_VIABLE_PCT = 5.0
+MINIMO_VIABLE_M2 = 10.0
+# Cuota mínima de cada cultivo, en centésimos de punto porcentual (0,01 % del área).
+CUOTA_MINIMA_CENTESIMOS = 1
+
+
+def _factor_logaritmico(
+    valor: float | None, referencia: float, elasticidad: float
+) -> float:
+    """Peso acotado de un dato de ficha; 1 cuando el dato no está o no sirve."""
+
+    if valor is None or valor <= 0 or referencia <= 0:
+        return 1.0
+    factor = 1.0 + elasticidad * math.log2(valor / referencia)
+    return min(max(factor, PESO_MINIMO), PESO_MAXIMO)
+
+
+def _peso_prioridad(prioridades: list[int]) -> list[float]:
+    """Peso de cada producto: la primera prioridad pesa FACTOR_PRIORIDAD^(n-1)."""
+
+    escalones = sorted(set(prioridades))
+    return [
+        FACTOR_PRIORIDAD ** (len(escalones) - escalones.index(prioridad) - 1)
+        for prioridad in prioridades
+    ]
+
+
+def repartir_area_agronomica(
+    insumos: list[dict],
+    *,
+    area_m2: float,
+    caudal_efectivo_m3h: float,
+) -> tuple[list[float], float]:
+    """Reparte ``area_m2`` según la necesidad agronómica de cada cultivo (S1).
+
+    Cada insumo trae ``codigo``, ``prioridad``, ``demanda_l_m2_dia`` y, si la ficha
+    los tiene, ``ciclo_dias``, ``densidad_plantas_m2`` y ``aptitud_suelo`` (veredicto
+    para el suelo del terreno). Devuelve el área de cada cultivo en el mismo orden y
+    la demanda pico del conjunto en L/día. La fórmula y sus supuestos están en el
+    comentario de las constantes de arriba.
+
+    Si con el caudal disponible no se puede dar el mínimo viable a todos los
+    productos, devuelve el reparto prioritario de siempre: el aviso bloqueante que
+    explica la imposibilidad lo emite ``_con_reparto_agronomico``.
+    """
+
+    if not insumos:
+        return [], 0.0
+    if area_m2 <= 0:
+        return [0.0 for _ in insumos], 0.0
+
+    bases, demandas = _bases_y_demandas(insumos)
+    if sum(bases) <= 0:
+        areas = [area_m2 / len(insumos) for _ in insumos]
+    else:
+        areas = _areas_desde_cuotas(bases, area_m2)
+    pico = _pico_demanda(areas, demandas)
+
+    minimo = _minimo_viable_centesimos(area_m2)
+    centesimos_minimos = _reparto_minimo_centesimos(demandas, minimo)
+    if centesimos_minimos is None:
+        # Ni siquiera hay terreno para el mínimo viable de todos: no hay reparto
+        # posible, se devuelve el prioritario y el llamador avisa.
+        return areas, pico
+
+    disponible = caudal_efectivo_m3h * 1000 * HORAS_RIEGO_JORNADA
+    minimas = _areas_desde_centesimos(centesimos_minimos, area_m2)
+    pico_minimo = _pico_demanda(minimas, demandas)
+    if pico_minimo > disponible + 1e-6:
+        # Con este caudal no se sostiene el mínimo viable de todos: antes que repartir
+        # 0,2 m² a cuatro productos se devuelve el reparto prioritario de siempre.
+        # El aviso dice cuánta agua haría falta para el mínimo de todos.
+        return areas, pico
+
+    # Hay reparto factible con el mínimo viable: se sube al mínimo al que quedó corto
+    # descontando de la zona con margen y, si aun así el techo aprieta, se interpola
+    # hacia el reparto mínimo viable hasta entrar en el caudal.
+    centesimos_prioritarios = _centesimos_reparto(areas, area_m2)
+    tope = _con_minimo(centesimos_prioritarios, minimo) or centesimos_minimos
+    areas_tope = _areas_desde_centesimos(tope, area_m2)
+    pico_tope = _pico_demanda(areas_tope, demandas)
+    if pico_tope <= disponible + 1e-6:
+        return areas_tope, pico_tope
+
+    def combinacion(fraccion: float) -> tuple[list[float], float]:
+        centesimos = [
+            round(minima + fraccion * (alta - minima))
+            for minima, alta in zip(centesimos_minimos, tope, strict=True)
+        ]
+        centesimos = _con_minimo(centesimos, minimo) or centesimos_minimos
+        centesimos = _cerrar_en_cien(centesimos, minimo)
+        candidatas = _areas_desde_centesimos(centesimos, area_m2)
+        return candidatas, _pico_demanda(candidatas, demandas)
+
+    # La demanda pico crece con la fracción de reparto prioritario, así que la
+    # bisección queda entre el mínimo viable (factible) y el tope (no factible).
+    baja, areas_factibles, pico_factible = 0.0, minimas, pico_minimo
+    alta = 1.0
+    for _ in range(40):
+        media = (baja + alta) / 2.0
+        candidatas, pico_candidato = combinacion(media)
+        if pico_candidato <= disponible + 1e-6:
+            baja, areas_factibles, pico_factible = media, candidatas, pico_candidato
+        else:
+            alta = media
+    return areas_factibles, pico_factible
+
+
+def agua_para_minimo_viable(insumos: list[dict], *, area_m2: float) -> float | None:
+    """Agua diaria que exige el área mínima viable de todos los productos.
+
+    Es la referencia del aviso DEMANDA_EXCEDE_CAUDAL: si supera lo que entrega la
+    fuente en la jornada, con ese caudal no se sostiene el mínimo de todos. Devuelve
+    ``None`` cuando ni el terreno alcanza para ese mínimo (más productos que
+    superficie).
+    """
+
+    if not insumos or area_m2 <= 0:
+        return None
+    _, demandas = _bases_y_demandas(insumos)
+    centesimos = _reparto_minimo_centesimos(
+        demandas, _minimo_viable_centesimos(area_m2)
+    )
+    if centesimos is None:
+        return None
+    return _pico_demanda(_areas_desde_centesimos(centesimos, area_m2), demandas)
+
+
+def _bases_y_demandas(insumos: list[dict]) -> tuple[list[float], list[float]]:
+    """Peso agronómico b_i = p_i / d_i y demanda d_i de cada insumo."""
+
+    pesos = _peso_prioridad([int(insumo.get("prioridad") or 1) for insumo in insumos])
+    bases: list[float] = []
+    demandas: list[float] = []
+    for insumo, peso_prioridad in zip(insumos, pesos, strict=True):
+        demanda = insumo.get("demanda_l_m2_dia")
+        demanda = float(demanda) if demanda is not None else 0.0
+        demanda = max(demanda, DEMANDA_MINIMA_L_M2_DIA)
+        peso = (
+            peso_prioridad
+            * _factor_logaritmico(
+                insumo.get("ciclo_dias"), CICLO_REFERENCIA_DIAS, ELASTICIDAD_CICLO
+            )
+            * _factor_logaritmico(
+                insumo.get("densidad_plantas_m2"),
+                DENSIDAD_REFERENCIA_M2,
+                ELASTICIDAD_DENSIDAD,
+            )
+            * PESO_APTITUD.get(str(insumo.get("aptitud_suelo") or ""), 1.0)
+        )
+        bases.append(peso / demanda)
+        demandas.append(demanda)
+    return bases, demandas
+
+
+def _minimo_viable_centesimos(area_m2: float) -> int:
+    """Área mínima viable de un producto, en centésimos de punto porcentual."""
+
+    if area_m2 <= 0:
+        return CUOTA_MINIMA_CENTESIMOS
+    por_superficie = math.ceil(MINIMO_VIABLE_M2 / area_m2 * 10000 - 1e-9)
+    por_porcentaje = math.ceil(MINIMO_VIABLE_PCT * 100 - 1e-9)
+    return max(CUOTA_MINIMA_CENTESIMOS, por_superficie, por_porcentaje)
+
+
+def _reparto_minimo_centesimos(
+    demandas: list[float], minimo: int
+) -> list[int] | None:
+    """Reparto que menos agua gasta respetando el mínimo viable de todos.
+
+    Da el mínimo viable a cada producto y el resto de la superficie al cultivo que
+    menos agua pide por metro cuadrado. ``None`` si el terreno no alcanza para ese
+    mínimo.
+    """
+
+    cantidad = len(demandas)
+    if cantidad == 0 or minimo * cantidad > 10000:
+        return None
+    centesimos = [minimo] * cantidad
+    indice = min(range(cantidad), key=lambda otro: demandas[otro])
+    centesimos[indice] += 10000 - sum(centesimos)
+    return centesimos
+
+
+def _con_minimo(centesimos: list[int], minimo: int) -> list[int] | None:
+    """Sube al mínimo viable las cuotas cortas, descontando de la zona con margen."""
+
+    ajustados = list(centesimos)
+    for indice, valor in enumerate(ajustados):
+        if valor >= minimo:
+            continue
+        falta = minimo - valor
+        mayor = max(range(len(ajustados)), key=lambda otro: ajustados[otro] - minimo)
+        if ajustados[mayor] - minimo < falta:
+            return None
+        ajustados[mayor] -= falta
+        ajustados[indice] = minimo
+    return ajustados
+
+
+def _cerrar_en_cien(centesimos: list[int], minimo: int) -> list[int]:
+    """Corrige el redondeo para que el reparto sume exactamente 100 %."""
+
+    ajustados = list(centesimos)
+    faltante = 10000 - sum(ajustados)
+    if faltante > 0:
+        mayor = max(range(len(ajustados)), key=lambda otro: ajustados[otro])
+        ajustados[mayor] += faltante
+    elif faltante < 0:
+        exceso = -faltante
+        for indice in sorted(
+            range(len(ajustados)), key=lambda otro: ajustados[otro], reverse=True
+        ):
+            if exceso == 0:
+                break
+            quita = min(exceso, ajustados[indice] - minimo)
+            ajustados[indice] -= quita
+            exceso -= quita
+    return ajustados
+
+
+def _pico_demanda(areas: list[float], demandas: list[float]) -> float:
+    """Demanda del conjunto en L/día: Σ área_i × demanda_i."""
+
+    return sum(area * demanda for area, demanda in zip(areas, demandas, strict=True))
+
+
+def _areas_desde_cuotas(cuotas: list[float], area_m2: float) -> list[float]:
+    """Áreas en m² a partir de cuotas proporcionales, en la grilla del motor."""
+
+    crudas = [area_m2 * cuota / sum(cuotas) for cuota in cuotas]
+    return _areas_desde_centesimos(_centesimos_reparto(crudas, area_m2), area_m2)
+
+
+def _areas_desde_centesimos(centesimos: list[int], area_m2: float) -> list[float]:
+    """Áreas en m² a partir de porcentajes en centésimos de punto porcentual."""
+
+    return [
+        float(Decimal(centesimo) * Decimal(str(area_m2)) / 10000)
+        for centesimo in centesimos
+    ]
+
+
+def _centesimos_reparto(areas: list[float], area_total: float) -> list[int]:
+    """Porcentajes en centésimos que suman exactamente 100 % y no dejan a nadie en 0."""
+
+    porcentajes = repartir_porcentajes(areas, area_total)
+    centesimos = [round(porcentaje * 100) for porcentaje in porcentajes]
+
+    # La cuota mínima evita que un cultivo quede en cero; se le descuenta a la zona
+    # más grande, que es la que tiene margen para cederla.
+    for indice, valor in enumerate(centesimos):
+        if valor >= CUOTA_MINIMA_CENTESIMOS:
+            continue
+        mayor = max(range(len(centesimos)), key=lambda otro: centesimos[otro])
+        if mayor == indice:
+            continue
+        centesimos[mayor] -= CUOTA_MINIMA_CENTESIMOS - valor
+        centesimos[indice] = CUOTA_MINIMA_CENTESIMOS
+
+    # ``repartir_porcentajes`` trunca el resto por debajo del centésimo: el sobrante
+    # vuelve a la zona más grande para que el reparto cierre en el 100 % exacto.
+    faltante = 10000 - sum(centesimos)
+    if faltante != 0:
+        mayor = max(range(len(centesimos)), key=lambda otro: centesimos[otro])
+        centesimos[mayor] += faltante
+    return centesimos
+
+
+def _veredicto_suelo(aptitud, suelo_codigo: str) -> str | None:
+    """Veredicto de la ficha para el suelo de este terreno, si está informado."""
+
+    if not isinstance(aptitud, dict):
+        return None
+    datos = aptitud.get(suelo_codigo)
+    if not isinstance(datos, dict):
+        return None
+    veredicto = datos.get("veredicto")
+    return str(veredicto) if veredicto in PESO_APTITUD else None
+
+
+def _con_reparto_agronomico(
+    db: Session, entrada: EntradaAgente, propuesta: PropuestaAgente
+) -> PropuestaAgente:
+    """Reemplaza el reparto igualitario del camino de catálogo por el agronómico (S1).
+
+    Con el agente en modo LLM no se llama: ahí el área que propone el modelo manda.
+    Todo lo que no es área (sistema, cifras, materiales, advertencias) queda igual.
+    """
+
+    if not propuesta.cultivos:
+        return propuesta
+
+    prioridades = {
+        producto.cultivo_codigo: producto.prioridad
+        for producto in entrada.productos
+        if producto.cultivo_codigo
+    }
+    insumos: list[dict] = []
+    for indice, cultivo in enumerate(propuesta.cultivos):
+        catalogo_cultivo = cultivo_repo.get_by_codigo(db, cultivo.cultivo_codigo)
+        ficha = fichas_agente.buscar(cultivo.cultivo_codigo)
+        densidad = _tomar(catalogo_cultivo, ficha, "densidad_plantas_m2")
+        aptitud = _tomar(catalogo_cultivo, ficha, "aptitud_suelo")
+        insumos.append(
+            {
+                "codigo": cultivo.cultivo_codigo,
+                "prioridad": prioridades.get(cultivo.cultivo_codigo, indice + 1),
+                "demanda_l_m2_dia": float(cultivo.demanda_l_m2_dia),
+                "ciclo_dias": cultivo.ciclo_dias,
+                "densidad_plantas_m2": (
+                    float(densidad) if densidad is not None else None
+                ),
+                "aptitud_suelo": _veredicto_suelo(aptitud, entrada.suelo_codigo),
+            }
+        )
+
+    areas, _pico = repartir_area_agronomica(
+        insumos,
+        area_m2=float(entrada.area_m2),
+        caudal_efectivo_m3h=float(entrada.caudal_efectivo_m3h),
+    )
+
+    cultivos = [
+        cultivo.model_copy(
+            update={
+                "area_m2": area,
+                "justificacion": (
+                    f"{cultivo.justificacion} Área de {area:.2f} m² asignada por demanda "
+                    "de agua, ciclo, densidad de plantas y prioridad."
+                )[:600],
+            }
+        )
+        for cultivo, area in zip(propuesta.cultivos, areas, strict=True)
+    ]
+    advertencias = list(propuesta.advertencias)
+
+    # S1: el aviso no depende de la demanda pico del reparto devuelto, sino de si el
+    # mínimo viable de todos entra en la jornada. Si no entra, el reparto mostrado es
+    # el prioritario y el aviso bloqueante lo dice con el agua que haría falta.
+    disponible = float(entrada.caudal_efectivo_m3h) * 1000 * HORAS_RIEGO_JORNADA
+    requerido = agua_para_minimo_viable(insumos, area_m2=float(entrada.area_m2))
+    if requerido is None or requerido > disponible + 1e-6:
+        advertencias.append(
+            _aviso_caudal_insuficiente(
+                insumos,
+                caudal_asumido=entrada.caudal_origen == "asumido",
+                area_m2=float(entrada.area_m2),
+                caudal_m3h=float(entrada.caudal_efectivo_m3h),
+                disponible=disponible,
+                requerido=requerido,
+            )
+        )
+
+    return propuesta.model_copy(
+        update={"cultivos": cultivos, "advertencias": advertencias}
+    )
+
+
+def _aviso_caudal_insuficiente(
+    insumos: list[dict],
+    *,
+    caudal_asumido: bool,
+    area_m2: float,
+    caudal_m3h: float,
+    disponible: float,
+    requerido: float | None,
+) -> Advertencia:
+    """Aviso: con este caudal no se sostiene el mínimo viable de todos (S1).
+
+    Bloquea sólo si el caudal lo informó el usuario: sobre un caudal que el sistema
+    asumió no se puede frenar a nadie (convención de ``schemas/comun.py``). Con caudal
+    asumido el aviso explica lo mismo, pero como advertencia.
+    """
+
+    cantidad = len(insumos)
+    if requerido is None:
+        mensaje = (
+            f"El terreno de {area_m2:.0f} m² no alcanza para el mínimo viable de "
+            f"{cantidad} productos ({MINIMO_VIABLE_PCT:.0f} % del terreno o "
+            f"{MINIMO_VIABLE_M2:.0f} m² cada uno): no hay reparto posible. Reducí la "
+            "lista de productos o mejorá la fuente de agua."
+        )
+    else:
+        mensaje = (
+            f"Con {caudal_m3h:.2f} m³/h no se sostienen los {cantidad} productos "
+            f"pedidos: el mínimo viable de cada uno ({MINIMO_VIABLE_PCT:.0f} % del "
+            f"terreno, {MINIMO_VIABLE_M2:.0f} m² como piso) exige "
+            f"{requerido:.0f} L/día y la fuente entrega {disponible:.0f} L/día. El "
+            "reparto mostrado es el prioritario y supera el caudal. Reducí la lista "
+            "de productos o mejorá la fuente de agua."
+        )
+    if caudal_asumido:
+        nota = " Ojo: el caudal es asumido por el sistema, no lo informaste vos."
+        mensaje = mensaje[: 300 - len(nota)] + nota
+    else:
+        mensaje = mensaje[:300]
+    return Advertencia(
+        codigo="DEMANDA_EXCEDE_CAUDAL",
+        mensaje=mensaje[:300],
+        bloqueante=not caudal_asumido,
+        campo="caudal_efectivo_m3h",
+    )
+
+
+# Fases reales de una corrida, en el orden en que el backend las ejecuta (S1).
+# Cada una se marca cuando el backend la empieza, no antes: el frontend cronometra
+# desde ``fase_desde`` y no necesita porcentajes inventados.
+FASE_CONTEXTO = "contexto"
+FASE_MODELO = "modelo"
+FASE_VALIDACION = "validacion"
+FASE_PRECIOS = "precios"
+FASE_RED = "red"
+FASE_LISTO = "listo"
+
+
+def _marcar_fase(db: Session, corrida: AgenteCorrida, fase: str) -> AgenteCorrida:
+    """Guarda la fase en la que el backend entra ahora mismo.
+
+    Se persiste al instante: el request ya respondió 202 y la única forma que tiene
+    el polling de ver el avance es leer la fila de la corrida. ``fase_desde`` es
+    siempre la hora del servidor, no la del navegador.
+    """
+
+    corrida.fase = fase
+    corrida.fase_desde = datetime.now(timezone.utc)
+    return agente_corrida_repo.update(db, corrida)
+
+
 def ejecutar_corrida(db: Session, corrida_id: uuid.UUID, proyecto_id: uuid.UUID) -> None:
     """Corre el agente y congela el resultado. Pensada como tarea de fondo.
 
     El request ya respondió 202, así que la sesión llega abierta y acá empieza una
     transacción nueva. Nunca deja la corrida en ``corriendo``: pasa a ``ok`` o a
-    ``error`` con ``error_detalle``.
+    ``error`` con ``error_detalle``, conservando la fase donde se rompió.
     """
 
     corrida = agente_corrida_repo.get_by_id(db, corrida_id, proyecto_id)
@@ -617,8 +1121,21 @@ def ejecutar_corrida(db: Session, corrida_id: uuid.UUID, proyecto_id: uuid.UUID)
 
     inicio = time.monotonic()
     try:
+        corrida = _marcar_fase(db, corrida, FASE_CONTEXTO)
         entrada = EntradaAgente.model_validate(corrida.entrada)
-        resultado = ejecutar_agente(_contexto_desde_corrida(db, proyecto, entrada))
+        contexto = _contexto_desde_corrida(db, proyecto, entrada)
+        corrida = _marcar_fase(db, corrida, FASE_MODELO)
+        resultado = ejecutar_agente(contexto)
+        # El modelo ya devolvió: acá el backend empieza a sanear la propuesta. La
+        # corrección interna de ``agente.validacion`` viaja dentro de la fase del
+        # modelo; lo que sigue es el saneo/reparto del servicio.
+        corrida = _marcar_fase(db, corrida, FASE_VALIDACION)
+        propuesta = resultado.propuesta
+        if resultado.modo == "catalogo":
+            # S1: el fallback determinístico no reparte en partes iguales; el área sale
+            # de la necesidad de cada cultivo y del caudal del terreno. Con el modelo
+            # (modo LLM) no se toca: esa área manda.
+            propuesta = _con_reparto_agronomico(db, entrada, propuesta)
     except Exception as exc:  # noqa: BLE001 - una corrida rota no cae el proceso
         corrida.estado = EstadoCorrida.ERROR.value
         corrida.error_detalle = str(exc)[:2000] or exc.__class__.__name__
@@ -627,12 +1144,11 @@ def ejecutar_corrida(db: Session, corrida_id: uuid.UUID, proyecto_id: uuid.UUID)
         agente_corrida_repo.update(db, corrida)
         return
 
-    propuesta = resultado.propuesta
-
     # Nada de lo que pasa de acá en adelante puede dejar la corrida en "corriendo":
     # guardar precios o persistir fuentes puede fallar por la base y el usuario tiene
     # que recibir un error explicable, no un polling eterno.
     try:
+        corrida = _marcar_fase(db, corrida, FASE_PRECIOS)
         # S6: lo que el agente investigó se guarda una vez por material y se reutiliza
         # mientras siga vigente; después se completa el total con cantidad × precio y
         # se contrasta contra el presupuesto del paso 3.
@@ -654,6 +1170,9 @@ def ejecutar_corrida(db: Session, corrida_id: uuid.UUID, proyecto_id: uuid.UUID)
 
         _persistir_fuentes(db, corrida, resultado.fuentes)
         _persistir_recomendaciones(db, corrida, propuesta)
+        # Recién acá el proceso terminó de verdad: la propuesta está congelada con
+        # sus fuentes y recomendaciones.
+        _marcar_fase(db, corrida, FASE_LISTO)
     except Exception as exc:  # noqa: BLE001 - una corrida rota no cae el proceso
         # La transacción quedó rota (por ejemplo un IntegrityError): se descarta
         # antes de escribir el estado de error. El estado "corriendo" ya estaba
@@ -705,6 +1224,15 @@ def aplicar_corrida(
         for recomendacion in agente_recomendacion_repo.list_by_corrida(db, corrida.id)
         if recomendacion.aplicada
     ]
+    if aplicadas:
+        # Aplicada y sin diseño es un estado alcanzable cuando una generación falló a
+        # mitad de camino: el usuario no puede reintentar (409) ni ver el informe (404).
+        # Con el diseño ausente se rehace el apply completo en vez de dejarlo ahí.
+        try:
+            riego_service.obtener_diseno(db, proyecto)
+        except riego_service.RiegoServiceError:
+            aplicadas = []
+
     if aplicadas:
         raise AgenteServiceError(409, "La corrida ya está aplicada")
 
@@ -771,18 +1299,26 @@ def aplicar_corrida(
             raise AgenteServiceError(exc.status_code, exc.detail) from exc
 
     try:
+        # Red es la fase que aplica el reparto congelado y genera sectores y red: se
+        # marca justo antes de escribirla, así un fallo del motor queda con la fase
+        # donde se rompió (S3).
+        corrida = _marcar_fase(db, corrida, FASE_RED)
         riego_service.upsert_config(db, proyecto, configuracion)
         riego_service.generar(db, proyecto)
     except riego_service.RiegoServiceError as exc:
-        # El sistema de riego es válido aunque el motor no pueda cerrar la red: la
-        # propuesta aplicada se conserva y el motivo se reporta como advertencia.
-        propuesta.advertencias.append(
-            Advertencia(
-                codigo="RED_NO_GENERADA",
-                mensaje=exc.detail[:300],
-                campo="riego",
-            )
-        )
+        # Sin red no hay informe: `resultado_proyecto` no puede armar el documento. Si
+        # igual marcáramos la corrida como aplicada, el usuario quedaría en un callejón
+        # sin salida (el reintento responde 409 "ya está aplicada") y sin poder ver ni
+        # corregir nada. Se corta acá, con el motivo del motor, y la corrida sigue
+        # disponible para reintentar cuando el usuario corrija lo que falte.
+        raise AgenteServiceError(
+            409,
+            (
+                "El reparto se guardó, pero el motor no pudo generar la red de riego: "
+                f"{exc.detail[:300]} Corregí los datos del terreno o de la "
+                "configuración y volvé a generar."
+            ),
+        ) from exc
 
     ahora = datetime.now(timezone.utc)
     for recomendacion in agente_recomendacion_repo.list_by_corrida(db, corrida.id):
@@ -793,13 +1329,8 @@ def aplicar_corrida(
     proyecto.corrida_actual_id = corrida.id
     proyecto_repo.update(db, proyecto)
 
-    resultado = resultado_proyecto(db, proyecto)
-    resultado.advertencias.extend(
-        alerta
-        for alerta in propuesta.advertencias
-        if alerta.codigo == "RED_NO_GENERADA"
-    )
-    return resultado
+    _marcar_fase(db, corrida, FASE_LISTO)
+    return resultado_proyecto(db, proyecto)
 
 
 def listar_corridas(db: Session, proyecto: Proyecto) -> list[CorridaOut]:
@@ -1184,25 +1715,145 @@ def _ajustes_motor(
     return ajustes
 
 
-def _recomendaciones_informe(
-    db: Session, corrida: AgenteCorrida | None, propuesta: PropuestaAgente | None
-) -> list[RecomendacionInforme]:
-    """Recomendaciones finales (S7): las persistidas y las de la corrida congelada."""
+# Forma de los diagnósticos que escribe ``ejecutar_corrida`` en el título de la fila
+# (el ``mensaje`` de la advertencia). Se clasifica por esa forma y no por una marca
+# suelta: una recomendación real puede nombrar la siembra elegida en su detalle (S5).
+_FRASES_DIAGNOSTICO_INTERNO = (
+    ("la corrida se resolvio con el catalogo interno",),
+    (
+        "se uso la siembra elegida",
+        "en lugar de la que propuso el agente",
+    ),
+)
 
-    recomendaciones: list[RecomendacionInforme] = []
-    if propuesta is not None:
-        recomendaciones.extend(
-            RecomendacionInforme(
-                tipo="final",
-                titulo=recomendacion.titulo,
-                detalle=recomendacion.detalle,
-                justificacion=recomendacion.justificacion or None,
-            )
-            for recomendacion in propuesta.recomendaciones
+# Variables de entorno del pipeline: si el título las nombra, es un diagnóstico del
+# agente y no algo que le convenga al usuario.
+_VARIABLES_ENTORNO_AGENTE = ("agente_modo", "agente_api_key")
+
+
+def _texto_comparable(texto: str) -> str:
+    """Clave para comparar textos: sin espacios de más, mayúsculas ni punto final."""
+
+    return " ".join(texto.split()).casefold().rstrip(".")
+
+
+def _texto_sin_tildes(texto: str) -> str:
+    return "".join(
+        letra
+        for letra in unicodedata.normalize("NFD", texto)
+        if unicodedata.category(letra) != "Mn"
+    )
+
+
+def _es_diagnostico_interno(*textos: str | None) -> bool:
+    """Si el título habla de la configuración interna del pipeline, no del usuario.
+
+    Sólo se mira el título (el primer texto): los diagnósticos de ``ejecutar_corrida``
+    son las frases del pipeline o nombran ``AGENTE_MODO``/``AGENTE_API_KEY``. El
+    detalle y la justificación de una recomendación real pueden mencionar la siembra
+    elegida sin que la recomendación sea un diagnóstico (S5).
+    """
+
+    titulo = textos[0] if textos else None
+    if not titulo:
+        return False
+    normalizado = _texto_sin_tildes(_texto_comparable(titulo))
+    if any(variable in normalizado for variable in _VARIABLES_ENTORNO_AGENTE):
+        return True
+    return any(
+        all(fragmento in normalizado for fragmento in frase)
+        for frase in _FRASES_DIAGNOSTICO_INTERNO
+    )
+
+
+def _sin_repetir(
+    titulo: str, detalle: str | None, justificacion: str | None
+) -> tuple[str | None, str | None]:
+    """Quita detalle y justificación cuando repiten el título o entre sí (S5).
+
+    No se inventa una justificación: si el pipeline repitió el mismo texto en los
+    tres campos, el informe lo muestra una sola vez.
+    """
+
+    clave_titulo = _texto_comparable(titulo)
+    if detalle and _texto_comparable(detalle) == clave_titulo:
+        detalle = None
+    if justificacion:
+        clave_justificacion = _texto_comparable(justificacion)
+        if clave_justificacion == clave_titulo or (
+            detalle and clave_justificacion == _texto_comparable(detalle)
+        ):
+            justificacion = None
+    return detalle, justificacion
+
+
+def _deduplicar_recomendaciones(
+    entradas: list[tuple[RecomendacionInforme, str | None]],
+) -> list[RecomendacionInforme]:
+    """Una sola entrada por título; si aplica a varios cultivos, los menciona (S5)."""
+
+    vistas: dict[str, RecomendacionInforme] = {}
+    cultivos: dict[str, list[str]] = {}
+    for recomendacion, cultivo in entradas:
+        clave = _texto_comparable(recomendacion.titulo)
+        if clave in vistas:
+            if cultivo and cultivo not in cultivos[clave]:
+                cultivos[clave].append(cultivo)
+            continue
+        vistas[clave] = recomendacion
+        cultivos[clave] = [cultivo] if cultivo else []
+
+    for clave, recomendacion in vistas.items():
+        if len(cultivos[clave]) < 2:
+            continue
+        nota = f"Aplica a: {', '.join(cultivos[clave])}."
+        recomendacion.detalle = (
+            f"{recomendacion.detalle} {nota}"[:1000] if recomendacion.detalle else nota
         )
+    return list(vistas.values())
+
+
+def _recomendaciones_y_advertencias(
+    db: Session, corrida: AgenteCorrida | None, propuesta: PropuestaAgente | None
+) -> tuple[list[RecomendacionInforme], list[Advertencia]]:
+    """Recomendaciones finales legibles y avisos técnicos del informe (S5, S6).
+
+    Las filas tipo ``advertencia`` de ``agente_recomendaciones`` son diagnósticos del
+    pipeline, no recomendaciones: las internas (modo del agente, siembra pisada) se
+    descartan y las operativas van al banner de advertencias, que es su lugar. Las
+    recomendaciones se deduplican por título y no repiten el mismo texto tres veces.
+    """
+
+    entradas: list[tuple[RecomendacionInforme, str | None]] = []
+    avisos: list[Advertencia] = []
+
+    if propuesta is not None:
+        for recomendacion in propuesta.recomendaciones:
+            if _es_diagnostico_interno(
+                recomendacion.titulo,
+                recomendacion.detalle,
+                recomendacion.justificacion,
+            ):
+                continue
+            detalle, justificacion = _sin_repetir(
+                recomendacion.titulo,
+                recomendacion.detalle,
+                recomendacion.justificacion or None,
+            )
+            entradas.append(
+                (
+                    RecomendacionInforme(
+                        tipo="final",
+                        titulo=recomendacion.titulo,
+                        detalle=detalle,
+                        justificacion=justificacion,
+                    ),
+                    None,
+                )
+            )
 
     if corrida is None:
-        return recomendaciones
+        return _deduplicar_recomendaciones(entradas), avisos
 
     for fila in agente_recomendacion_repo.list_by_corrida(db, corrida.id):
         payload = fila.payload or {}
@@ -1212,18 +1863,44 @@ def _recomendaciones_informe(
             or payload.get("mensaje")
             or fila.tipo
         )
+        titulo = str(titulo)[:300]
         detalle = payload.get("detalle") or payload.get("mensaje")
-        recomendaciones.append(
-            RecomendacionInforme(
-                id=fila.id,
-                tipo=fila.tipo,
-                titulo=str(titulo)[:300],
-                detalle=str(detalle)[:1000] if detalle else None,
-                justificacion=fila.justificacion,
-                aplicada=fila.aplicada,
+        detalle = str(detalle)[:1000] if detalle else None
+        justificacion = fila.justificacion
+
+        if _es_diagnostico_interno(titulo, detalle, justificacion):
+            continue
+
+        if fila.tipo == TipoRecomendacion.ADVERTENCIA.value:
+            campo = payload.get("campo")
+            avisos.append(
+                Advertencia(
+                    codigo=str(payload.get("codigo") or "ADVERTENCIA_AGENTE")[:40],
+                    mensaje=str(payload.get("mensaje") or titulo)[:300],
+                    campo=str(campo)[:40] if campo else None,
+                )
+            )
+            continue
+
+        detalle, justificacion = _sin_repetir(titulo, detalle, justificacion)
+        cultivo = payload.get("cultivo_codigo")
+        if not cultivo and fila.tipo == TipoRecomendacion.CULTIVO.value:
+            cultivo = payload.get("nombre")
+        entradas.append(
+            (
+                RecomendacionInforme(
+                    id=fila.id,
+                    tipo=fila.tipo,
+                    titulo=titulo,
+                    detalle=detalle,
+                    justificacion=justificacion,
+                    aplicada=fila.aplicada,
+                ),
+                str(cultivo) if cultivo else None,
             )
         )
-    return recomendaciones
+
+    return _deduplicar_recomendaciones(entradas), avisos
 
 
 def _presupuesto_informe(
@@ -1378,6 +2055,9 @@ def resultado_proyecto(db: Session, proyecto: Proyecto) -> ResultadoProyectoOut:
     presupuesto_bs, costo_total_bs, presupuesto_excedido = _presupuesto_informe(
         corrida, propuesta
     )
+    recomendaciones, avisos_agente = _recomendaciones_y_advertencias(
+        db, corrida, propuesta
+    )
     resultado = ResultadoProyectoOut(
         proyecto_id=proyecto.id,
         nombre=proyecto.nombre,
@@ -1401,11 +2081,14 @@ def resultado_proyecto(db: Session, proyecto: Proyecto) -> ResultadoProyectoOut:
             presupuesto_bs=presupuesto_bs,
             costo_total_bs=costo_total_bs,
             presupuesto_excedido=presupuesto_excedido,
-            recomendaciones=_recomendaciones_informe(db, corrida, propuesta),
+            recomendaciones=recomendaciones,
             fuentes=(
                 [
                     FuenteOut.model_validate(fuente)
                     for fuente in agente_fuente_repo.list_by_corrida(db, corrida.id)
+                    # S5: los catálogos internos alimentaron el cálculo, no son
+                    # investigación web y no se presentan como fuentes consultadas.
+                    if fuente.tipo != TipoFuenteAgente.CATALOGO_INTERNO.value
                 ]
                 if corrida is not None
                 else []
@@ -1414,6 +2097,31 @@ def resultado_proyecto(db: Session, proyecto: Proyecto) -> ResultadoProyectoOut:
         ),
         advertencias=list(diseno.advertencias),
     )
+
+    # S3: la marca del modo catálogo viaja en las advertencias del resultado para que
+    # el informe pueda explicar una sola vez por qué no hubo modelo, cifras ni
+    # investigación web. No es un diagnóstico interno: describe lo que trae el
+    # informe, no la configuración del proceso.
+    if propuesta is not None:
+        for advertencia in propuesta.advertencias:
+            if advertencia.codigo != MODO_CATALOGO_ADVERTENCIA:
+                continue
+            if any(
+                existente.codigo == advertencia.codigo
+                for existente in resultado.advertencias
+            ):
+                continue
+            resultado.advertencias.append(advertencia.model_copy())
+
+    # S6: los diagnósticos operativos del pipeline (por ejemplo, que el motor no pudo
+    # generar la red) van al banner de advertencias, no a las recomendaciones.
+    for aviso in avisos_agente:
+        repetido = any(
+            existente.codigo == aviso.codigo and existente.mensaje == aviso.mensaje
+            for existente in resultado.advertencias
+        )
+        if not repetido:
+            resultado.advertencias.append(aviso)
 
     # La comparación contra el presupuesto del paso 3 se muestra en el informe, no
     # solo en la corrida cruda. Si la salida congelada ya la trae, no se duplica.

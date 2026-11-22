@@ -23,7 +23,7 @@
     <div class="flex items-center gap-2">
       <span class="text-[10px] font-bold text-agro-100 bg-black/20 px-2 py-1 rounded-lg">
         {{ red().tramos.length }} tramos · {{ red().nodos.length }} nodos ·
-        {{ totalTuberia() }} m de tubería
+        {{ emisoresTotales() }} emisores · {{ totalTuberia() }} m de tubería
       </span>
     </div>
   </div>
@@ -55,6 +55,27 @@
           <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <path d="M3 3h18v18H3z"></path>
             <path d="M3 9h18M3 15h18M9 3v18M15 3v18"></path>
+          </svg>
+        </button>
+        <button
+          class="p-1.5 rounded transition-colors"
+          [class]="
+            goterosEncendidos()
+              ? 'bg-sky-50 text-sky-700'
+              : 'text-slate-600 hover:bg-slate-100'
+          "
+          data-toggle-emisores
+          type="button"
+          [attr.aria-pressed]="goterosEncendidos()"
+          [title]="goterosEncendidos() ? 'Ocultar goteros' : 'Mostrar goteros'"
+          (click)="alternarEmisores()"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <circle cx="7" cy="7" r="1.6"></circle>
+            <circle cx="12" cy="12" r="1.6"></circle>
+            <circle cx="17" cy="17" r="1.6"></circle>
+            <circle cx="17" cy="7" r="1.6"></circle>
+            <circle cx="7" cy="17" r="1.6"></circle>
           </svg>
         </button>
         <button
@@ -101,7 +122,7 @@
         data-plano-svg
         viewBox="0 0 900 520"
         role="img"
-        aria-label="Plano 2D de la red hidráulica"
+        aria-label="Plano 2D del terreno, las zonas de cultivo y la red hidráulica"
         (pointerdown)="onPointerDown($event)"
         (pointermove)="onPointerMove($event)"
         (pointerup)="onPointerUp()"
@@ -120,131 +141,203 @@
         }
 
         <g [attr.transform]="transformacion()">
-          <!-- Bloques de cultivo: el borde que el motor ya calculó -->
-          @for (bloque of dibujo().bloques; track bloque.id) {
-            <polygon
-              fill="none"
-              [attr.points]="bloque.puntos"
-              [attr.stroke]="bloque.color"
-              stroke-dasharray="5,4"
-              stroke-linejoin="round"
-              stroke-width="1.5"
-            ></polygon>
-          }
+          <!-- 1. El polígono real del terreno: la forma que dibujó el cliente (S4) -->
+          <g data-capa="terreno">
+            @if (dibujo().terreno; as terrenoPuntos) {
+              <polygon
+                data-plano-terreno
+                fill="#ecfdf5"
+                fill-opacity="0.6"
+                [attr.points]="terrenoPuntos"
+                stroke="#0f766e"
+                stroke-linejoin="round"
+                stroke-width="2.6"
+              ></polygon>
+            }
+          </g>
 
-          <!-- Sectores: polígonos reales, pintados con el color de su cultivo -->
-          @for (sector of dibujo().sectores; track sector.id) {
-            <polygon
-              [attr.fill]="sector.color"
-              fill-opacity="0.18"
-              [attr.points]="sector.puntos"
-              stroke="#166534"
-              stroke-linejoin="round"
-              stroke-width="2"
-            ></polygon>
-            <g>
-              <rect
-                [attr.x]="sector.centro.x - 42"
-                [attr.y]="sector.centro.y - 20"
-                fill="#ffffff"
-                height="26"
-                rx="6"
-                stroke="#cbd5e1"
-                stroke-width="1"
-                width="84"
-              ></rect>
-              <text
-                [attr.x]="sector.centro.x"
-                [attr.y]="sector.centro.y - 2"
-                fill="#0f172a"
-                font-size="11"
-                font-weight="700"
-                text-anchor="middle"
-              >
-                {{ sector.etiqueta }}
-              </text>
-            </g>
-          }
+          <!-- 2. Zonas de cultivo: un relleno por bloque con su color, debajo de la red -->
+          <g data-capa="zonas">
+            @for (zona of dibujo().zonas; track zona.id) {
+              <g>
+                <polygon
+                  data-zona
+                  [attr.fill]="zona.color"
+                  fill-opacity="0.55"
+                  [attr.points]="zona.puntos"
+                  [attr.stroke]="zona.color"
+                  stroke-linejoin="round"
+                  stroke-width="1.4"
+                ></polygon>
+              </g>
+            }
+          </g>
 
-          <!-- Laterales y matriz: un polyline por tramo real -->
-          @for (tramo of dibujo().tramos; track tramo.id) {
-            <polyline
-              fill="none"
-              [attr.points]="tramo.puntos"
-              [attr.stroke]="tramo.color"
-              stroke-linejoin="round"
-              [attr.stroke-width]="tramo.ancho"
-            ></polyline>
-          }
+          <!-- 3. Sectores: contorno punteado propio y su etiqueta -->
+          <g data-capa="sectores">
+            @for (sector of dibujo().sectores; track sector.id) {
+              <g>
+                <polygon
+                  data-sector
+                  fill="none"
+                  [attr.points]="sector.puntos"
+                  stroke="#166534"
+                  stroke-dasharray="7,5"
+                  stroke-linejoin="round"
+                  stroke-width="2.2"
+                ></polygon>
+              </g>
+            }
+          </g>
 
-          <!-- Goteros posicionados por el backend -->
-          @for (emisor of dibujo().emisores; track $index) {
-            <circle
-              [attr.cx]="emisor.x"
-              [attr.cy]="emisor.y"
-              fill="#0284c7"
-              r="2.6"
-              stroke="#ffffff"
-              stroke-width="1"
-            ></circle>
-          }
+          <!-- 4. Red: laterales y matriz, un polyline por tramo real -->
+          <g data-capa="red">
+            @for (tramo of dibujo().tramos; track tramo.id) {
+              <polyline
+                fill="none"
+                [attr.data-tramo-tipo]="tramo.tipo"
+                [attr.points]="tramo.puntos"
+                [attr.stroke]="tramo.color"
+                stroke-linejoin="round"
+                [attr.stroke-opacity]="tramo.opacidad"
+                [attr.stroke-width]="tramo.ancho"
+              ></polyline>
+            }
+          </g>
 
-          <!-- Nodos: tanque, bomba, cabezal y válvulas -->
-          @for (nodo of dibujo().nodos; track nodo.id) {
-            <g>
-              @if (esValvula(nodo)) {
-                <circle
-                  [attr.cx]="nodo.x"
-                  [attr.cy]="nodo.y"
-                  fill="#ffffff"
-                  r="8"
-                  stroke="#dc2626"
-                  stroke-width="2"
-                ></circle>
-                <line
-                  [attr.x1]="nodo.x - 4"
-                  [attr.y1]="nodo.y - 4"
-                  [attr.x2]="nodo.x + 4"
-                  [attr.y2]="nodo.y + 4"
-                  stroke="#dc2626"
-                  stroke-width="2"
-                ></line>
-                <line
-                  [attr.x1]="nodo.x + 4"
-                  [attr.y1]="nodo.y - 4"
-                  [attr.x2]="nodo.x - 4"
-                  [attr.y2]="nodo.y + 4"
-                  stroke="#dc2626"
-                  stroke-width="2"
-                ></line>
-              } @else {
-                <circle
-                  [attr.cx]="nodo.x"
-                  [attr.cy]="nodo.y"
-                  [attr.fill]="esTanque(nodo) ? '#0284c7' : '#1e3a8a'"
-                  r="9"
-                  stroke="#ffffff"
-                  stroke-width="2"
-                ></circle>
-              }
-              <text
-                [attr.x]="nodo.x"
-                [attr.y]="nodo.y + 20"
-                fill="#334155"
-                font-size="9.5"
-                font-weight="700"
-                text-anchor="middle"
-              >
-                {{ etiquetaNodo(nodo) }}
-              </text>
-            </g>
-          }
+          <!-- 5. Goteros posicionados por el backend; se densifican al alejar -->
+          <g data-capa="emisores">
+            @for (emisor of emisoresVisibles(); track $index) {
+              <circle
+                data-emisor
+                [attr.cx]="emisor.x"
+                [attr.cy]="emisor.y"
+                fill="#0284c7"
+                [attr.r]="radioEmisor()"
+                stroke="#ffffff"
+                stroke-width="0.8"
+              ></circle>
+            }
+          </g>
+
+          <!-- 6. Nodos: tanque, bomba, cabezal y válvulas -->
+          <g data-capa="nodos">
+            @for (nodo of dibujo().nodos; track nodo.id) {
+              <g>
+                @if (esValvula(nodo)) {
+                  <circle
+                    [attr.cx]="nodo.x"
+                    [attr.cy]="nodo.y"
+                    fill="#ffffff"
+                    r="8"
+                    stroke="#dc2626"
+                    stroke-width="2"
+                  ></circle>
+                  <line
+                    [attr.x1]="nodo.x - 4"
+                    [attr.y1]="nodo.y - 4"
+                    [attr.x2]="nodo.x + 4"
+                    [attr.y2]="nodo.y + 4"
+                    stroke="#dc2626"
+                    stroke-width="2"
+                  ></line>
+                  <line
+                    [attr.x1]="nodo.x + 4"
+                    [attr.y1]="nodo.y - 4"
+                    [attr.x2]="nodo.x - 4"
+                    [attr.y2]="nodo.y + 4"
+                    stroke="#dc2626"
+                    stroke-width="2"
+                  ></line>
+                } @else {
+                  <circle
+                    [attr.cx]="nodo.x"
+                    [attr.cy]="nodo.y"
+                    [attr.fill]="esTanque(nodo) ? '#0284c7' : '#1e3a8a'"
+                    r="9"
+                    stroke="#ffffff"
+                    stroke-width="2"
+                  ></circle>
+                }
+                <text
+                  [attr.x]="nodo.x"
+                  [attr.y]="nodo.y + 20"
+                  fill="#334155"
+                  font-size="9.5"
+                  font-weight="700"
+                  text-anchor="middle"
+                >
+                  {{ etiquetaNodo(nodo) }}
+                </text>
+              </g>
+            }
+          </g>
+
+          <!-- 7. Etiquetas de zonas y sectores al final: la red nunca las tapa -->
+          <g data-capa="etiquetas">
+            @for (zona of dibujo().zonas; track zona.id) {
+              <g>
+                  <rect
+                    [attr.x]="zona.etiqueta.x"
+                    [attr.y]="zona.etiqueta.y"
+                    [attr.width]="zona.etiqueta.ancho"
+                    [attr.height]="zona.etiqueta.alto"
+                    [attr.fill]="zona.etiqueta.fondo"
+                    fill-opacity="0.95"
+                    rx="6"
+                    [attr.stroke]="zona.etiqueta.borde"
+                    stroke-width="1.2"
+                  ></rect>
+                  <rect
+                    [attr.x]="zona.etiqueta.x + 4"
+                    [attr.y]="zona.etiqueta.y + 4"
+                    [attr.fill]="zona.color"
+                    [attr.height]="zona.etiqueta.alto - 8"
+                    rx="2"
+                    width="4"
+                  ></rect>
+                  <text
+                    data-zona-etiqueta
+                    [attr.x]="zona.etiqueta.x + 12"
+                    [attr.y]="zona.etiqueta.textoY"
+                    [attr.fill]="zona.etiqueta.colorTexto"
+                    font-size="10.5"
+                    font-weight="700"
+                  >
+                    {{ zona.etiqueta.texto }}
+                  </text>
+              </g>
+            }
+            @for (sector of dibujo().sectores; track sector.id) {
+              <g>
+                  <rect
+                    [attr.x]="sector.etiqueta.x"
+                    [attr.y]="sector.etiqueta.y"
+                    [attr.width]="sector.etiqueta.ancho"
+                    [attr.height]="sector.etiqueta.alto"
+                    [attr.fill]="sector.etiqueta.fondo"
+                    rx="9"
+                  ></rect>
+                  <text
+                    data-sector-etiqueta
+                    [attr.x]="sector.etiqueta.x + sector.etiqueta.ancho / 2"
+                    [attr.y]="sector.etiqueta.textoY"
+                    [attr.fill]="sector.etiqueta.colorTexto"
+                    font-size="10"
+                    font-weight="700"
+                    text-anchor="middle"
+                  >
+                    {{ sector.etiqueta.texto }}
+                  </text>
+              </g>
+            }
+          </g>
         </g>
       </svg>
     </div>
   }
 
-  <!-- Leyenda técnica: sólo los diámetros que traen los tramos -->
+  <!-- Leyenda: qué es cada capa y, agrupados, los diámetros de los tramos -->
   <div
     class="px-4 py-3 flex flex-col gap-2 border-t border-slate-100 bg-white"
     data-leyenda-plano
@@ -254,10 +347,33 @@
       <span class="text-[10px] text-slate-400">Simbología del plano</span>
     </div>
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-[11px]">
+      <div class="flex items-center gap-2">
+        <span
+          class="w-5 h-3.5 rounded-xs border-2 border-teal-700 bg-emerald-50 shrink-0"
+          aria-hidden="true"
+        ></span>
+        <span class="text-slate-700 font-medium truncate">Borde del terreno</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span
+          class="w-5 h-3.5 rounded-xs border border-slate-300 shrink-0"
+          style="background: linear-gradient(90deg, #8d6e63 0 50%, #4caf50 50% 100%); opacity: 0.6"
+          aria-hidden="true"
+        ></span>
+        <span class="text-slate-700 font-medium truncate">Zona de cultivo</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span
+          class="w-5 h-3.5 rounded-xs border-2 border-emerald-800 border-dashed shrink-0"
+          aria-hidden="true"
+        ></span>
+        <span class="text-slate-700 font-medium truncate">Sector de riego</span>
+      </div>
       @for (item of dibujo().leyenda; track item.clave) {
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2" data-leyenda-tramo>
           <span
             class="w-5 h-1.5 rounded-full shrink-0"
+            [style.height]="item.ancho + 'px'"
             [style.background-color]="item.color"
             aria-hidden="true"
           ></span>
@@ -266,15 +382,15 @@
       }
       @if (sistema(); as sistema) {
         @if (sistema.emisor) {
-        <div class="flex items-center gap-2">
-          <span
-            class="w-2.5 h-2.5 rounded-full bg-sky-600 ring-2 ring-sky-200 shrink-0 ml-1"
-            aria-hidden="true"
-          ></span>
-          <span class="text-slate-700 font-medium">
-            Emisor {{ sistema.emisor.caudal_lh }} L/h ({{ sistema.emisor.separacion_m }} m)
-          </span>
-        </div>
+          <div class="flex items-center gap-2">
+            <span
+              class="w-2.5 h-2.5 rounded-full bg-sky-600 ring-2 ring-sky-200 shrink-0 ml-1"
+              aria-hidden="true"
+            ></span>
+            <span class="text-slate-700 font-medium truncate">
+              Emisor {{ sistema.emisor.caudal_lh }} L/h ({{ sistema.emisor.separacion_m }} m)
+            </span>
+          </div>
         }
       }
       <div class="flex items-center gap-2">
@@ -282,22 +398,30 @@
           class="w-4 h-4 rounded-full border-2 border-red-600 bg-white shrink-0"
           aria-hidden="true"
         ></span>
-        <span class="text-slate-700 font-medium">Válvula de control</span>
+        <span class="text-slate-700 font-medium truncate">Válvula de control</span>
       </div>
       <div class="flex items-center gap-2">
         <span
           class="w-4 h-4 rounded-full bg-sky-600 ring-2 ring-sky-200 shrink-0"
           aria-hidden="true"
         ></span>
-        <span class="text-slate-700 font-medium">Tanque / bomba</span>
-      </div>
-      <div class="flex items-center gap-2">
-        <span
-          class="w-4 h-3 rounded-xs border border-slate-400 border-dashed shrink-0"
-          aria-hidden="true"
-        ></span>
-        <span class="text-slate-700 font-medium">Bloque de cultivo</span>
+        <span class="text-slate-700 font-medium truncate">Tanque / bomba</span>
       </div>
     </div>
+    @if (!goterosEncendidos()) {
+      @if (emisoresTotales() > 0) {
+        <p class="text-[10px] text-slate-500 leading-snug" data-emisores-ocultos>
+          Los goteros están apagados para no tapar la red ni el color de las zonas. Encendé
+          «Goteros» en las herramientas del plano para ver los {{ emisoresTotales() }} del
+          payload.
+        </p>
+      }
+    } @else if (emisoresOcultos() > 0) {
+      <p class="text-[10px] text-slate-500 leading-snug" data-emisores-densidad>
+        Se dibujan {{ emisoresVisibles().length }} de {{ emisoresTotales() }} goteros a este
+        zoom; el cómputo usa los {{ emisoresTotales() }} del payload. Acercá para ver más
+        detalle.
+      </p>
+    }
   </div>
 </section>

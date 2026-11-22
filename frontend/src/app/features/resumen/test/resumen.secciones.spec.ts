@@ -62,6 +62,7 @@ function terreno(pendiente: number | null) {
     suelo_codigo: 'franco_arenado',
     fuente_agua: 'pozo',
     pendiente_pct: pendiente,
+    // Vértices del terreno del paso 1; el plano los usa para el contorno (S4).
     geometria: {
       vertices: [
         { x: 0, y: 0 },
@@ -362,6 +363,40 @@ function resultadoMinimo() {
   };
 }
 
+/**
+ * Corrida en modo catálogo (L2): la marca `AGENTE_SIN_CREDENCIALES` explica por qué
+ * el agente no trajo cifras, materiales, precios ni fuentes.
+ */
+function resultadoCatalogo() {
+  const base = resultadoCompleto();
+  const diseno = base.diseno as Record<string, unknown>;
+  const aviso = {
+    codigo: 'AGENTE_SIN_CREDENCIALES',
+    mensaje:
+      "La corrida se resolvió con el catálogo interno: AGENTE_MODO está en 'catalogo'.",
+    bloqueante: false,
+    campo: 'modelo',
+  };
+  // El backend repite la marca en el diseño y en el resultado: la banda va una sola vez.
+  diseno['advertencias'] = [aviso];
+  (base as Record<string, unknown>)['advertencias'] = [aviso];
+  diseno['cifras_agente'] = {
+    presion_trabajo_bar: null,
+    eficiencia_pct: null,
+    demanda_pico_l_dia: null,
+    autonomia_dias: null,
+    tiempo_riego_h: null,
+    turnos: [],
+  };
+  diseno['materiales'] = [];
+  diseno['costo_total_bs'] = null;
+  diseno['presupuesto_bs'] = 1500;
+  diseno['presupuesto_excedido'] = null;
+  diseno['fuentes'] = [];
+  diseno['recomendaciones'] = [];
+  return base;
+}
+
 describe('ResumenPage (paso 4: secciones del informe)', () => {
   let http: HttpTestingController;
 
@@ -515,6 +550,35 @@ describe('ResumenPage (paso 4: secciones del informe)', () => {
     expect(posicion & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
+  it('dibuja el terreno guardado, las zonas con su nombre y color y los sectores (S4)', async () => {
+    const pagina = await montar(resultadoCompleto());
+    const plano = html('[data-plano-red]', pagina);
+    const svg = plano.querySelector('[data-plano-svg]') as SVGSVGElement;
+
+    // El polígono del terreno llega desde el store, no se inventa en el plano.
+    const terreno = svg.querySelector('[data-plano-terreno]') as SVGPolygonElement;
+    expect(terreno).not.toBeNull();
+    expect((terreno.getAttribute('points') ?? '').trim().split(/\s+/).length).toBe(4);
+
+    // Un relleno por bloque con el color del payload y su etiqueta legible.
+    const zonas = Array.from(svg.querySelectorAll<SVGPolygonElement>('[data-zona]'));
+    expect(zonas.map((zona) => zona.getAttribute('fill'))).toEqual(['#8D6E63', '#4CAF50']);
+    const etiquetas = Array.from(
+      svg.querySelectorAll<SVGTextElement>('[data-zona-etiqueta]'),
+    ).map((texto) => texto.textContent?.trim() ?? '');
+    expect(etiquetas[0]).toContain('Papa');
+    expect(etiquetas[1]).toContain('Lechuga');
+
+    // Los sectores y la red siguen arriba, con su propia etiqueta.
+    expect(svg.querySelectorAll('[data-sector]').length).toBe(2);
+    expect(
+      Array.from(svg.querySelectorAll<SVGTextElement>('[data-sector-etiqueta]')).map((texto) =>
+        texto.textContent?.trim(),
+      ),
+    ).toEqual(['Papa', 'Lechuga']);
+    expect(svg.querySelectorAll('polyline').length).toBe(2);
+  });
+
   it('muestra "no informado" con un resultado mínimo y no rompe', async () => {
     const pagina = await montar(resultadoMinimo(), null);
     const secciones = html('[data-secciones-informe]', pagina);
@@ -541,6 +605,74 @@ describe('ResumenPage (paso 4: secciones del informe)', () => {
     expect(html('[data-seccion-fuentes]', secciones).textContent).toContain('no informado');
     expect(pagina.querySelector('[data-error-informe]')).toBeNull();
   });
+  it('en modo catálogo explica una sola vez y las secciones no repiten "no informado" (S3)', async () => {
+    const pagina = await montar(resultadoCatalogo());
+
+    // 1. Una sola banda, con lenguaje de producto, arriba de las secciones.
+    const bandas = pagina.querySelectorAll('[data-modo-catalogo]');
+    expect(bandas.length).toBe(1);
+    const banda = bandas[0] as HTMLElement;
+    expect(banda.textContent).toContain('catálogo interno');
+    expect(banda.textContent).toContain('credenciales');
+    const secciones = html('[data-secciones-informe]', pagina);
+    expect(banda.compareDocumentPosition(secciones) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    // La marca cruda no vuelve a aparecer como advertencia técnica.
+    const advertencias = html('[data-advertencias]', pagina);
+    expect(advertencias.textContent).not.toContain('AGENTE_MODO');
+
+    // 2. Cifras del agente: una línea corta en vez de cinco "no informado".
+    const cifrasAgente = html('[data-cifras-agente]', html('[data-seccion-balance]', secciones));
+    expect(cifrasAgente.textContent).toContain('catálogo interno');
+    expect((cifrasAgente.textContent ?? '').match(/no informado/g) ?? []).toHaveLength(0);
+
+    // 3. Cómputo y fuentes consecuentes, no una pared de "no informado".
+    const computo = html('[data-seccion-computo]', secciones);
+    expect(computo.querySelectorAll('[data-material]').length).toBe(0);
+    expect((computo.textContent ?? '').match(/no informado/g) ?? []).toHaveLength(0);
+    expect(computo.textContent).toContain('catálogo interno');
+
+    const fuentes = html('[data-seccion-fuentes]', secciones);
+    expect(fuentes.textContent).toContain('Sin investigación web en esta corrida (modo catálogo)');
+    expect(fuentes.textContent).not.toContain('no informado');
+  });
+
+  it('con presupuesto informado y sin cómputo no contradice la cifra (S3)', async () => {
+    const pagina = await montar(resultadoCatalogo());
+    const computo = html('[data-seccion-computo]', pagina);
+
+    // El presupuesto real se ve y el chip no dice lo contrario.
+    expect(computo.textContent).toContain('1500 Bs');
+    expect(computo.querySelector('[data-presupuesto-estado]')).toBeNull();
+    expect(computo.textContent).not.toContain('Presupuesto no informado');
+
+    // La falta se explica como cómputo pendiente, no como presupuesto ausente.
+    const aviso = html('[data-computo-sin-costos]', computo);
+    expect(aviso.textContent).toContain('presupuesto');
+  });
+
+  it('no repite el mismo texto en título, detalle y justificación (S5)', async () => {
+    const resultado = resultadoCompleto();
+    const texto = 'La corrida se resolvió con el catálogo interno.';
+    (resultado['diseno'] as Record<string, unknown>)['recomendaciones'] = [
+      {
+        id: 'r-repetida',
+        tipo: 'final',
+        titulo: texto,
+        detalle: texto,
+        justificacion: texto,
+        aplicada: null,
+      },
+    ];
+
+    const pagina = await montar(resultado);
+    const seccion = html('[data-seccion-recomendaciones]', pagina);
+    const apariciones = seccion.textContent?.split(texto).length ?? 1;
+
+    expect(apariciones - 1).toBe(1);
+    expect(seccion.textContent).not.toContain('Justificación:');
+  });
+
   it('no repite una advertencia que viene en el resultado y en el diseño', async () => {
     const resultado = resultadoCompleto();
     const aviso = {
@@ -558,5 +690,57 @@ describe('ResumenPage (paso 4: secciones del informe)', () => {
       nodo.textContent?.includes('El área asignada supera el terreno.'),
     );
     expect(avisos.length).toBe(1);
+  });
+
+  it('las nueve secciones cuelgan del contenedor, una sola vez y sin utilidades que las oculten', async () => {
+    const pagina = await montar(resultadoCompleto());
+    const secciones = html('[data-secciones-informe]', pagina);
+    const hooks = [
+      'data-seccion-terreno',
+      'data-seccion-zonificacion',
+      'data-seccion-tecnologia',
+      'data-plano-red',
+      'data-seccion-balance',
+      'data-seccion-computo',
+      'data-seccion-calendario',
+      'data-seccion-recomendaciones',
+      'data-seccion-fuentes',
+    ];
+
+    for (const hook of hooks) {
+      expect(secciones.querySelectorAll(`[${hook}]`).length).toBe(1);
+      // Ninguna sección puede quedar fuera del contenedor del informe.
+      expect(pagina.querySelectorAll(`[${hook}]`).length).toBe(1);
+      const seccion = html(`[${hook}]`, secciones);
+      // Se compara por token: `overflow-hidden` no cuenta como una utilidad que oculta.
+      for (const utilidad of ['hidden', 'sr-only', 'invisible', 'opacity-0']) {
+        expect(seccion.classList.contains(utilidad)).toBe(false);
+      }
+    }
+
+    // Zonificación y cómputo ocupan una fila propia a todo el ancho: en la columna de
+    // 320 px la tabla del cómputo se recortaba y la tira de bloques se apilaba entera.
+    expect(secciones.querySelector(':scope > app-zonificacion-informe')).not.toBeNull();
+    expect(secciones.querySelector(':scope > app-computo-informe')).not.toBeNull();
+
+    // Recomendaciones, calendario y fuentes comparten la última fila.
+    const ultimaFila = secciones.lastElementChild as HTMLElement;
+    expect(ultimaFila.className).toContain('xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]');
+    expect(ultimaFila.querySelector(':scope > app-recomendaciones-informe')).not.toBeNull();
+    expect(ultimaFila.querySelector(':scope > div > app-calendario-informe')).not.toBeNull();
+    expect(ultimaFila.querySelector(':scope > div > app-fuentes-informe')).not.toBeNull();
+  });
+
+  it('las recomendaciones conservan cada ítem completo en dos columnas', async () => {
+    const pagina = await montar(resultadoCompleto());
+    const lista = html('[data-seccion-recomendaciones]', pagina).querySelector('ul') as HTMLElement;
+
+    expect(lista.className).toContain('xl:columns-2');
+    const items = Array.from(lista.querySelectorAll('[data-recomendacion]'));
+    expect(items.length).toBeGreaterThan(0);
+    for (const item of items) {
+      // Un ítem no puede partirse entre las dos columnas.
+      expect(item.className).toContain('xl:break-inside-avoid');
+    }
   });
 });

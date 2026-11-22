@@ -5,8 +5,13 @@
   <h2 class="text-sm font-bold text-slate-800">Fuentes Consultadas</h2>
 
   @if (fuentes().length === 0) {
-    <p class="text-[11px] text-slate-500">
-      Fuentes consultadas: <span class="text-slate-400">no informado</span>.
+    <p class="text-[11px] text-slate-500" data-sin-fuentes>
+      @if (modoCatalogo()) {
+        Sin investigación web en esta corrida (modo catálogo): el catálogo interno no consulta
+        fuentes externas.
+      } @else {
+        Fuentes consultadas: <span class="text-slate-400">no informado</span>.
+      }
     </p>
   } @else {
     <ul class="flex flex-col gap-2 text-[11px]">

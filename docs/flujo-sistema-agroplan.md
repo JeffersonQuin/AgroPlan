@@ -119,8 +119,9 @@ stateDiagram-v2
     completado --> [*]: soft delete
 ```
 
-`estado` es de presentación; lo que manda para habilitar botones es
-`ultimo_paso_completado` (0–4) y `sistemas_riego.red_generada_en` (nulo = falta generar la red).
+`estado` es de presentación; lo que manda para habilitar botones es el avance derivado
+(`ultimo_paso_completado` 0–4 en `GET /proyectos`, calculado de las tablas) y
+`sistemas_riego.red_generada_en` (nulo = falta generar la red).
 
 ---
 
@@ -247,17 +248,28 @@ siempre en métrico e imperial es solo presentación.
 `201` con `ProyectoOut` (`id` uuid, `version: 1`, `paso_actual: 1`, `ultimo_paso_completado: 0`,
 `estado: "borrador"`, timestamps). Al confirmar, el cliente entra al paso 2.
 
-La grilla usa `ProyectoListadoOut`, que trae los derivados ya calculados:
+La grilla usa `ProyectoListadoOut`, que trae los derivados ya calculados y **deriva el avance de
+las tablas del wizard**, nunca de la columna `ultimo_paso_completado` (que solo escribe el
+autosave y dejaba todas las tarjetas en "Paso 1"):
 
 ```json
 { "id": "uuid", "nombre": "Mi parcela", "zona": "Mendoza", "unidad": "metric",
   "estado": "en_progreso", "area_m2": 3200, "cultivos_count": 2, "sistema_tipo": "goteo",
-  "ultimo_paso_completado": 2, "actualizado_en": "2026-11-21T11:06:00-03:00", "version": 7 }
+  "pendiente_pct": 2, "num_sectores": 2,
+  "geometria": { "vertices": [{ "x": 0, "y": 0 }, { "x": 60, "y": 0 }],
+                 "cerrado": true, "unidad": "m", "eje_y": "norte" },
+  "ultimo_paso_completado": 3, "actualizado_en": "2026-11-21T11:06:00-03:00", "version": 7 }
 ```
+
+El paso es acumulativo y no saltea pasos: `1` hay terreno, `2` además hay un cultivo, `3` además
+hay sistema de riego, `4` además la corrida vigente del agente terminó en `ok` con su salida
+congelada. Un proyecto sin terreno queda en `1`. `estado` acompaña: `completado` si y solo si el
+avance llegó a `4`, y un `completado` guardado a mano que el avance ya no respalda se degrada.
 
 `statusLabel`, `statusIcon`, `statusTone`, `headerTone`, `sectorsLabel`, `hydraulicSpecs` y
 `preview` **no** los devuelve el backend: son view-model que arma el front a partir de `estado`,
-del paso y de los conteos.
+del paso, de los conteos, de `pendiente_pct`, de `num_sectores` y de `geometria`. Sin terreno
+(`area_m2` nulo) la tarjeta dice "Sin definir", nunca `0.00 ha`.
 
 ### Qué se persiste
 `proyectos`. `version` arranca en 1 y sube en cada escritura: es el mecanismo de concurrencia
@@ -950,7 +962,7 @@ Código estable, mensaje en español, y si bloquea o no.
 | `BLOQUE_SIN_AREA` | P4 | sí | un cultivo quedó sin superficie |
 | `FECHAS_INVERTIDAS` | P4 | sí | cosecha anterior a siembra |
 | `SOLAPE_CICLOS` | P4 | no | dos cultivos comparten ventana; sube la demanda pico |
-| `DEMANDA_EXCEDE_CAUDAL` | P4, P5 | no | la demanda diaria supera el agua extraíble en un día |
+| `DEMANDA_EXCEDE_CAUDAL` | P4, P5 | sí, si el caudal lo informó el usuario | la demanda del mínimo viable supera el agua extraíble en una jornada; con caudal asumido sólo avisa |
 | `RIEGO_NOCTURNO_EXTENSO` | P5 | no | hace falta más de 16 h diarias de riego |
 | `AUTONOMIA_BAJA` | P5 | no | el tanque no cubre un día de riego |
 | `PRESION_FUERA_DE_RANGO` | P5 | no | la presión estimada sale de 1,0–1,5 bar |
@@ -984,7 +996,9 @@ informado. El cliente quiere papa y lechuga.
 
 Con 1,5 m³/h y riego secuencial, el sistema entra holgado: es el caso donde el caudal asumido
 alcanza. Si el pozo rindiera 0,3 m³/h, el motor agregaría sectores y emitiría
-`DEMANDA_EXCEDE_CAUDAL` sin bloquear.
+`DEMANDA_EXCEDE_CAUDAL`. Ese aviso **bloquea** cuando el caudal lo informó el usuario y
+sólo advierte cuando el sistema lo asumió: sobre un dato que puso el sistema no se frena
+a nadie.
 
 ---
 

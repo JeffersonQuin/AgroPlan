@@ -327,8 +327,16 @@ def test_aplicar_materializa_bloques_y_riego(cliente_autenticado: TestClient) ->
     assert proyecto["corrida_actual_id"] == inicio["corrida_id"]
 
 
-def test_aplicar_no_cambia_el_intake(cliente_autenticado: TestClient) -> None:
-    """Aplicar y volver a pedir el análisis no debe gastar otra corrida."""
+def test_aplicar_y_volver_a_pedir_converge_en_el_mismo_reparto(
+    cliente_autenticado: TestClient,
+) -> None:
+    """Aplicar el reparto agronómico no dispara corridas nuevas sin fin.
+
+    El primer pedido posterior a ``aplicar`` sí cambia el intake: los bloques pasan a
+    tener las áreas del reparto agronómico en vez de las 50/50 que escribió el paso 2,
+    así que corre una corrida nueva. Desde ahí el reparto es un punto fijo —el agente
+    propone las mismas áreas— y volver a pedirlo reutiliza esa corrida.
+    """
 
     cliente = cliente_autenticado
     proyecto_id = _proyecto_con_cultivos(cliente)
@@ -337,11 +345,22 @@ def test_aplicar_no_cambia_el_intake(cliente_autenticado: TestClient) -> None:
         f"/proyectos/{proyecto_id}/agente/corridas/{primera['corrida_id']}/aplicar"
     )
     assert aplicar.status_code == 200, aplicar.text
+    aplicadas = {
+        bloque["cultivo_codigo"]: bloque["area_m2"]
+        for bloque in aplicar.json()["diseno"]["bloques"]
+    }
 
     segunda = cliente.post(f"/proyectos/{proyecto_id}/agente")
-    assert segunda.status_code == 200, segunda.text
-    assert segunda.json()["corrida_id"] == primera["corrida_id"]
-    assert segunda.json()["intake_hash"] == primera["intake_hash"]
+    assert segunda.status_code in (200, 202), segunda.text
+    detalle = _detalle(cliente, proyecto_id, segunda.json()["corrida_id"])
+    propuesta = PropuestaAgente.model_validate(detalle["salida"])
+    assert {
+        cultivo.cultivo_codigo: cultivo.area_m2 for cultivo in propuesta.cultivos
+    } == pytest.approx(aplicadas, abs=0.01)
+
+    tercera = cliente.post(f"/proyectos/{proyecto_id}/agente")
+    assert tercera.status_code == 200, tercera.text
+    assert tercera.json()["corrida_id"] == segunda.json()["corrida_id"]
 
 
 def test_aplicar_dos_veces_responde_409(cliente_autenticado: TestClient) -> None:
@@ -541,3 +560,31 @@ def test_el_body_lleva_las_restricciones_del_paso_3(
         "tanque_l": 5000,
         "presupuesto_bs": 1500,
     }
+
+
+def test_si_el_motor_no_genera_la_red_la_corrida_no_queda_aplicada(
+    cliente_autenticado: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """S8: sin red no hay informe, pero el usuario tiene que poder reintentar."""
+    from app.services import riego as riego_service
+
+    def fallar(_db, _proyecto):
+        raise riego_service.RiegoServiceError(
+            422, "El terreno no tiene área suficiente para repartir"
+        )
+
+    monkeypatch.setattr(riego_service, "generar", fallar)
+    proyecto_id = _proyecto_con_cultivos(cliente_autenticado)
+    corrida = _iniciar(cliente_autenticado, proyecto_id)
+
+    aplicar = cliente_autenticado.post(
+        f"/proyectos/{proyecto_id}/agente/corridas/{corrida['corrida_id']}/aplicar"
+    )
+
+    assert aplicar.status_code == 409, aplicar.text
+    assert "no pudo generar la red de riego" in aplicar.text
+    # No quedó en el callejón sin salida: el reintento no responde "ya está aplicada".
+    reintento = cliente_autenticado.post(
+        f"/proyectos/{proyecto_id}/agente/corridas/{corrida['corrida_id']}/aplicar"
+    )
+    assert "ya está aplicada" not in reintento.text

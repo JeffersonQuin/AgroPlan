@@ -11,25 +11,34 @@
 
   @if (materiales().length === 0) {
     <p class="text-[11px] text-slate-500" data-computo-vacio>
-      Cómputo de materiales: <span class="text-slate-400">no informado</span>.
+      @if (modoCatalogo()) {
+        Sin cómputo de materiales en esta corrida: el catálogo interno no trae precios de
+        mercado.
+      } @else {
+        Cómputo de materiales: <span class="text-slate-400">no informado</span>.
+      }
     </p>
   } @else {
     <div class="overflow-x-auto">
-      <table class="w-full text-left border-collapse text-[10.5px]">
+      <table class="w-full text-left border-collapse text-[11px]">
         <thead>
           <tr class="bg-slate-100/70 border-b border-slate-200">
-            <th class="py-1.5 px-2 font-bold text-slate-700">Rubro</th>
+            <th class="py-1.5 px-2 font-bold text-slate-700 whitespace-nowrap">Rubro</th>
             <th class="py-1.5 px-2 font-bold text-slate-700">Descripción</th>
-            <th class="py-1.5 px-2 font-bold text-slate-700 text-right">Cant.</th>
-            <th class="py-1.5 px-2 font-bold text-slate-700 text-right">Und</th>
-            <th class="py-1.5 px-2 font-bold text-slate-700 text-right">P. unit.</th>
-            <th class="py-1.5 px-2 font-bold text-slate-700 text-right">Total</th>
+            <th class="py-1.5 px-2 font-bold text-slate-700 text-right whitespace-nowrap">Cant.</th>
+            <th class="py-1.5 px-2 font-bold text-slate-700 text-right whitespace-nowrap">Und</th>
+            <th class="py-1.5 px-2 font-bold text-slate-700 text-right whitespace-nowrap">
+              P. unit.
+            </th>
+            <th class="py-1.5 px-2 font-bold text-slate-700 text-right whitespace-nowrap">Total</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-100 text-slate-700">
           @for (material of materiales(); track $index) {
             <tr class="hover:bg-slate-50 align-top" data-material>
-              <td class="py-1.5 px-2 font-semibold text-slate-800">{{ material.rubro }}</td>
+              <td class="py-1.5 px-2 font-semibold text-slate-800 whitespace-nowrap">
+                {{ material.rubro }}
+              </td>
               <td class="py-1.5 px-2">
                 <span class="font-medium">{{ material.descripcion }}</span>
                 @if (material.reutilizado) {
@@ -45,18 +54,24 @@
                   </span>
                 }
               </td>
-              <td class="py-1.5 px-2 text-right font-mono font-bold text-slate-900">
+              <td
+                class="py-1.5 px-2 text-right font-mono font-bold text-slate-900 whitespace-nowrap"
+              >
                 {{ formatearNumero(material.cantidad, 2) }}
               </td>
-              <td class="py-1.5 px-2 text-right text-slate-500">{{ material.unidad }}</td>
-              <td class="py-1.5 px-2 text-right font-mono">
+              <td class="py-1.5 px-2 text-right text-slate-500 whitespace-nowrap">
+                {{ material.unidad }}
+              </td>
+              <td class="py-1.5 px-2 text-right font-mono whitespace-nowrap">
                 @if (material.precio_unitario_bs !== null) {
                   {{ formatearNumero(material.precio_unitario_bs, 2) }} Bs
                 } @else {
                   <span class="text-slate-400">sin precio informado</span>
                 }
               </td>
-              <td class="py-1.5 px-2 text-right font-mono font-bold text-slate-900">
+              <td
+                class="py-1.5 px-2 text-right font-mono font-bold text-slate-900 whitespace-nowrap"
+              >
                 @if (material.total_bs !== null) {
                   {{ formatearNumero(material.total_bs, 2) }} Bs
                 } @else {
@@ -72,16 +87,19 @@
 
   <div class="border-t border-slate-100 pt-2 flex flex-wrap items-center justify-between gap-2">
     <dl class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px]" data-costo-total>
-      <div class="flex items-center gap-1">
-        <dt class="text-slate-500">Costo total:</dt>
-        <dd class="font-bold text-slate-800 font-mono">
-          @if (costoTotalBs() !== null) {
-            {{ formatearNumero(costoTotalBs(), 2) }} Bs
-          } @else {
-            <span class="text-slate-400 font-normal">no informado</span>
-          }
-        </dd>
-      </div>
+      <!-- En modo catálogo no hay costos: la fila no se llena de "no informado" (S3). -->
+      @if (!(modoCatalogo() && costoTotalBs() === null)) {
+        <div class="flex items-center gap-1">
+          <dt class="text-slate-500">Costo total:</dt>
+          <dd class="font-bold text-slate-800 font-mono">
+            @if (costoTotalBs() !== null) {
+              {{ formatearNumero(costoTotalBs(), 2) }} Bs
+            } @else {
+              <span class="text-slate-400 font-normal">no informado</span>
+            }
+          </dd>
+        </div>
+      }
       <div class="flex items-center gap-1">
         <dt class="text-slate-500">Presupuesto:</dt>
         <dd class="font-bold text-slate-800 font-mono">
@@ -93,12 +111,19 @@
         </dd>
       </div>
     </dl>
-    <span
-      class="text-[10px] font-bold px-2 py-0.5 rounded-full border"
-      data-presupuesto-estado
-      [class]="claseEstado()"
-    >
-      {{ estadoPresupuesto() }}
-    </span>
+    @if (mostrarEstado()) {
+      <span
+        class="text-[10px] font-bold px-2 py-0.5 rounded-full border"
+        data-presupuesto-estado
+        [class]="claseEstado()"
+      >
+        {{ estadoPresupuesto() }}
+      </span>
+    }
   </div>
+  @if (sinCostos()) {
+    <p class="text-[10.5px] text-slate-500 leading-snug" data-computo-sin-costos>
+      Falta el cómputo de materiales: todavía no hay costos para comparar con el presupuesto.
+    </p>
+  }
 </section>

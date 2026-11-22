@@ -449,3 +449,57 @@ def test_validacion_sanea_urls_rangos_y_duplicados() -> None:
 
     assert len(corregida.recomendaciones) == 1
     assert corregida.recomendaciones[0].titulo == "Operar por turnos"
+
+
+def test_una_propuesta_charlatana_no_tira_la_corrida() -> None:
+    """LLM: un modelo que agrega claves de más no puede invalidar toda la corrida.
+
+    Los cuerpos de la API siguen estrictos (`extra="forbid"`); la salida del agente
+    ignora lo que no conoce y `validacion` se encarga de los valores.
+    """
+    from app.schemas.agente import PropuestaAgente
+
+    propuesta = PropuestaAgente.model_validate(
+        {
+            "cultivos": [
+                {
+                    "cultivo_codigo": "papa",
+                    "nombre": "Papa",
+                    "area_m2": 100.0,
+                    "demanda_l_m2_dia": 2.0,
+                    "justificacion": "Es lo que pidió el usuario.",
+                    "rendimiento_estimado_kg_ha": 12000,
+                    "comentario_extra": "el modelo se puso conversador",
+                }
+            ],
+            "sistema": {
+                "tipo": "goteo",
+                "emisor": {"tipo": "gotero", "caudal_lh": 2.0, "separacion_m": 0.3},
+                "separacion_laterales_m": 0.5,
+                "bomba_hp": 1.0,
+                "num_sectores": 1,
+                "marca_sugerida": "sin marca",
+            },
+            "cifras": {
+                "presion_trabajo_bar": 1.5,
+                "eficiencia_pct": 92,
+                "comentario": "estimado",
+            },
+            "materiales": [
+                {
+                    "rubro": "Tubería",
+                    "descripcion": "PVC 32",
+                    "cantidad": 10,
+                    "unidad": "m",
+                    "precio_unitario_bs": 8,
+                    "proveedor": "ferretería local",
+                }
+            ],
+            "moneda_del_informe": "BOB",
+        }
+    )
+
+    assert propuesta.cultivos[0].cultivo_codigo == "papa"
+    assert propuesta.cifras is not None
+    assert propuesta.cifras.eficiencia_pct == 92
+    assert propuesta.materiales[0].precio_unitario_bs == 8

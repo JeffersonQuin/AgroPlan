@@ -11,16 +11,19 @@
       Recomendaciones finales: <span class="text-slate-400">no informado</span>.
     </p>
   } @else {
-    <ul class="flex flex-col gap-2 text-[11px] text-amber-950 leading-snug">
+    <!-- Dos columnas en pantallas anchas: a todo el ancho de la página una línea de
+         justificación se vuelve ilegible. Las columnas se balancean por alto, así que
+         las recomendaciones se leen hacia abajo y no en filas parejas. -->
+    <ul class="xl:columns-2 xl:gap-x-6 text-[11px] text-amber-950 leading-snug">
       @for (recomendacion of recomendaciones(); track $index) {
-        <li class="flex items-start gap-1.5" data-recomendacion>
+        <li class="flex items-start gap-1.5 mb-2.5 xl:break-inside-avoid" data-recomendacion>
           <span class="text-agro-700 font-bold shrink-0 mt-0.5" aria-hidden="true">✓</span>
           <div class="flex flex-col gap-0.5 min-w-0">
             <span class="font-bold">{{ recomendacion.titulo }}</span>
-            @if (recomendacion.detalle !== null) {
+            @if (mostrarDetalle(recomendacion)) {
               <span>{{ recomendacion.detalle }}</span>
             }
-            @if (recomendacion.justificacion !== null && recomendacion.justificacion !== '') {
+            @if (mostrarJustificacion(recomendacion)) {
               <span class="text-amber-800 text-[10.5px]">
                 <strong>Justificación:</strong> {{ recomendacion.justificacion }}
               </span>

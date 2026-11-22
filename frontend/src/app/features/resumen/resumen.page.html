@@ -294,18 +294,34 @@
           role="status"
         >
           <div class="flex items-center gap-2">
-            <ng-icon
-              class="text-agro-600 animate-spin"
-              name="matProgressActivityOutline"
-              size="20"
-              aria-hidden="true"
-            />
+            <!-- Sin fase (corrida vieja) se conserva el spinner de siempre (S2) -->
+            @if (store.faseCorrida() === null) {
+              <ng-icon
+                class="text-agro-600 animate-spin"
+                data-spinner-generico
+                name="matProgressActivityOutline"
+                size="20"
+                aria-hidden="true"
+              />
+            }
             <h2 class="text-sm font-bold text-slate-800">El agente está armando el informe</h2>
           </div>
-          <p class="text-[11px] text-slate-500 mt-2 leading-snug">
-            Investiga las fichas que faltan, calcula el balance hidráulico, los materiales con sus
-            precios y la red. Esto puede tardar un par de minutos: no cierres esta pantalla.
-          </p>
+
+          @if (store.faseCorrida() !== null) {
+            <!-- Avance real: fases cumplidas, la actual animada y su cronómetro (S2, S4) -->
+            <div class="mt-3">
+              <app-progreso-corrida
+                [fase]="store.faseCorrida()"
+                [faseDesde]="store.faseDesdeCorrida()"
+              />
+            </div>
+          } @else {
+            <p class="text-[11px] text-slate-500 mt-2 leading-snug">
+              Investiga las fichas que faltan, calcula el balance hidráulico, los materiales con sus
+              precios y la red. Esto puede tardar un par de minutos: no cierres esta pantalla.
+            </p>
+          }
+
           @if (store.estadoCorrida() !== null) {
             <p class="text-[10px] text-slate-400 mt-2">
               Estado de la corrida: {{ store.estadoCorrida() }}
@@ -369,10 +385,11 @@
                 Descargar Informe Técnico Completo
               </button>
               <button
-                class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-slate-200 text-slate-500 text-xs font-semibold cursor-not-allowed"
+                class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-agro-300 text-agro-700 text-xs font-semibold hover:bg-agro-50 disabled:opacity-60 disabled:cursor-not-allowed"
                 type="button"
-                title="Plan premium"
-                disabled
+                [attr.title]="permiteRegenerar ? 'Vuelve a generar el informe con el mismo borrador' : 'Plan premium'"
+                [disabled]="!permiteRegenerar || store.generando()"
+                (click)="store.generar(true)"
               >
                 Regenerar
               </button>
@@ -392,51 +409,79 @@
           <!-- Advertencias arriba de todo: un ajuste del motor no va al pie (S3) -->
           <app-advertencias-informe [advertencias]="advertenciasInforme()" />
 
+          <!-- Modo catálogo: una sola explicación de producto, nunca una pared de "no informado" (S3) -->
+          @if (modoCatalogo()) {
+            <app-modo-catalogo-informe />
+          }
+
           @if (store.resultado(); as informe) {
-            <div
-              class="grid grid-cols-1 xl:grid-cols-[280px_minmax(0,1fr)_320px] gap-3 items-start"
-              data-secciones-informe
-            >
-              <!-- Columna izquierda: terreno, zonificación y cabezal -->
-              <aside class="flex flex-col gap-3 min-w-0">
-                <app-terreno-informe [proyectoId]="proyectoId()" />
-                <app-zonificacion-informe [bloques]="informe.diseno.bloques" />
-                <app-tecnologia-informe
-                  [sistema]="informe.diseno.sistema"
-                  [eficiencia]="informe.diseno.eficiencia_pct"
-                />
-              </aside>
+            <div class="flex flex-col gap-3" data-secciones-informe>
+              <!-- Fila 1: terreno, plano y balance. Las secciones largas van abajo, a lo ancho:
+                   en 320 px el cómputo y las recomendaciones se cortan y estiran la página. -->
+              <div
+                class="grid grid-cols-1 xl:grid-cols-[280px_minmax(0,1fr)_320px] gap-3 items-start"
+              >
+                <!-- Columna izquierda: el terreno y el cabezal -->
+                <aside class="flex flex-col gap-3 min-w-0">
+                  <app-terreno-informe [proyectoId]="proyectoId()" />
+                  <app-tecnologia-informe
+                    [sistema]="informe.diseno.sistema"
+                    [eficiencia]="informe.diseno.eficiencia_pct"
+                  />
+                </aside>
 
-              <!-- Columna central: el plano 2D desde la red real -->
-              <section class="flex flex-col gap-3 min-w-0">
-                <app-plano-red
-                  [red]="informe.diseno.red"
-                  [bloques]="informe.diseno.bloques"
-                  [sectores]="informe.diseno.sectores"
-                  [sistema]="informe.diseno.sistema"
-                />
-              </section>
+                <!-- Columna central: el plano 2D desde la red real -->
+                <section class="flex flex-col gap-3 min-w-0">
+                  <app-plano-red
+                    [red]="informe.diseno.red"
+                    [bloques]="informe.diseno.bloques"
+                    [sectores]="informe.diseno.sectores"
+                    [sistema]="informe.diseno.sistema"
+                    [terreno]="store.terreno()"
+                  />
+                </section>
 
-              <!-- Columna derecha: balance, cómputo, calendario, recomendaciones y fuentes -->
-              <aside class="flex flex-col gap-3 min-w-0">
-                <app-balance-informe
-                  [cifras]="informe.diseno.cifras"
-                  [cifrasAgente]="informe.diseno.cifras_agente"
-                  [eficiencia]="informe.diseno.eficiencia_pct"
-                  [ajustes]="informe.diseno.ajustes"
-                />
-                <app-computo-informe
-                  [materiales]="informe.diseno.materiales"
-                  [costoTotalBs]="informe.diseno.costo_total_bs"
-                  [presupuestoBs]="informe.diseno.presupuesto_bs"
-                  [presupuestoExcedido]="informe.diseno.presupuesto_excedido"
-                />
-                <app-calendario-informe [calendario]="informe.diseno.calendario" />
+                <!-- Columna derecha: balance y ajustes del motor -->
+                <aside class="flex flex-col gap-3 min-w-0">
+                  <app-balance-informe
+                    [cifras]="informe.diseno.cifras"
+                    [cifrasAgente]="informe.diseno.cifras_agente"
+                    [eficiencia]="informe.diseno.eficiencia_pct"
+                    [ajustes]="informe.diseno.ajustes"
+                    [modoCatalogo]="modoCatalogo()"
+                  />
+                </aside>
+              </div>
+
+              <!-- Fila 2: la zonificación en una tira: lo que se siembra dónde, de un vistazo -->
+              <app-zonificacion-informe [bloques]="informe.diseno.bloques" />
+
+              <!-- Fila 3: el cómputo de materiales a todo el ancho. Seis columnas con
+                   descripciones no entran en una tarjeta de 320 px sin recortarse. -->
+              <app-computo-informe
+                [materiales]="informe.diseno.materiales"
+                [costoTotalBs]="informe.diseno.costo_total_bs"
+                [presupuestoBs]="informe.diseno.presupuesto_bs"
+                [presupuestoExcedido]="informe.diseno.presupuesto_excedido"
+                [modoCatalogo]="modoCatalogo()"
+              />
+
+              <!-- Fila 4: las recomendaciones (texto largo) junto al calendario y las fuentes -->
+              <div
+                class="grid grid-cols-1 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] gap-3 items-start"
+              >
                 <app-recomendaciones-informe
+                  class="min-w-0"
                   [recomendaciones]="informe.diseno.recomendaciones"
                 />
-                <app-fuentes-informe [fuentes]="informe.diseno.fuentes" />
-              </aside>
+                <div class="flex flex-col gap-3 min-w-0">
+                  <app-calendario-informe [calendario]="informe.diseno.calendario" />
+                  <app-fuentes-informe
+                    [fuentes]="informe.diseno.fuentes"
+                    [modoCatalogo]="modoCatalogo()"
+                  />
+                </div>
+              </div>
             </div>
           }
         </section>
