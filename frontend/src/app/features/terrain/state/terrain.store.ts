@@ -9,6 +9,7 @@ import {
   EstadoTerreno,
   FORMA_API,
   INITIAL_TERRAIN,
+  PENDIENTE_ASUMIDA_PCT,
   SHAPE_OPTIONS,
   SOIL_OPTIONS,
   SoilType,
@@ -140,9 +141,13 @@ export class TerrainStore {
     return lados === undefined ? SHAPE_LABELS[this._state().shape] : `${lados} lados`;
   });
   readonly slopeLabel = computed(() => `${this._state().slopePct.toFixed(1)} %`);
-  readonly desnivelLabel = computed(
-    () => `${this.desnivelM().toFixed(2)} m (${this._state().slopePct}% pend.)`,
-  );
+
+  /** ``true`` mientras la pendiente la eligió el sistema, no el usuario. */
+  readonly pendienteAsumida = computed(() => !this._state().pendienteConocida);
+  readonly desnivelLabel = computed(() => {
+    const base = `${this.desnivelM().toFixed(2)} m (${this._state().slopePct}% pend.)`;
+    return this.pendienteAsumida() ? `${base} · pendiente asumida` : base;
+  });
   readonly caudalLabel = computed(() => {
     const caudal = this.derivado()?.caudalEfectivoM3h;
     if (caudal !== undefined) return `${caudal} m³/h`;
@@ -295,7 +300,16 @@ export class TerrainStore {
   }
 
   setSlope(slopePct: number): void {
-    this._state.update((state) => ({ ...state, slopePct }));
+    this._state.update((state) => ({ ...state, slopePct, pendienteConocida: true }));
+  }
+
+  /** Vuelve a la pendiente asumida: el usuario no tiene por qué saberla. */
+  usarPendienteAsumida(): void {
+    this._state.update((state) => ({
+      ...state,
+      slopePct: PENDIENTE_ASUMIDA_PCT,
+      pendienteConocida: false,
+    }));
   }
 
   setWaterSource(waterSource: WaterSource): void {
@@ -341,6 +355,7 @@ export class TerrainStore {
       dimensions: dimensions ?? { ...INITIAL_TERRAIN.dimensions },
       soil: terreno.suelo_codigo as SoilType,
       slopePct: terreno.pendiente_pct,
+      pendienteConocida: true,
       waterSource: terreno.fuente_agua as WaterSource,
       flowM3h: terreno.caudal_disponible_m3h,
       staticLevelM: terreno.profundidad_nivel_dinamico_m,

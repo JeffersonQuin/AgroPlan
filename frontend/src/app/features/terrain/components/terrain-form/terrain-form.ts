@@ -55,4 +55,13 @@ export class TerrainForm {
   protected guardar(): void {
     this.store.guardar();
   }
+
+  /** El usuario dice que conoce la pendiente: se revela el control. */
+  protected definirPendiente(): void {
+    this.store.setSlope(this.store.slopePct());
+  }
+
+  protected usarPendienteAsumida(): void {
+    this.store.usarPendienteAsumida();
+  }
 }

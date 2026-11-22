@@ -88,8 +88,32 @@ describe('TerrainForm', () => {
     expect(fixture.nativeElement.textContent).toContain('Infiltración: < 8 mm/h');
   });
 
+  it('shows the assumed slope first and reveals the control on demand', async () => {
+    const fixture = await render();
+
+    expect(fixture.nativeElement.textContent).toContain('Asumimos');
+    expect(fixture.nativeElement.querySelector('#pendiente-terreno')).toBeNull();
+
+    const conocer = Array.from(
+      fixture.nativeElement.querySelectorAll('button') as NodeListOf<HTMLButtonElement>,
+    ).find((button) => button.textContent?.includes('La conozco'))!;
+    conocer.click();
+    await fixture.whenStable();
+
+    expect(fixture.nativeElement.querySelector('#pendiente-terreno')).not.toBeNull();
+    expect(fixture.nativeElement.textContent).toContain('1.0 %');
+  });
+
   it('shows the slope badge and updates it from the range', async () => {
     const fixture = await render();
+    // La pendiente arranca asumida: hay que decir que la conocemos para ver el control.
+    Array.from(
+      fixture.nativeElement.querySelectorAll('button') as NodeListOf<HTMLButtonElement>,
+    )
+      .find((button) => button.textContent?.includes('La conozco'))!
+      .click();
+    await fixture.whenStable();
+
     const range = fixture.nativeElement.querySelector(
       'input[type="range"]',
     ) as HTMLInputElement;

@@ -2,7 +2,7 @@ export type ParcelShape = 'rectangulo' | 'trapecio' | 'libre';
 
 export type SoilType = 'franco' | 'arenoso' | 'arcilloso' | 'limoso';
 
-export type WaterSource = 'pozo' | 'tanque' | 'red' | 'cisterna';
+export type WaterSource = 'pozo' | 'tanque' | 'red' | 'cisterna' | 'pila';
 
 export interface TerrainDimensions {
   /** Largo superior, in metres. */
@@ -21,6 +21,8 @@ export interface TerrainState {
   dimensions: TerrainDimensions;
   soil: SoilType;
   slopePct: number;
+  /** ``false`` = el usuario no la informó: se usa una pendiente asumida. */
+  pendienteConocida: boolean;
   waterSource: WaterSource;
   /** Caudal disponible (aforo), m³/h. ``null`` = no lo informó: lo asume el sistema. */
   flowM3h: number | null;
@@ -84,14 +86,22 @@ export const WATER_SOURCE_OPTIONS: readonly WaterSourceOption[] = [
   { value: 'tanque', label: 'Tanque' },
   { value: 'red', label: 'Red presión' },
   { value: 'cisterna', label: 'Cisterna' },
+  { value: 'pila', label: 'Pila' },
 ];
+
+/**
+ * Pendiente que asume el sistema cuando el usuario no la informa: un terreno
+ * agrícola plano suele estar entre 0 y 2%, y 1% deja desagüe sin complicar el riego.
+ */
+export const PENDIENTE_ASUMIDA_PCT = 1;
 
 export const INITIAL_TERRAIN: TerrainState = {
   name: 'Mi parcela',
   shape: 'trapecio',
   dimensions: { topM: 60, bottomM: 30, leftM: 40, rightM: 20 },
   soil: 'franco',
-  slopePct: 1,
+  slopePct: PENDIENTE_ASUMIDA_PCT,
+  pendienteConocida: false,
   waterSource: 'pozo',
   // Vacíos a propósito: el backend asigna caudal y el usuario no tiene por qué
   // saber el aforo de su pozo para usar el paso 1.

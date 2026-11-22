@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { WATER_SOURCE_OPTIONS } from '../models/terrain.model';
 import { TerrainStore } from '../state/terrain.store';
 
 describe('TerrainStore', () => {
@@ -18,7 +19,7 @@ describe('TerrainStore', () => {
     expect(store.perimeterLabel()).toBe('186.1 m');
     expect(store.verticesLabel()).toBe('4 lados (trapecio)');
     expect(store.diagonalLabel()).toBe('36.06 m');
-    expect(store.desnivelLabel()).toBe('0.60 m (1% pend.)');
+    expect(store.desnivelLabel()).toBe('0.60 m (1% pend.) · pendiente asumida');
     expect(store.slopeLabel()).toBe('1.0 %');
     expect(store.infiltrationLabel()).toBe('Infiltración: 15-25 mm/h');
   });
@@ -48,6 +49,36 @@ describe('TerrainStore', () => {
 
     expect(store.desnivelLabel()).toBe('1.50 m (2.5% pend.)');
     expect(store.slopeLabel()).toBe('2.5 %');
+  });
+
+  it('assumes the slope until the user says they know it', () => {
+    expect(store.pendienteAsumida()).toBe(true);
+    expect(store.slopePct()).toBe(1);
+    expect(store.aPayload().pendiente_pct).toBe(1);
+    expect(store.desnivelLabel()).toContain('pendiente asumida');
+
+    store.setSlope(4.5);
+
+    expect(store.pendienteAsumida()).toBe(false);
+    expect(store.aPayload().pendiente_pct).toBe(4.5);
+    expect(store.desnivelLabel()).not.toContain('asumida');
+
+    store.usarPendienteAsumida();
+    expect(store.pendienteAsumida()).toBe(true);
+    expect(store.slopePct()).toBe(1);
+  });
+
+  it('offers the five water sources the backend knows', () => {
+    expect(WATER_SOURCE_OPTIONS.map((opcion) => opcion.value)).toEqual([
+      'pozo',
+      'tanque',
+      'red',
+      'cisterna',
+      'pila',
+    ]);
+
+    store.setWaterSource('pila');
+    expect(store.aPayload().fuente_agua).toBe('pila');
   });
 
   it('follows the shape, soil and water source selections', () => {
