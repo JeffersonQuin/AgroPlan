@@ -9,16 +9,18 @@ import {
 } from '@ng-icons/material-symbols/outline';
 
 /**
- * Typed map from the feature icon key to the imported SVG icon.
+ * Typed map from the feature key to the icon name registered in `provideIcons`.
  *
- * The map is also the icon registry of this component (`provideIcons`), so the
- * template resolves `feature.icon` as the icon name without a global registry.
+ * The value must be the registry key, never the imported SVG constant: `NgIcon`
+ * normalises the `name` it receives and looks it up in the registry, so a
+ * constant leaves the slot empty. Keeping semantic keys here means the template
+ * binds the mapped value instead of `feature.icon`.
  */
 const FEATURE_ICONS = {
-  architecture: matArchitectureOutline,
-  eco: matEcoOutline,
-  valve: matValveOutline,
-  summarize: matSummarizeOutline,
+  architecture: 'matArchitectureOutline',
+  eco: 'matEcoOutline',
+  valve: 'matValveOutline',
+  summarize: 'matSummarizeOutline',
 } as const satisfies Record<string, string>;
 
 interface HeroFeature {
@@ -36,13 +38,24 @@ interface HeroFeature {
   selector: 'app-register-hero',
   imports: [NgIcon],
   templateUrl: './register-hero.html',
-  viewProviders: [provideIcons({ matPrecisionManufacturingOutline, ...FEATURE_ICONS })],
+  viewProviders: [
+    provideIcons({
+      matPrecisionManufacturingOutline,
+      matArchitectureOutline,
+      matEcoOutline,
+      matValveOutline,
+      matSummarizeOutline,
+    }),
+  ],
   host: {
     class:
       'hidden lg:flex lg:w-5/12 bg-primary text-on-primary p-space-lg lg:p-space-xl flex-col justify-between relative overflow-hidden',
   },
 })
 export class RegisterHero {
+  /** Registry keys, so the template can resolve `feature.icon` without a global registry. */
+  protected readonly featureIcons = FEATURE_ICONS;
+
   protected readonly features: readonly HeroFeature[] = [
     {
       icon: 'architecture',
