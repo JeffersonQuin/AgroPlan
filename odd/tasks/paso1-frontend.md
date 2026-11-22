@@ -75,3 +75,20 @@ el área en la grilla.
 dan 2.100 — se mantiene el número del diseño en la primera pintura y el real al guardar;
 (b) la figura del prototipo tiene 5 vértices (cierra con diagonal), así que el backend informa
 "5 lados" y no "4 lados (trapecio)".
+
+**L6** — El usuario eligió *"la forma manda: cada una pide sus cotas"*. Canvas y geometría
+quedaron así:
+
+- `toVertices(dimensions, shape)`: rectángulo = 4 vértices desde largo × alto; trapecio y libre
+  = la figura de 5 puntos del prototipo. `calculateMetrics` y `fromVertices` son coherentes con
+  las tres formas.
+- El canvas proyecta esos mismos vértices al marco del diseño (130..610 × 70..420, escala
+  uniforme) y rotula cada lado con su longitud; el contorno de servicio sigue la figura.
+- El formulario esconde base inferior y lateral derecho cuando la forma es rectángulo.
+- Se retiró `REFERENCE_METRICS`: el resumen mostraba 3.200 m² mientras las cotas dan 2.100 y
+  el dibujo real los contradecía. Ahora los números salen siempre de la geometría.
+- Los botones de zoom, paneo, cuadrícula y vértices quedan deshabilitados con su motivo.
+
+Contrato cruzado verificado contra uvicorn: rectángulo 60 × 40 → backend
+`area_m2 2400`, `perimetro_m 200`, `lados 4`, `lados_m [60, 40, 60, 40]`; el front calcula
+2400 m² y 200 m. Coinciden. 96 tests verdes.
