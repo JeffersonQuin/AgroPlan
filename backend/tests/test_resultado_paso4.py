@@ -14,6 +14,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
+from app.agente import fichas as fichas_agente
 from app.dependencies import get_current_user
 from app.main import app
 from app.models.agente import AgenteCorrida, AgenteFuente, AgenteRecomendacion
@@ -373,6 +374,67 @@ def test_bloques_calendario_y_materiales_llegan_al_resultado(
     assert material["precio_unitario_bs"] == pytest.approx(3500.0)
     assert material["moneda"] == "BOB"
     assert material["fuente_url"] == "https://precios.example/tanque"
+
+
+# --------------------------------------------------------------------------- #
+# S4 — precedencia de la imagen: la del agente gana y la ficha es el respaldo
+# --------------------------------------------------------------------------- #
+
+
+def _bloque(cliente: TestClient, db_session: Session, salida: dict) -> dict:
+    pid = _proyecto(cliente)
+    corrida = _corrida(pid, db_session, salida)
+    return _aplicar(cliente, pid, corrida.id)["diseno"]["bloques"][0]
+
+
+def test_la_imagen_del_agente_gana_a_la_de_la_ficha(
+    cliente_autenticado: TestClient, db_session: Session
+) -> None:
+    cultivo = db_session.get(Cultivo, "papa")
+    assert cultivo is not None
+    cultivo.imagen_url = "https://fichas.example/papa-curada.jpg"
+    cultivo.imagen_credito = "Foto curada"
+    db_session.commit()
+
+    bloque = _bloque(cliente_autenticado, db_session, _salida())
+
+    assert bloque["imagen_url"] == "https://fichas.example/papa.jpg"
+    # La imagen la investigó el agente: no conocemos su crédito.
+    assert bloque["imagen_credito"] is None
+
+
+def test_la_imagen_de_la_ficha_es_el_respaldo_si_el_agente_no_trae(
+    cliente_autenticado: TestClient, db_session: Session
+) -> None:
+    cultivo = db_session.get(Cultivo, "papa")
+    assert cultivo is not None
+    cultivo.imagen_url = "https://fichas.example/papa-curada.jpg"
+    cultivo.imagen_credito = "Foto: Ficha curada AgroPlan"
+    db_session.commit()
+
+    salida = _salida()
+    salida["cultivos"][0]["imagen_url"] = None
+
+    bloque = _bloque(cliente_autenticado, db_session, salida)
+
+    assert bloque["imagen_url"] == "https://fichas.example/papa-curada.jpg"
+    assert bloque["imagen_credito"] == "Foto: Ficha curada AgroPlan"
+
+
+def test_sin_imagen_del_agente_ni_de_la_ficha_queda_en_null(
+    cliente_autenticado: TestClient,
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Sin ficha curada para el código: el catálogo tampoco tiene imagen cargada.
+    monkeypatch.setattr(fichas_agente, "buscar", lambda codigo: None)
+    salida = _salida()
+    salida["cultivos"][0]["imagen_url"] = None
+
+    bloque = _bloque(cliente_autenticado, db_session, salida)
+
+    assert bloque["imagen_url"] is None
+    assert bloque["imagen_credito"] is None
 
 
 # --------------------------------------------------------------------------- #

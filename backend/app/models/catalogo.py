@@ -57,6 +57,12 @@ class Cultivo(Base):
         DateTime(timezone=True), nullable=True
     )
     fuentes: Mapped[list[dict] | None] = mapped_column(JSONB_TIPO, nullable=True)
+    # Imagen de la ficha curada del cultivo y la página de donde salió (S4). Es la
+    # primera opción del informe; el agente sólo investiga la que falte.
+    imagen_url: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    imagen_fuente_url: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    # Texto de atribución de la licencia de la foto, para mostrarlo bajo la imagen.
+    imagen_credito: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
     __table_args__ = (
         CheckConstraint("demanda_agua_l_m2_dia > 0", name="ck_cultivos_demanda_positiva"),

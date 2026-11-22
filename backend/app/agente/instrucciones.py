@@ -11,7 +11,7 @@ from typing import Any
 
 from app.schemas.agente import EntradaAgente
 
-PROMPT_VERSION = "v3"
+PROMPT_VERSION = "v4"
 
 INSTRUCCIONES = [
     "Sos un agrónomo especialista en suelos, selección de cultivos y riego por goteo.",
@@ -115,6 +115,10 @@ def construir_mensaje(
         "investigar; si no está o está vencido, buscalo en la web.\n"
         "- Completá ``recomendaciones`` con título, detalle y justificación, usando "
         "también las fichas y las restricciones (energía, tanque y presupuesto).\n"
-        "- En cada cultivo y en el equipo de cabecera devolvé ``imagen_url`` e "
-        "``imagen_fuente_url`` solo si la ficha no traía imagen; no inventes URLs."
+        "- Imágenes (S4): si un producto del intake ya trae ``imagen_url`` de la ficha "
+        "curada, usá esa imagen y devolvé ``imagen_url`` e ``imagen_fuente_url`` en "
+        "null: no investigues otra. Si el producto no trae ``imagen_url`` y no está en "
+        "``catalogo_cultivos``, investigá una imagen real y devolvé su URL http(s) con "
+        "la página de donde salió en ``imagen_fuente_url``. Hacé lo mismo con el "
+        "equipo de cabecera. Nunca inventes URLs."
     )
