@@ -212,8 +212,12 @@ def _propuesta_catalogo(contexto: ContextoAgente) -> tuple[PropuestaAgente, list
             Advertencia(
                 codigo=MODO_CATALOGO_ADVERTENCIA,
                 mensaje=(
-                    "La corrida se resolvió con el catálogo interno: no hay credenciales "
-                    "del modelo configuradas (AGENTE_API_KEY)."
+                    "La corrida se resolvió con el catálogo interno: "
+                    + (
+                        "AGENTE_MODO está en 'catalogo'."
+                        if settings.AGENTE_MODO == "catalogo"
+                        else "no hay credenciales del modelo configuradas."
+                    )
                 ),
                 campo="modelo",
             )
@@ -337,7 +341,9 @@ def ejecutar(contexto: ContextoAgente) -> ResultadoAgente:
         str(cultivo["codigo"]): cultivo for cultivo in contexto.catalogo
     }
 
-    if settings.AGENTE_API_KEY:
+    usar_modelo = settings.AGENTE_MODO == "llm" and bool(settings.AGENTE_API_KEY)
+
+    if usar_modelo:
         propuesta, tokens_entrada, tokens_salida = _propuesta_llm(contexto)
         fuentes = [
             FuenteRecuperada(

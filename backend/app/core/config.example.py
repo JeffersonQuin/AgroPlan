@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -13,6 +15,10 @@ class Settings(BaseSettings):
 
     # Agente de recomendaciones: gateway OpenAI-compatible. Sin AGENTE_API_KEY el
     # pipeline corre en modo catálogo (determinístico, sin LLM) y no rompe el flujo.
+    # Modo del reparto: "catalogo" arma la propuesta con el catálogo (determinístico,
+    # gratis: ideal para ensayar) y "llm" le pide el reparto al modelo. La
+    # investigación de un producto que no está en el catálogo ocurre en los dos modos.
+    AGENTE_MODO: Literal["catalogo", "llm"] = "catalogo"
     AGENTE_BASE_URL: str = "https://opencode.ai/inference/go/v1"
     AGENTE_API_KEY: str = ""
     AGENTE_MODELO: str = "deepseek-v4.1-flash"
