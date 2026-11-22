@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { WATER_SOURCE_OPTIONS, WaterSource } from '../../models/terrain.model';
 import { TerrainStore } from '../../state/terrain.store';
 
@@ -11,6 +11,10 @@ export class TerrainSummary {
   protected readonly store = inject(TerrainStore);
 
   protected readonly waterOptions = WATER_SOURCE_OPTIONS;
+
+  protected readonly areaCalculada = computed(() =>
+    Math.round(this.store.areaCalculadaM2()).toLocaleString('es-AR'),
+  );
 
   protected waterClass(source: WaterSource): Record<string, boolean> {
     const active = this.store.waterSource() === source;
@@ -27,11 +31,20 @@ export class TerrainSummary {
     this.store.setWaterSource(source);
   }
 
+  /** Un campo vacío significa "no lo sé": el backend asigna el caudal. */
   protected onFlow(event: Event): void {
-    this.store.setFlow(Number.parseFloat((event.target as HTMLInputElement).value));
+    this.store.setFlow(numeroOpcional(event));
   }
 
   protected onLevel(event: Event): void {
-    this.store.setStaticLevel(Number.parseFloat((event.target as HTMLInputElement).value));
+    this.store.setStaticLevel(numeroOpcional(event));
   }
+}
+
+/** `''` (campo vacío) se guarda como "no informado", no como cero. */
+function numeroOpcional(event: Event): number | null {
+  const crudo = (event.target as HTMLInputElement).value.trim();
+  if (crudo === '') return null;
+  const numero = Number.parseFloat(crudo);
+  return Number.isFinite(numero) ? numero : null;
 }

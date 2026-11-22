@@ -123,19 +123,30 @@
       </p>
     </div>
 
+    @if (error(); as mensaje) {
+      <p
+        class="text-label-md text-error bg-error-container/40 border border-error/30 rounded-lg px-space-sm py-2"
+        role="alert"
+      >
+        {{ mensaje }}
+      </p>
+    }
+
     <div class="flex items-center justify-end gap-space-sm pt-space-xs">
       <button
-        class="px-space-lg py-2.5 rounded-lg text-label-md text-on-surface-variant hover:bg-surface-container-low transition-colors"
+        class="px-space-lg py-2.5 rounded-lg text-label-md text-on-surface-variant hover:bg-surface-container-low transition-colors disabled:opacity-50"
         type="button"
+        [disabled]="submitting()"
         (click)="close.emit()"
       >
         Cancelar
       </button>
       <button
-        class="inline-flex items-center gap-space-xs bg-primary-container hover:bg-primary text-on-primary text-label-md px-space-lg py-2.5 rounded-lg transition-all shadow-sm"
+        class="inline-flex items-center gap-space-xs bg-primary-container hover:bg-primary text-on-primary text-label-md px-space-lg py-2.5 rounded-lg transition-all shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
         type="submit"
+        [disabled]="submitting()"
       >
-        Crear y pasar al Terreno (Paso 1)
+        {{ submitting() ? 'Creando…' : 'Crear y pasar al Terreno (Paso 1)' }}
         <span class="material-symbols-outlined text-[18px]" aria-hidden="true">arrow_forward</span>
       </button>
     </div>

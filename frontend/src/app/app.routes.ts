@@ -23,7 +23,7 @@ export const routes: Routes = [
       import('./features/projects/projects.page').then((m) => m.ProjectsPage),
   },
   {
-    path: 'terreno',
+    path: 'proyectos/:proyectoId/terreno',
     title: 'Terreno · AgroPlan',
     canActivate: [authGuard],
     loadComponent: () =>

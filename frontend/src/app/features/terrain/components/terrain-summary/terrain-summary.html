@@ -32,36 +32,36 @@
 </div>
 </div>
 </section>
-<!-- Card 2: Geometric Validations -->
+<!-- Card 2: validaciones reales del paso 1 -->
 <section class="bg-white rounded-xl border border-agro-border p-3.5 shadow-sm">
-<h3 class="text-xs font-bold uppercase tracking-wider text-slate-700 mb-2.5">Validaciones Técnicas</h3>
-<ul class="space-y-2 text-xs">
-<li class="flex items-center gap-2 text-slate-700 font-medium">
-<div class="w-4 h-4 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
-<svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-<path clip-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" fill-rule="evenodd"></path>
-</svg>
-</div>
-            Polígono cerrado y topológicamente válido
-          </li>
-<li class="flex items-center gap-2 text-slate-700 font-medium">
-<div class="w-4 h-4 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
-<svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-<path clip-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" fill-rule="evenodd"></path>
-</svg>
-</div>
-            Área admisible para cultivo (&gt; 100 m²)
-          </li>
-<li class="flex items-center gap-2 text-slate-700 font-medium">
-<div class="w-4 h-4 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
-<svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-<path clip-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" fill-rule="evenodd"></path>
-</svg>
-</div>
-            Sin autointersección de aristas
-          </li>
-</ul>
+  <div class="flex items-center gap-2 pb-2 mb-2 border-b border-slate-100">
+    <span class="material-symbols-outlined text-[18px] text-agro-600" aria-hidden="true"
+      >verified</span
+    >
+    <h2 class="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+      Validaciones técnicas
+    </h2>
+  </div>
+  <ul class="space-y-1.5">
+    @for (validacion of store.validaciones(); track validacion.texto) {
+      <li class="flex items-start gap-1.5 text-[11px]">
+        <span
+          class="material-symbols-outlined text-[16px] mt-px"
+          [class]="validacion.ok ? 'text-emerald-600' : 'text-amber-600'"
+          aria-hidden="true"
+          >{{ validacion.ok ? 'check_circle' : 'error' }}</span
+        >
+        <span [class]="validacion.ok ? 'text-slate-600' : 'text-amber-700'">
+          {{ validacion.texto }}
+        </span>
+      </li>
+    }
+  </ul>
+  <p class="text-[10px] text-slate-400 mt-2">
+    Área calculada por la geometría: {{ areaCalculada() }} m²
+  </p>
 </section>
+
 <!-- Card 3: Water Availability (Crucial for Step 3 calculation) -->
 <section class="bg-white rounded-xl border border-agro-border p-3.5 shadow-sm space-y-3">
 <div class="flex items-center gap-2">
@@ -108,6 +108,13 @@
               />
 <span class="absolute right-2 top-2 text-[10px] font-bold text-slate-400">m³/hora</span>
 </div>
+<div class="mt-2 flex items-center justify-between text-[11px] text-slate-500">
+  <span>Caudal efectivo:</span>
+  <span class="font-bold text-slate-700 bg-white px-2 py-0.5 border border-slate-200 rounded">
+    {{ store.caudalLabel() }}
+  </span>
+</div>
+<p class="text-[10px] text-slate-400 mt-0.5">{{ store.caudalOrigenLabel() }}</p>
 </div>
 <!-- Depth input -->
 <div>
@@ -122,6 +129,23 @@
 </div>
 </div>
 </section>
+@if (store.alertas().length > 0) {
+  <section class="bg-slate-50 rounded-xl border border-slate-200 p-3.5 shadow-sm">
+    <div class="flex items-center gap-2 text-slate-700 font-bold text-xs mb-1.5">
+      <span class="material-symbols-outlined text-[16px]" aria-hidden="true">info</span>
+      Validaciones del backend
+    </div>
+    <ul class="space-y-1">
+      @for (alerta of store.alertas(); track alerta.codigo) {
+        <li class="text-[11px] text-slate-600">
+          <span class="font-semibold text-slate-800">{{ alerta.codigo }}:</span>
+          {{ alerta.mensaje }}
+        </li>
+      }
+    </ul>
+  </section>
+}
+
 <!-- Card 4: Topographic Recommendation (Styled like snapshot notice) -->
 <section class="bg-amber-50 rounded-xl border border-amber-200/80 p-3.5 shadow-sm">
 <div class="flex items-center gap-2 text-amber-800 font-bold text-xs mb-1.5">
