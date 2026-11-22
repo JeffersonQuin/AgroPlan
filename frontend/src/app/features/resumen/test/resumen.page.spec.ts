@@ -5,6 +5,7 @@ import {
   provideHttpClientTesting,
 } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
+import { vi } from 'vitest';
 import { provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { ResumenPage } from '../resumen.page';
@@ -146,7 +147,10 @@ describe('ResumenPage (paso 4: flujo del informe)', () => {
     http = TestBed.inject(HttpTestingController);
   });
 
-  afterEach(() => http.verify());
+  afterEach(() => {
+    http.verify();
+    vi.restoreAllMocks();
+  });
 
   /** Borrador del paso 2 y restricciones del paso 3, como los deja el wizard. */
   function sembrarBorrador(
@@ -360,6 +364,77 @@ describe('ResumenPage (paso 4: flujo del informe)', () => {
 
     http.expectNone(`${BASE}/p-1/agente`);
     expect(http.match(`${BASE}/p-1/agente/corridas/c-1`).length).toBe(0);
+  });
+
+  it('descarga el PDF desde el botón Exportar PDF del header', async () => {
+    sembrarBorrador();
+    const harness = await montar(RESULTADO);
+    const html = harness.routeNativeElement as HTMLElement;
+
+    const crearUrl = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:informe');
+    const revocarUrl = vi.spyOn(URL, 'revokeObjectURL');
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click');
+
+    boton(html, 'Exportar PDF').click();
+    await harness.fixture.whenStable();
+
+    const descarga = http.expectOne(`${BASE}/p-1/pdf`);
+    expect(descarga.request.method).toBe('POST');
+    descarga.flush(new Blob(['%PDF-1.4'], { type: 'application/pdf' }), {
+      status: 200,
+      statusText: 'OK',
+      headers: { 'Content-Disposition': 'attachment; filename="informe-p-1.pdf"' },
+    });
+    await harness.fixture.whenStable();
+
+    expect(crearUrl).toHaveBeenCalled();
+    expect(click).toHaveBeenCalled();
+    expect(revocarUrl).toHaveBeenCalled();
+  });
+
+  it('descarga el informe técnico completo desde el informe', async () => {
+    sembrarBorrador();
+    const harness = await montar(RESULTADO);
+    const html = harness.routeNativeElement as HTMLElement;
+
+    const crearUrl = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:informe');
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click');
+
+    boton(html, 'Descargar Informe Técnico Completo').click();
+    await harness.fixture.whenStable();
+
+    const descarga = http.expectOne(`${BASE}/p-1/pdf`);
+    expect(descarga.request.method).toBe('POST');
+    descarga.flush(new Blob(['%PDF-1.4'], { type: 'application/pdf' }), {
+      status: 200,
+      statusText: 'OK',
+      headers: { 'Content-Disposition': 'attachment; filename="informe-p-1.pdf"' },
+    });
+    await harness.fixture.whenStable();
+
+    expect(crearUrl).toHaveBeenCalled();
+    expect(click).toHaveBeenCalled();
+    expect(html.querySelector('[data-error-pdf]')).toBeNull();
+  });
+
+  it('muestra el error de la descarga sin romper el informe', async () => {
+    sembrarBorrador();
+    const harness = await montar(RESULTADO);
+    const html = harness.routeNativeElement as HTMLElement;
+
+    boton(html, 'Descargar Informe Técnico Completo').click();
+    await harness.fixture.whenStable();
+
+    http
+      .expectOne(`${BASE}/p-1/pdf`)
+      .flush(new Blob(['error']), { status: 500, statusText: 'Server Error' });
+    await harness.fixture.whenStable();
+
+    expect(html.querySelector('[data-error-pdf]')?.textContent).toContain(
+      'No se pudo descargar el informe',
+    );
+    // La pantalla sigue mostrando el informe.
+    expect(html.querySelector('[data-informe]')).not.toBeNull();
   });
 
   it('explica que falta el borrador y lleva al paso 2, sin dejar generar', async () => {

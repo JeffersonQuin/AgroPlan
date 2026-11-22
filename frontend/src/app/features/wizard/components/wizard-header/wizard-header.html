@@ -99,12 +99,13 @@
       </svg>
       <span>{{ estadoGuardado() }}</span>
     </div>
-    <!-- Export PDF button -->
+    <!-- Export PDF button (S8: descarga el informe del backend) -->
     <button
-      class="inline-flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-lg border border-slate-300 text-slate-400 text-xs font-semibold shadow-sm whitespace-nowrap"
+      class="inline-flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-lg border border-slate-300 text-slate-700 text-xs font-semibold shadow-sm whitespace-nowrap hover:bg-slate-50 disabled:opacity-60 disabled:cursor-not-allowed"
       type="button"
-      title="Exportar PDF: próximamente"
-      disabled
+      title="Exportar el informe en PDF"
+      [disabled]="exportando()"
+      (click)="exportarPdf()"
     >
       <svg
         class="w-4 h-4 text-slate-600"
@@ -123,6 +124,11 @@
       </svg>
       <span class="hidden sm:inline">Exportar PDF</span>
     </button>
+    @if (errorExportacion() !== null) {
+      <span class="text-[10px] font-semibold text-red-600" role="alert" data-error-exportar>
+        {{ errorExportacion() }}
+      </span>
+    }
     <!-- Primary Save button -->
     <button
       class="inline-flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-lg bg-agro-500 hover:bg-agro-600 active:bg-agro-700 text-white text-xs font-semibold shadow-sm shadow-emerald-700/20 transition-all duration-150 whitespace-nowrap"

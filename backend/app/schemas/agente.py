@@ -501,6 +501,18 @@ class CorridaIniciadaOut(BaseModel):
     intake_hash: str
 
 
+class InformePdfIn(BaseModel):
+    """Cuerpo opcional de ``POST /proyectos/{id}/pdf``.
+
+    ``incluir`` usa las claves del contrato («agua» es el balance hidráulico). Sin
+    cuerpo, el informe va completo.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    incluir: list[str] | None = Field(default=None, max_length=20)
+
+
 class ResultadoProyectoOut(BaseModel):
     """Paso 4: documento de solo lectura que junta todo el proyecto."""
 
