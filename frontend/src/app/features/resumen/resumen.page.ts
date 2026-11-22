@@ -79,11 +79,22 @@ export class ResumenPage implements OnDestroy {
   /**
    * Advertencias visibles arriba de todo el informe: las del resultado y las que
    * dejó el diseño generado (por ejemplo, un ajuste del motor).
+   *
+   * El backend repite las del diseño en el resultado, así que se deduplican por
+   * código y mensaje: el usuario no tiene que leer dos veces el mismo aviso.
    */
-  protected readonly advertenciasInforme = computed(() => [
-    ...this.store.advertencias(),
-    ...(this.store.resultado()?.diseno.advertencias ?? []),
-  ]);
+  protected readonly advertenciasInforme = computed(() => {
+    const vistas = new Set<string>();
+    return [
+      ...this.store.advertencias(),
+      ...(this.store.resultado()?.diseno.advertencias ?? []),
+    ].filter((advertencia) => {
+      const clave = `${advertencia.codigo}|${advertencia.mensaje}`;
+      if (vistas.has(clave)) return false;
+      vistas.add(clave);
+      return true;
+    });
+  });
 
   constructor() {
     const proyectoId = this.route.snapshot.paramMap.get('proyectoId') ?? '';

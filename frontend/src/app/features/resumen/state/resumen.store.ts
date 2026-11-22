@@ -334,10 +334,6 @@ export class ResumenStore {
   }
 }
 
-/**
- * Pendiente del terreno. `ResumenTerrenoApi` todavía no la declara, pero el backend
- * responde `TerrenoOut` completo: se lee sin inventar un valor cuando falta.
- */
 /** Nombre del suelo del catálogo; si no vino, el código se vuelve legible. */
 function nombreDeSuelo(suelos: SueloApi[], codigo: string): string {
   const suelo = suelos.find((opcion) => opcion.codigo === codigo);

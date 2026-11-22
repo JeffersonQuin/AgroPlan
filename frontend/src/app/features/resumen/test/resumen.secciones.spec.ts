@@ -541,4 +541,22 @@ describe('ResumenPage (paso 4: secciones del informe)', () => {
     expect(html('[data-seccion-fuentes]', secciones).textContent).toContain('no informado');
     expect(pagina.querySelector('[data-error-informe]')).toBeNull();
   });
+  it('no repite una advertencia que viene en el resultado y en el diseño', async () => {
+    const resultado = resultadoCompleto();
+    const aviso = {
+      codigo: 'AREA_EXCEDIDA',
+      mensaje: 'El área asignada supera el terreno.',
+      campo: 'area_m2',
+    };
+    // El backend entrega la misma advertencia en el resultado y en el diseño.
+    (resultado as Record<string, unknown>)['advertencias'] = [aviso];
+    (resultado['diseno'] as Record<string, unknown>)['advertencias'] = [aviso];
+
+    const pagina = await montar(resultado);
+
+    const avisos = Array.from(pagina.querySelectorAll('[data-advertencia]')).filter((nodo) =>
+      nodo.textContent?.includes('El área asignada supera el terreno.'),
+    );
+    expect(avisos.length).toBe(1);
+  });
 });

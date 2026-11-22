@@ -95,31 +95,39 @@
                     <div class="flex justify-between gap-2">
                       <dt class="text-slate-500">Parcela</dt>
                       <dd class="font-bold text-slate-800" data-terreno-nombre>
-                        {{ store.terreno()?.nombre }}
+                        {{ store.terreno()?.nombre || 'no informado' }}
                       </dd>
                     </div>
                     <div class="flex justify-between gap-2">
                       <dt class="text-slate-500">Área</dt>
                       <dd class="font-bold text-slate-800" data-terreno-area>
-                        {{ store.terreno()?.areaM2 }} m²
+                        @if (store.terreno()?.areaM2 !== null && store.terreno()?.areaM2 !== undefined) {
+                          {{ store.terreno()?.areaM2 }} m²
+                        } @else {
+                          no informado
+                        }
                       </dd>
                     </div>
                     <div class="flex justify-between gap-2">
                       <dt class="text-slate-500">Suelo</dt>
                       <dd class="font-bold text-slate-800" data-terreno-suelo>
-                        {{ store.terreno()?.sueloNombre }}
+                        {{ store.terreno()?.sueloNombre || 'no informado' }}
                       </dd>
                     </div>
                     <div class="flex justify-between gap-2">
                       <dt class="text-slate-500">Fuente</dt>
                       <dd class="font-bold text-slate-800" data-terreno-fuente>
-                        {{ store.terreno()?.fuenteLabel }}
+                        {{ store.terreno()?.fuenteLabel || 'no informado' }}
                       </dd>
                     </div>
                     <div class="flex justify-between gap-2">
                       <dt class="text-slate-500">Caudal efectivo</dt>
                       <dd class="font-bold text-slate-800" data-terreno-caudal>
-                        {{ store.terreno()?.caudalM3h }} m³/h
+                        @if (store.terreno()?.caudalM3h !== null && store.terreno()?.caudalM3h !== undefined) {
+                          {{ store.terreno()?.caudalM3h }} m³/h
+                        } @else {
+                          no informado
+                        }
                       </dd>
                     </div>
                   </dl>
