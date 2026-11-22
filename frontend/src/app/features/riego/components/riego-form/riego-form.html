@@ -1,4 +1,4 @@
-<aside class="flex flex-col gap-3 overflow-y-auto max-h-[calc(100vh-9rem)] pr-1">
+<aside class="flex flex-col gap-space-md sm:gap-space-lg custom-scrollbar lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:pr-1">
   <div class="bg-white rounded-xl border border-agro-border p-4 shadow-sm">
     <div class="flex items-center gap-2 pb-3 mb-3 border-b border-slate-100">
       <ng-icon class="text-agro-600" name="matWaterDropOutline" size="20" aria-hidden="true" />
@@ -47,7 +47,7 @@
           Capacidad de tu {{ store.fuenteDepositoLabel() }}
         </label>
         <select
-          class="w-full text-xs font-medium rounded-lg border-slate-300 focus:border-agro-500 focus:ring-1 focus:ring-agro-500 py-2 bg-white"
+          class="w-full text-xs font-medium rounded-lg border-slate-300 focus:border-agro-500 focus:ring-1 focus:ring-agro-500 px-2.5 py-2 bg-white"
           id="tanque"
           [value]="borrador.tanqueL() === null ? '' : borrador.tanqueL()"
           (change)="elegirTanque($any($event.target).value)"
@@ -67,7 +67,7 @@
           ¿Ya tenés tanque?
         </label>
         <select
-          class="w-full text-xs font-medium rounded-lg border-slate-300 focus:border-agro-500 focus:ring-1 focus:ring-agro-500 py-2 bg-white"
+          class="w-full text-xs font-medium rounded-lg border-slate-300 focus:border-agro-500 focus:ring-1 focus:ring-agro-500 px-2.5 py-2 bg-white"
           id="tanque"
           [value]="borrador.tanqueL() === null ? '' : borrador.tanqueL()"
           (change)="elegirTanque($any($event.target).value)"
@@ -95,7 +95,7 @@
       </label>
       <div class="flex items-center gap-1.5">
         <input
-          class="flex-1 text-xs rounded-lg border-slate-300 py-2 focus:border-agro-500 focus:ring-1 focus:ring-agro-500"
+          class="min-w-0 w-full flex-1 text-xs rounded-lg border-slate-300 px-2.5 py-2 focus:border-agro-500 focus:ring-1 focus:ring-agro-500"
           id="presupuesto"
           type="number"
           min="0"

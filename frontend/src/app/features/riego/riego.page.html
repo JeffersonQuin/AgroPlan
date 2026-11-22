@@ -6,14 +6,14 @@
   />
 
   <main
-    class="flex-1 p-4 grid grid-cols-1 lg:grid-cols-[300px_1fr_320px] gap-4 max-w-[1920px] mx-auto w-full items-start overflow-hidden"
+    class="flex-1 w-full max-w-[1920px] mx-auto grid grid-cols-1 lg:grid-cols-[300px_1fr_320px] items-start gap-space-md sm:gap-space-lg lg:gap-space-xl p-space-md sm:p-space-lg lg:p-space-xl"
   >
-    <app-riego-form />
+    <app-riego-form class="min-w-0" />
 
-    <div class="flex flex-col gap-3 min-h-[460px]">
+    <div class="flex flex-col gap-space-md sm:gap-space-lg min-w-0 min-h-[320px] sm:min-h-[400px] lg:min-h-[460px]">
       <!-- Cabecera del proyecto -->
       <div
-        class="bg-white rounded-xl border border-agro-border px-4 py-2.5 shadow-sm flex items-center justify-between gap-3"
+        class="bg-white rounded-xl border border-agro-border px-4 py-2.5 shadow-sm flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5"
       >
         <div class="flex items-center gap-2 min-w-0">
           <ng-icon class="text-agro-600" name="matLocationOnOutline" size="18" aria-hidden="true" />
@@ -21,7 +21,7 @@
             {{ store.nombreProyecto() }} ({{ store.areaM2() }} m²)
           </span>
         </div>
-        <div class="text-[11px] text-slate-500 shrink-0">
+        <div class="text-[11px] text-slate-500 min-w-0">
           Fuente del paso 1:
           <strong class="text-slate-800">{{ store.fuenteLabel() }}</strong>
           · {{ store.caudalM3h() }} m³/h
@@ -70,7 +70,7 @@
       </div>
 
       <!-- Qué hace el agente con esto -->
-      <div class="flex-1 bg-white rounded-xl border border-agro-border p-5 shadow-sm">
+      <div class="lg:flex-1 bg-white rounded-xl border border-agro-border p-5 shadow-sm">
         <h2 class="text-sm font-bold text-slate-800">El resumen final decide el sistema</h2>
         <p class="text-[11px] text-slate-500 mt-1 max-w-xl leading-snug">
           Este paso no consulta al agente ni calcula nada: sólo guarda lo que tenés disponible. El
@@ -118,16 +118,16 @@
       </div>
 
       <!-- Navegación del wizard -->
-      <div class="flex items-center justify-between gap-3">
+      <div class="flex flex-wrap items-center justify-between gap-3">
         <a
-          class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-slate-300 text-slate-700 text-xs font-semibold hover:bg-slate-50"
+          class="inline-flex w-full sm:w-auto items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg border border-slate-300 text-slate-700 text-xs font-semibold hover:bg-slate-50"
           [routerLink]="['/proyectos', proyectoId(), 'cultivos']"
         >
           <ng-icon name="matArrowBackOutline" size="16" aria-hidden="true" />
           Volver a Cultivos
         </a>
         <button
-          class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-slate-200 text-slate-500 text-xs font-semibold cursor-not-allowed"
+          class="inline-flex w-full sm:w-auto items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-slate-200 text-slate-500 text-xs font-semibold cursor-not-allowed"
           type="button"
           title="Paso 4 (Resultado): próximamente"
           disabled
@@ -139,7 +139,9 @@
     </div>
 
     <!-- Riel derecho: fuente de agua del paso 1 -->
-    <aside class="flex flex-col gap-3">
+    <aside
+      class="flex flex-col gap-space-md sm:gap-space-lg min-w-0 custom-scrollbar lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:pl-0.5"
+    >
       <div class="bg-white rounded-xl border border-agro-border p-4 shadow-sm">
         <div class="flex items-center gap-2 pb-3 mb-3 border-b border-slate-100">
           <ng-icon class="text-agro-600" name="matWaterOutline" size="20" aria-hidden="true" />
