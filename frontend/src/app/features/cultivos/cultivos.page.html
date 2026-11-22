@@ -112,15 +112,13 @@
           <span class="material-symbols-outlined text-[16px]" aria-hidden="true">arrow_back</span>
           Volver a Terreno
         </a>
-        <button
-          class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-slate-200 text-slate-500 text-xs font-semibold cursor-not-allowed"
-          type="button"
-          title="Paso 3 (Sistema): próximamente"
-          disabled
+        <a
+          class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-agro-500 hover:bg-agro-600 text-white text-xs font-bold"
+          [routerLink]="['/proyectos', proyectoId(), 'riego']"
         >
           A Sistema
           <span class="material-symbols-outlined text-[16px]" aria-hidden="true">arrow_forward</span>
-        </button>
+        </a>
       </div>
     </div>
 
