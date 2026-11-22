@@ -1,5 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
+import { Project } from './models/project.model';
 import { ProjectsStore } from './state/projects.store';
 import { AppHeader } from './components/app-header/app-header';
 import { ProjectCard } from './components/project-card/project-card';
@@ -54,6 +55,10 @@ export class ProjectsPage {
     this.modalOpen.set(false);
   }
 
+  protected reintentar(): void {
+    this.store.cargar();
+  }
+
   protected toggleEmptyState(): void {
     this.emptySimulated.update((simulated) => !simulated);
   }
@@ -61,6 +66,15 @@ export class ProjectsPage {
   /** The modal created the project: close it and open step 1. */
   protected onProjectCreated(proyectoId: string): void {
     this.closeModal();
+    this.abrirPaso1(proyectoId);
+  }
+
+  /** A card asked to resume the wizard: always lands on step 1 for now. */
+  protected onProjectOpen(project: Project): void {
+    this.abrirPaso1(project.id);
+  }
+
+  private abrirPaso1(proyectoId: string): void {
     void this.router.navigate(['/proyectos', proyectoId, 'terreno']);
   }
 }

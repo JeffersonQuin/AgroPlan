@@ -12,6 +12,22 @@
         (toggleEmptyState)="toggleEmptyState()"
       />
 
+      @if (store.error(); as mensaje) {
+        <div
+          class="flex items-center justify-between gap-space-sm bg-error-container/40 border border-error/30 rounded-xl px-space-md py-space-sm"
+          role="alert"
+        >
+          <span class="text-label-md text-on-surface">{{ mensaje }}</span>
+          <button
+            class="text-label-md text-primary hover:underline"
+            type="button"
+            (click)="reintentar()"
+          >
+            Reintentar
+          </button>
+        </div>
+      }
+
       <app-projects-filters />
 
       @if (showOnboarding()) {
@@ -19,7 +35,7 @@
       } @else {
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-space-lg">
           @for (project of store.visibleProjects(); track project.id) {
-            <app-project-card [project]="project" />
+            <app-project-card [project]="project" (open)="onProjectOpen($event)" />
           }
 
           <button

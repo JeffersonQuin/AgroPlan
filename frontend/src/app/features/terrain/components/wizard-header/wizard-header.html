@@ -9,7 +9,12 @@
 </div>
 <div>
 <h1 class="text-xl font-extrabold tracking-tight text-agro-800 leading-none">AgroPlan</h1>
-<p class="text-[11px] text-slate-500 font-medium tracking-tight mt-0.5">Diseño y planificación agrícola</p>
+<p
+  class="text-[11px] text-slate-500 font-medium tracking-tight mt-0.5 max-w-[220px] truncate"
+  [title]="store.nombreProyecto()"
+>
+  {{ store.nombreProyecto() }}
+</p>
 </div>
 </div>
 <!-- Stepper Navigation -->
