@@ -7,7 +7,12 @@ export type ProjectFilter = 'all' | ProjectStatus;
 export type ProjectSort = 'recent' | 'area_desc' | 'name';
 
 /** Which reference schematic the card draws. */
-export type PreviewVariant = 'mi-parcela' | 'parcela-norte' | 'finca-el-paraiso' | 'empty';
+export type PreviewVariant =
+  | 'mi-parcela'
+  | 'parcela-norte'
+  | 'finca-el-paraiso'
+  | 'terreno'
+  | 'empty';
 
 /** A crop block listed in the card. */
 export interface CropSlice {
@@ -50,13 +55,16 @@ export interface Project {
   /** Tooltip of the header icon. */
   headerTitle: string;
   unitSystem: UnitSystem;
-  areaM2: number;
+  /** Real saved area, or `null` while the project has no terrain. */
+  areaM2: number | null;
   sectorsLabel: string;
   speciesLabel: string;
   irrigationType: string;
   hydraulicSpecs: string;
   crops: CropSlice[];
   preview: PreviewVariant;
+  /** Contour of the saved terrain, already normalized by the backend. */
+  geometria?: GeometriaTerrenoApi | null;
   /** Wizard step chip over the schematic, e.g. "Paso 4: Resultado". */
   stepLabel?: string;
   /** Dimension chip over the schematic, e.g. "60.00 × 40.00 m". */
@@ -76,6 +84,21 @@ export interface CreateProjectInput {
 
 export type EstadoProyectoApi = 'borrador' | 'en_progreso' | 'completado';
 
+/** One corner of the saved terrain, in metres. */
+export interface VerticeTerrenoApi {
+  x: number;
+  y: number;
+}
+
+/** `geometria` of the terrain as `GET /proyectos` returns it. */
+export interface GeometriaTerrenoApi {
+  vertices: VerticeTerrenoApi[];
+  cerrado: boolean;
+  unidad: string;
+  /** Axis the `y` coordinate grows towards. */
+  eje_y: string;
+}
+
 /** Item of `GET /proyectos`: only what the card draws. */
 export interface ProyectoListadoApi {
   id: string;
@@ -86,6 +109,15 @@ export interface ProyectoListadoApi {
   area_m2: number | null;
   cultivos_count: number;
   sistema_tipo: string | null;
+  /** Slope of the saved terrain; `null` while there is no terrain. */
+  pendiente_pct?: number | null;
+  /** Sectors of the saved irrigation system; `null` while there is none. */
+  num_sectores?: number | null;
+  geometria?: GeometriaTerrenoApi | null;
+  /**
+   * Steps the project has completed, derived by the backend from its tables:
+   * 1 = terrain, 2 = crops, 3 = irrigation, 4 = the agent run finished.
+   */
   ultimo_paso_completado: number;
   actualizado_en: string;
   version: number;

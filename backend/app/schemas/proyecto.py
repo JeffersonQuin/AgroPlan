@@ -68,8 +68,10 @@ class ProyectoOut(BaseModel):
 class ProyectoListadoOut(BaseModel):
     """Ítem de la grilla de proyectos: solo lo que dibuja la tarjeta.
 
-    Los derivados (``area_m2``, ``cultivos_count``, ``sistema_tipo``) los calcula el
-    backend; las etiquetas visuales las arma el frontend.
+    Todo lo que no vive en la tabla de proyectos lo deriva el backend de las tablas
+    del wizard (terreno, cultivos, riego y corrida del agente); las etiquetas visuales
+    las arma el frontend. ``ultimo_paso_completado`` se deriva del avance real y no de
+    la columna homónima, que solo escribe el autosave.
     """
 
     id: uuid.UUID
@@ -80,6 +82,11 @@ class ProyectoListadoOut(BaseModel):
     area_m2: float | None = None
     cultivos_count: int = 0
     sistema_tipo: str | None = None
+    # Datos que dibuja la tarjeta: pendiente y contorno del terreno guardado, y los
+    # sectores del sistema de riego. Nulos mientras ese paso no exista.
+    pendiente_pct: float | None = None
+    num_sectores: int | None = None
+    geometria: "GeometriaTerreno | None" = None
     ultimo_paso_completado: int
     actualizado_en: datetime
     version: int
@@ -159,6 +166,11 @@ class GeometriaTerreno(BaseModel):
     cerrado: bool = True
     unidad: str = "m"
     eje_y: str = "norte"
+
+
+# ``ProyectoListadoOut`` referencia ``GeometriaTerreno``, que se declara más abajo en
+# esta misma sección de terreno: el modelo se reconstruye cuando ya existe.
+ProyectoListadoOut.model_rebuild()
 
 
 class LadoMedido(BaseModel):

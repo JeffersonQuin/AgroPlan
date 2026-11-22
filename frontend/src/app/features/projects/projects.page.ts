@@ -12,13 +12,20 @@ import { ProjectsFilters } from './components/projects-filters/projects-filters'
 import { ProjectsToolbar } from './components/projects-toolbar/projects-toolbar';
 import { TechnicalFootnote } from './components/technical-footnote/technical-footnote';
 
+/** Route segment of each wizard step, in order. */
+const SEGMENTO_PASO: Record<number, string> = {
+  1: 'terreno',
+  2: 'cultivos',
+  3: 'riego',
+  4: 'resultado',
+};
+
 /**
  * Dashboard: the projects grid with search, status filter and sort, plus the
  * create-project dialog.
  *
  * "Nuevo proyecto" creates the project in the backend and opens step 1 for it.
- * Opening an existing project from a card is still pending: the wizard resume
- * needs the step-2..4 screens.
+ * A card resumes the step its real progress points at.
  */
 @Component({
   selector: 'app-projects-page',
@@ -72,9 +79,10 @@ export class ProjectsPage {
     this.abrirPaso1(proyectoId);
   }
 
-  /** A card asked to resume the wizard: always lands on step 1 for now. */
+  /** A card asked to resume the wizard: land on the step its progress points at. */
   protected onProjectOpen(project: Project): void {
-    this.abrirPaso1(project.id);
+    const paso = project.nextStep.step ?? 1;
+    void this.router.navigate(['/proyectos', project.id, SEGMENTO_PASO[paso] ?? 'terreno']);
   }
 
   private abrirPaso1(proyectoId: string): void {

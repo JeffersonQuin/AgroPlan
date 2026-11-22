@@ -34,6 +34,9 @@ describe('ProjectsPage', () => {
         provideRouter([
           { path: 'projects', component: PantallaVacia },
           { path: 'proyectos/:proyectoId/terreno', component: PantallaVacia },
+          { path: 'proyectos/:proyectoId/cultivos', component: PantallaVacia },
+          { path: 'proyectos/:proyectoId/riego', component: PantallaVacia },
+          { path: 'proyectos/:proyectoId/resultado', component: PantallaVacia },
         ]),
         provideHttpClient(),
         provideHttpClientTesting(),
@@ -87,7 +90,7 @@ describe('ProjectsPage', () => {
     expect(navegaciones).toEqual([['/proyectos', 'p-4', 'terreno']]);
   });
 
-  it('opens step 1 from the card action', async () => {
+  it('opens the step the card progress points at, not always step 1', async () => {
     const fixture = TestBed.createComponent(ProjectsPage);
     await fixture.whenStable();
     http.expectOne('http://localhost:8000/proyectos').flush([
@@ -100,17 +103,49 @@ describe('ProjectsPage', () => {
         area_m2: 2100,
         cultivos_count: 1,
         sistema_tipo: null,
-        ultimo_paso_completado: 1,
+        pendiente_pct: 2,
+        num_sectores: null,
+        geometria: null,
+        ultimo_paso_completado: 2,
         actualizado_en: '2026-11-21T11:06:00',
         version: 1,
       },
     ]);
     await fixture.whenStable();
 
-    boton(fixture, 'Continuar (Paso 2)').click();
+    boton(fixture, 'Continuar (Paso 3)').click();
     await fixture.whenStable();
 
-    expect(navegaciones).toEqual([['/proyectos', 'p-1', 'terreno']]);
+    expect(navegaciones).toEqual([['/proyectos', 'p-1', 'riego']]);
+  });
+
+  it('opens the report from a finished project card', async () => {
+    const fixture = TestBed.createComponent(ProjectsPage);
+    await fixture.whenStable();
+    http.expectOne('http://localhost:8000/proyectos').flush([
+      {
+        id: 'p-9',
+        nombre: 'Los Olivos',
+        zona: 'Valle Central',
+        unidad: 'metric',
+        estado: 'completado',
+        area_m2: 2100,
+        cultivos_count: 1,
+        sistema_tipo: 'goteo',
+        pendiente_pct: 2,
+        num_sectores: 2,
+        geometria: null,
+        ultimo_paso_completado: 4,
+        actualizado_en: '2026-11-21T11:06:00',
+        version: 1,
+      },
+    ]);
+    await fixture.whenStable();
+
+    boton(fixture, 'Abrir proyecto').click();
+    await fixture.whenStable();
+
+    expect(navegaciones).toEqual([['/proyectos', 'p-9', 'resultado']]);
   });
 
   it('sends the toolbar and the header new-project buttons to the same modal', async () => {
