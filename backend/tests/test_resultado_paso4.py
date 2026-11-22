@@ -1110,3 +1110,30 @@ def test_el_diagnostico_operativo_va_al_banner_de_advertencias(
     assert len(avisos) == 1
     assert avisos[0]["mensaje"] == mensaje
     assert avisos[0]["campo"] == "red"
+
+
+def test_una_corrida_aplicada_sin_red_se_regenera_en_vez_de_dar_409(
+    cliente_autenticado: TestClient, db_session: Session
+) -> None:
+    """S3: aplicada pero sin diseño es un callejón sin salida; aplicar lo repara."""
+    pid = _proyecto(cliente_autenticado)
+    corrida = _corrida(pid, db_session, _salida())
+    # Se simula el estado viejo: la corrida quedó marcada como aplicada sin red.
+    db_session.add(
+        AgenteRecomendacion(
+            corrida_id=corrida.id,
+            tipo="cultivo",
+            payload={"cultivo_codigo": "papa"},
+            justificacion="aplicada en una corrida anterior",
+            aplicada=True,
+        )
+    )
+    db_session.commit()
+    assert cliente_autenticado.get(f"/proyectos/{pid}/resultado").status_code == 404
+
+    reintento = cliente_autenticado.post(
+        f"/proyectos/{pid}/agente/corridas/{corrida.id}/aplicar"
+    )
+
+    assert reintento.status_code == 200, reintento.text
+    assert reintento.json()["diseno"]["sectores"]

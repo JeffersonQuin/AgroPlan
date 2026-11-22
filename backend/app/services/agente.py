@@ -978,6 +978,15 @@ def aplicar_corrida(
         if recomendacion.aplicada
     ]
     if aplicadas:
+        # Aplicada y sin diseño es un estado alcanzable cuando una generación falló a
+        # mitad de camino: el usuario no puede reintentar (409) ni ver el informe (404).
+        # Con el diseño ausente se rehace el apply completo en vez de dejarlo ahí.
+        try:
+            riego_service.obtener_diseno(db, proyecto)
+        except riego_service.RiegoServiceError:
+            aplicadas = []
+
+    if aplicadas:
         raise AgenteServiceError(409, "La corrida ya está aplicada")
 
     try:
