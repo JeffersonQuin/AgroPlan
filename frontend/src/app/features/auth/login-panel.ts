@@ -1,4 +1,6 @@
 import { Component, inject } from '@angular/core';
+import { NgIcon, provideIcons } from '@ng-icons/core';
+import { matAgricultureOutline } from '@ng-icons/material-symbols/outline';
 import { AuthNav } from './components/auth-nav/auth-nav';
 import { AuthStore } from './auth.store';
 import { LoginForm } from './login-form';
@@ -13,11 +15,12 @@ import { LoginForm } from './login-form';
  */
 @Component({
   selector: 'app-login-panel',
-  imports: [LoginForm, AuthNav],
+  imports: [LoginForm, AuthNav, NgIcon],
   templateUrl: './login-panel.html',
+  viewProviders: [provideIcons({ matAgricultureOutline })],
   host: {
     class:
-      'w-full lg:w-7/12 p-space-lg lg:p-margin-desktop bg-surface-container-lowest flex flex-col justify-between',
+      'w-full lg:w-7/12 p-space-md sm:p-space-lg lg:p-margin-desktop bg-surface-container-lowest flex flex-col justify-between',
   },
 })
 export class LoginPanel {

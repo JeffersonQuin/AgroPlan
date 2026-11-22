@@ -4,7 +4,9 @@ import { AuthApi } from './auth.api';
 import {
   AuthStatus,
   BackendUser,
+  EmailCredentials,
   LOGIN_COPY,
+  RegisterPayload,
   SESSION_STORAGE_KEY,
   TokenResponse,
 } from './auth.model';
@@ -57,6 +59,22 @@ export class AuthStore {
     this._error.set('');
 
     return this.exchange(this.api.registerWithGoogle(idToken));
+  }
+
+  /** Signs in with email + password (POST /auth/login). */
+  loginWithPassword(credentials: EmailCredentials): Observable<boolean> {
+    this._status.set('submitting');
+    this._error.set('');
+
+    return this.exchange(this.api.loginWithPassword(credentials));
+  }
+
+  /** Creates an email account (POST /auth/register). */
+  registerWithPassword(payload: RegisterPayload): Observable<boolean> {
+    this._status.set('submitting');
+    this._error.set('');
+
+    return this.exchange(this.api.registerWithPassword(payload));
   }
 
   private exchange(request: Observable<TokenResponse>): Observable<boolean> {
