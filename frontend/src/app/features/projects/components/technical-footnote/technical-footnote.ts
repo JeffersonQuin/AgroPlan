@@ -21,7 +21,7 @@ import { matCloudDoneOutline, matVerifiedUserOutline } from '@ng-icons/material-
           </p>
         </div>
       </div>
-      <div class="flex items-center gap-1.5 text-label-sm text-on-surface-variant shrink-0">
+      <div class="flex items-start sm:items-center gap-1.5 text-label-sm text-on-surface-variant min-w-0">
         <ng-icon class="text-secondary" name="matCloudDoneOutline" size="18" aria-hidden="true" />
         Almacenamiento en la nube sincronizado
       </div>

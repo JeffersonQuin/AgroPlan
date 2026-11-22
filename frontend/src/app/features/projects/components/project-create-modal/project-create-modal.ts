@@ -32,7 +32,7 @@ const NAME_MAX_LENGTH = 60;
   ],
   templateUrl: './project-create-modal.html',
   host: {
-    class: 'fixed inset-0 z-50 flex items-center justify-center p-4',
+    class: 'fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto p-4',
     '(document:keydown.escape)': 'close.emit()',
   },
 })

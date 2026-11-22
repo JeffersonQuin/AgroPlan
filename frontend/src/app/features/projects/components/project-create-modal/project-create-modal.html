@@ -1,5 +1,5 @@
 <div
-  class="absolute inset-0 bg-on-surface/40 backdrop-blur-xs"
+  class="fixed inset-0 bg-on-surface/40 backdrop-blur-xs"
   (click)="close.emit()"
   aria-hidden="true"
 ></div>
@@ -79,7 +79,7 @@
 
     <div class="space-y-1">
       <span class="text-label-md text-on-surface">Unidad de medida predeterminada</span>
-      <div class="grid grid-cols-2 gap-space-sm">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-space-sm">
         <button
           class="flex flex-col items-start px-space-md py-2 rounded-lg border text-left transition-colors"
           [class]="
@@ -134,9 +134,11 @@
       </p>
     }
 
-    <div class="flex items-center justify-end gap-space-sm pt-space-xs">
+    <div
+      class="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-space-sm pt-space-xs"
+    >
       <button
-        class="px-space-lg py-2.5 rounded-lg text-label-md text-on-surface-variant hover:bg-surface-container-low transition-colors disabled:opacity-50"
+        class="w-full sm:w-auto px-space-lg py-2.5 rounded-lg text-label-md text-on-surface-variant hover:bg-surface-container-low transition-colors disabled:opacity-50"
         type="button"
         [disabled]="submitting()"
         (click)="close.emit()"
@@ -144,7 +146,7 @@
         Cancelar
       </button>
       <button
-        class="inline-flex items-center gap-space-xs bg-primary-container hover:bg-primary text-on-primary text-label-md px-space-lg py-2.5 rounded-lg transition-all shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
+        class="w-full sm:w-auto inline-flex items-center justify-center gap-space-xs bg-primary-container hover:bg-primary text-on-primary text-label-md px-space-lg py-2.5 rounded-lg transition-all shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
         type="submit"
         [disabled]="submitting()"
       >

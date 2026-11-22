@@ -13,7 +13,7 @@ import {
   viewProviders: [provideIcons({ matAddCircleOutline, matLandscapeOutline, matMenuBookOutline })],
   template: `
     <div
-      class="bg-surface-container-lowest rounded-xl p-space-xl text-center flex flex-col items-center justify-center py-16 shadow-sm"
+      class="bg-surface-container-lowest rounded-xl p-space-lg sm:p-space-xl text-center flex flex-col items-center justify-center py-8 sm:py-16 shadow-sm"
     >
       <div
         class="w-16 h-16 rounded-full bg-surface-container-low flex items-center justify-center text-on-surface-variant mb-space-md"
@@ -27,7 +27,7 @@ import {
       </p>
       <div class="flex flex-wrap items-center justify-center gap-space-sm mt-space-lg">
         <button
-          class="inline-flex items-center gap-space-xs bg-primary-container hover:bg-primary text-on-primary text-label-md px-space-lg py-2.5 rounded-lg transition-all shadow-sm"
+          class="w-full sm:w-auto inline-flex items-center justify-center gap-space-xs bg-primary-container hover:bg-primary text-on-primary text-label-md px-space-lg py-2.5 rounded-lg transition-all shadow-sm"
           type="button"
           (click)="createFirst.emit()"
         >
@@ -35,7 +35,7 @@ import {
           Crear mi primer proyecto agrícola
         </button>
         <button
-          class="inline-flex items-center gap-space-xs bg-surface-container-low hover:bg-surface-container text-on-surface text-label-md px-space-lg py-2.5 rounded-lg transition-colors"
+          class="w-full sm:w-auto inline-flex items-center justify-center gap-space-xs bg-surface-container-low hover:bg-surface-container text-on-surface text-label-md px-space-lg py-2.5 rounded-lg transition-colors"
           type="button"
         >
           <ng-icon name="matMenuBookOutline" size="18" aria-hidden="true" />
