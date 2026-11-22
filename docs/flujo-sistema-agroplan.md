@@ -950,7 +950,7 @@ Código estable, mensaje en español, y si bloquea o no.
 | `BLOQUE_SIN_AREA` | P4 | sí | un cultivo quedó sin superficie |
 | `FECHAS_INVERTIDAS` | P4 | sí | cosecha anterior a siembra |
 | `SOLAPE_CICLOS` | P4 | no | dos cultivos comparten ventana; sube la demanda pico |
-| `DEMANDA_EXCEDE_CAUDAL` | P4, P5 | no | la demanda diaria supera el agua extraíble en un día |
+| `DEMANDA_EXCEDE_CAUDAL` | P4, P5 | sí, si el caudal lo informó el usuario | la demanda del mínimo viable supera el agua extraíble en una jornada; con caudal asumido sólo avisa |
 | `RIEGO_NOCTURNO_EXTENSO` | P5 | no | hace falta más de 16 h diarias de riego |
 | `AUTONOMIA_BAJA` | P5 | no | el tanque no cubre un día de riego |
 | `PRESION_FUERA_DE_RANGO` | P5 | no | la presión estimada sale de 1,0–1,5 bar |
@@ -984,7 +984,9 @@ informado. El cliente quiere papa y lechuga.
 
 Con 1,5 m³/h y riego secuencial, el sistema entra holgado: es el caso donde el caudal asumido
 alcanza. Si el pozo rindiera 0,3 m³/h, el motor agregaría sectores y emitiría
-`DEMANDA_EXCEDE_CAUDAL` sin bloquear.
+`DEMANDA_EXCEDE_CAUDAL`. Ese aviso **bloquea** cuando el caudal lo informó el usuario y
+sólo advierte cuando el sistema lo asumió: sobre un dato que puso el sistema no se frena
+a nadie.
 
 ---
 

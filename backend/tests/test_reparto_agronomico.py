@@ -67,6 +67,33 @@ def _caudal_de_la_jornada() -> float:
     return CAUDAL_M3H * 1000 * agente_service.HORAS_RIEGO_JORNADA
 
 
+# Área mínima viable de cada producto en este terreno: el mayor entre el 5 % del
+# terreno y el piso absoluto de 10 m² (ver agente.MINIMO_VIABLE_PCT).
+MINIMO_VIABLE_TERRENO = max(
+    agente_service.MINIMO_VIABLE_M2,
+    AREA_TERRENO * agente_service.MINIMO_VIABLE_PCT / 100.0,
+)
+# Reparto prioritario de siempre con agua de sobra (b_i = p_i / d_i, sin techo).
+REPARTO_PRIORITARIO = (1132.11, 499.17, 222.6, 122.22, 123.9)
+
+
+def _entrada(caudal: float, *, caudal_origen: str = "asumido") -> agente_service.EntradaAgente:
+    return agente_service.EntradaAgente(
+        proyecto_id=uuid.uuid4(),
+        productos=[
+            ProductoDeseado(
+                nombre=codigo.title(), cultivo_codigo=codigo, prioridad=indice + 1
+            )
+            for indice, codigo in enumerate(ORDEN_USUARIO)
+        ],
+        area_m2=AREA_TERRENO,
+        suelo_codigo="franco",
+        fuente_agua="pozo",
+        caudal_efectivo_m3h=caudal,
+        caudal_origen=caudal_origen,
+    )
+
+
 # --------------------------------------------------------------------------- #
 # S1 — criterio de reparto (función pura, sin base)
 # --------------------------------------------------------------------------- #
@@ -118,6 +145,39 @@ def test_sin_prioridad_de_por_medio_gana_el_de_mayor_demanda() -> None:
 
     # Con la misma prioridad, el cultivo que más agua pide no se lleva más área.
     assert areas[1] <= areas[0]
+
+
+def test_con_igual_prioridad_ciclo_y_densidad_menos_demanda_recibe_mas_area() -> None:
+    """El criterio que documenta el reparto: b_i = p_i / d_i.
+
+    Con la misma prioridad, el mismo ciclo y la misma densidad, el cultivo que pide
+    más agua por m² recibe estrictamente menos superficie. Ciclo y densidad pueden
+    invertir ese orden, así que el criterio no promete más que esto.
+    """
+
+    insumos = [
+        {
+            "codigo": "poco",
+            "prioridad": 1,
+            "demanda_l_m2_dia": 1.0,
+            "ciclo_dias": 90,
+            "densidad_plantas_m2": 4.0,
+            "aptitud_suelo": "apto",
+        },
+        {
+            "codigo": "mucho",
+            "prioridad": 1,
+            "demanda_l_m2_dia": 4.0,
+            "ciclo_dias": 90,
+            "densidad_plantas_m2": 4.0,
+            "aptitud_suelo": "apto",
+        },
+    ]
+    areas, _ = agente_service.repartir_area_agronomica(
+        insumos, area_m2=AREA_TERRENO, caudal_efectivo_m3h=CAUDAL_M3H
+    )
+
+    assert areas[0] > areas[1]
 
 
 def test_la_demanda_pico_del_conjunto_no_supera_el_caudal_de_la_jornada() -> None:
@@ -191,6 +251,172 @@ def test_cuando_el_caudal_aprieta_manda_el_agua_y_no_la_prioridad() -> None:
     assert sum(areas) == pytest.approx(300.0, abs=1e-6)
     assert pico <= 550.0
     assert areas[1] <= areas[0]
+
+
+def test_el_minimo_viable_se_respeta_cuando_el_reparto_es_factible() -> None:
+    """Con 0,22 m³/h entra el mínimo de todos (3.434 L/día) y el techo se cumple."""
+
+    areas, pico = agente_service.repartir_area_agronomica(
+        _insumos(), area_m2=AREA_TERRENO, caudal_efectivo_m3h=0.22
+    )
+
+    assert sum(areas) == pytest.approx(AREA_TERRENO, abs=1e-6)
+    assert all(area >= MINIMO_VIABLE_TERRENO - 1e-6 for area in areas)
+    assert pico <= 0.22 * 1000 * agente_service.HORAS_RIEGO_JORNADA + 1e-6
+    # Los sedientos ceden superficie pero nadie queda en una maceta, y el agua manda:
+    # la lechuga, que es la que menos pide por m², es la que más superficie recibe.
+    assert areas[1] == max(areas)
+    assert min(areas) >= MINIMO_VIABLE_TERRENO
+
+
+def test_con_agua_holgada_nada_cambia_respecto_de_hoy() -> None:
+    """Con 3 m³/h el reparto prioritario entra completo: no se toca (S1)."""
+
+    areas, pico = agente_service.repartir_area_agronomica(
+        _insumos(), area_m2=AREA_TERRENO, caudal_efectivo_m3h=CAUDAL_M3H
+    )
+
+    assert areas == pytest.approx(REPARTO_PRIORITARIO, abs=0.01)
+    assert sum(areas) == pytest.approx(AREA_TERRENO, abs=1e-6)
+    assert pico == pytest.approx(3673.0, abs=0.5)
+    assert pico <= _caudal_de_la_jornada()
+
+
+def test_el_piso_absoluto_del_minimo_viable_manda_en_terrenos_chicos() -> None:
+    """En 100 m² el 5 % son 5 m² pero el piso de 10 m² es el que rige."""
+
+    insumos = [
+        {
+            "codigo": codigo,
+            "prioridad": prioridad,
+            "demanda_l_m2_dia": demanda,
+            "ciclo_dias": 90,
+            "densidad_plantas_m2": 4.0,
+            "aptitud_suelo": "apto",
+        }
+        for codigo, prioridad, demanda in (
+            ("poco", 1, 1.0),
+            ("medio", 2, 1.0),
+            ("mucho", 3, 8.0),
+        )
+    ]
+    areas, pico = agente_service.repartir_area_agronomica(
+        insumos, area_m2=100.0, caudal_efectivo_m3h=0.011
+    )
+
+    assert sum(areas) == pytest.approx(100.0, abs=1e-6)
+    # Sin el piso de 10 m² el tercer producto quedaría con 3,2 m².
+    assert all(area >= agente_service.MINIMO_VIABLE_M2 - 1e-6 for area in areas)
+    assert pico <= 0.011 * 1000 * agente_service.HORAS_RIEGO_JORNADA + 1e-6
+
+
+@pytest.mark.parametrize(
+    "caudal",
+    [
+        3.00,  # 48000 L/día: entra el reparto prioritario completo (3673 L/día)
+        0.30,  # 4800 L/día: también
+        0.24,  # 3840 L/día: también
+        0.22,  # 3520 L/día: el mínimo de todos (3434 L/día) entra, el prioritario no
+        0.20,  # 3200 L/día: el mínimo de todos no entra
+        0.05,  # 800 L/día: falta agua para el mínimo de todos
+    ],
+)
+def test_el_barrido_de_caudal_respeta_el_minimo_viable_y_el_techo(
+    caudal: float,
+) -> None:
+    """Barrido del verificador con el criterio nuevo (S1).
+
+    Con el mínimo viable de todos adentro, el reparto lo respeta y no supera el
+    caudal. Cuando el mínimo no entra, se devuelve el reparto prioritario (nunca
+    0,2 m²) y el aviso bloqueante explica la imposibilidad.
+    """
+
+    areas, pico = agente_service.repartir_area_agronomica(
+        _insumos(), area_m2=AREA_TERRENO, caudal_efectivo_m3h=caudal
+    )
+    disponible = caudal * 1000 * agente_service.HORAS_RIEGO_JORNADA
+    demandas = [d for d, _, _ in DATOS.values()]
+    requerido = agente_service.agua_para_minimo_viable(
+        _insumos(), area_m2=AREA_TERRENO
+    )
+
+    assert sum(areas) == pytest.approx(AREA_TERRENO, abs=1e-6)
+    assert pico == pytest.approx(sum(a * d for a, d in zip(areas, demandas)))
+    assert requerido is not None
+    assert all(area >= MINIMO_VIABLE_TERRENO - 1e-6 for area in areas)
+
+    if requerido <= disponible + 1e-6:
+        assert pico <= disponible + 1e-6
+    else:
+        # Sin reparto posible: el prioritario de siempre, no un reparto absurdo.
+        assert areas == pytest.approx(REPARTO_PRIORITARIO, abs=0.01)
+        assert pico > disponible
+
+
+def test_con_caudal_de_020_ningun_producto_queda_con_area_de_juguete(
+    db_session: Session,
+) -> None:
+    """S1: con 0,20 m³/h no se le dan 0,2 m² a cuatro productos.
+
+    O el reparto entra con el mínimo viable de todos y el techo de agua, o el aviso
+    bloqueante explica por qué no se puede. Nunca un reparto de juguete entregado
+    como si fuera válido.
+    """
+
+    areas, pico = agente_service.repartir_area_agronomica(
+        _insumos(), area_m2=AREA_TERRENO, caudal_efectivo_m3h=0.20
+    )
+    disponible = 0.20 * 1000 * agente_service.HORAS_RIEGO_JORNADA
+    corregida = agente_service._con_reparto_agronomico(
+        db_session, _entrada(0.20), _propuesta(_insumos())
+    )
+    avisos = [
+        alerta
+        for alerta in corregida.advertencias
+        if alerta.codigo == "DEMANDA_EXCEDE_CAUDAL"
+    ]
+
+    assert all(area >= MINIMO_VIABLE_TERRENO - 1e-6 for area in areas)
+    assert sum(areas) == pytest.approx(AREA_TERRENO, abs=1e-6)
+    if pico <= disponible + 1e-6:
+        assert avisos == []
+    else:
+        assert avisos
+        assert "3434 L/día" in avisos[0].mensaje
+
+
+def test_con_005_el_aviso_es_bloqueante_y_dice_los_litros_necesarios(
+    db_session: Session,
+) -> None:
+    """S1: con 0,05 m³/h el aviso explica qué pasa y qué puede hacer el usuario."""
+
+    propuesta = _propuesta(_insumos())
+    corregida = agente_service._con_reparto_agronomico(
+        db_session, _entrada(0.05, caudal_origen="cliente"), propuesta
+    )
+
+    areas = [cultivo.area_m2 for cultivo in corregida.cultivos]
+    demandas = [cultivo.demanda_l_m2_dia for cultivo in corregida.cultivos]
+    pico = sum(area * demanda for area, demanda in zip(areas, demandas))
+    disponible = 0.05 * 1000 * agente_service.HORAS_RIEGO_JORNADA
+    aviso = next(
+        alerta
+        for alerta in corregida.advertencias
+        if alerta.codigo == "DEMANDA_EXCEDE_CAUDAL"
+    )
+
+    assert sum(areas) == pytest.approx(AREA_TERRENO, abs=1e-6)
+    # El reparto devuelto es el prioritario de siempre, sin áreas de juguete.
+    assert areas == pytest.approx(REPARTO_PRIORITARIO, abs=0.01)
+    assert pico > disponible
+    # El caudal del fixture lo informa el usuario, así que el aviso bloquea.
+    assert aviso.bloqueante is True
+    # Cuántos productos, cuánta agua haría falta para el mínimo de todos y qué hacer.
+    assert "los 5 productos pedidos" in aviso.mensaje
+    assert "3434 L/día" in aviso.mensaje  # mínimo viable de todos
+    assert "800 L/día" in aviso.mensaje  # lo que entrega la fuente
+    assert "Reducí la lista de productos o mejorá la fuente de agua" in aviso.mensaje
+    assert len(aviso.mensaje) <= 300
 
 
 def test_un_solo_producto_cubre_el_terreno() -> None:
@@ -316,6 +542,52 @@ def test_la_corrida_en_catalogo_reparte_por_necesidad(cliente: TestClient) -> No
     demandas = {codigo: DATOS[codigo][0] for codigo in ORDEN_USUARIO}
     pico = sum(areas[codigo] * demandas[codigo] for codigo in ORDEN_USUARIO)
     assert pico <= _caudal_de_la_jornada()
+
+
+def _propuesta(insumos: list[dict]) -> PropuestaAgente:
+    return PropuestaAgente(
+        cultivos=[
+            CultivoRecomendado(
+                cultivo_codigo=insumo["codigo"],
+                nombre=insumo["codigo"].title(),
+                area_m2=AREA_TERRENO / len(insumos),
+                demanda_l_m2_dia=insumo["demanda_l_m2_dia"],
+                ciclo_dias=insumo.get("ciclo_dias"),
+                justificacion="Reparto de prueba.",
+            )
+            for insumo in insumos
+        ],
+        sistema=SistemaRecomendado(
+            tipo="goteo",
+            emisor=EmisorRecomendado(tipo="gotero", caudal_lh=2, separacion_m=0.3),
+            separacion_laterales_m=0.5,
+            bomba_hp=1,
+            num_sectores=4,
+        ),
+    )
+
+
+def test_el_informe_en_catalogo_dice_que_no_hubo_modelo(cliente: TestClient) -> None:
+    """S3/S5: la marca llega al informe y las fuentes internas no se presentan."""
+
+    proyecto_id = _proyecto(cliente)
+    corrida_id, _ = _corrida(cliente, proyecto_id)
+    aplicada = cliente.post(
+        f"/proyectos/{proyecto_id}/agente/corridas/{corrida_id}/aplicar"
+    )
+    assert aplicada.status_code == 200, aplicada.text
+
+    respuesta = cliente.get(f"/proyectos/{proyecto_id}/resultado")
+    assert respuesta.status_code == 200, respuesta.text
+    informe = respuesta.json()
+
+    assert any(
+        advertencia["codigo"] == "AGENTE_SIN_CREDENCIALES"
+        for advertencia in informe["advertencias"]
+    )
+    tipos = {fuente["tipo"] for fuente in informe["diseno"]["fuentes"]}
+    assert "catalogo_interno" not in tipos
+    assert informe["diseno"]["fuentes"] == []
 
 
 def _anillo(poligono: dict) -> list[tuple[float, float]]:
@@ -484,3 +756,22 @@ def test_aplicar_no_cambia_la_huella_por_las_areas_del_motor() -> None:
     tras_aplicar = entrada(1132.11, 499.17)
 
     assert pedido_del_usuario.huella() == tras_aplicar.huella()
+
+
+def test_el_aviso_no_bloquea_cuando_el_caudal_lo_asumio_el_sistema(
+    db_session: Session,
+) -> None:
+    """S1: sobre un caudal asumido no se puede frenar al usuario, sólo avisar."""
+    entrada = _entrada(0.05, caudal_origen="asumido")
+
+    corregida = agente_service._con_reparto_agronomico(
+        db_session, entrada, _propuesta(_insumos())
+    )
+
+    aviso = next(
+        alerta
+        for alerta in corregida.advertencias
+        if alerta.codigo == "DEMANDA_EXCEDE_CAUDAL"
+    )
+    assert aviso.bloqueante is False
+    assert "asumido" in aviso.mensaje
