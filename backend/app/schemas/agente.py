@@ -9,6 +9,7 @@ import hashlib
 import json
 import uuid
 from datetime import date, datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -20,6 +21,8 @@ from app.models.enums import (
     TipoRecomendacion,
 )
 from app.schemas.comun import Advertencia, Poligono, Punto
+from app.schemas.cultivo import AptitudSuelo
+from app.schemas.proyecto import GeometriaTerreno, LadoMedido
 from app.schemas.riego import ComputoOut, RedOut, SectorOut, SistemaRiegoOut
 
 # --------------------------------------------------------------------------- #
@@ -27,22 +30,66 @@ from app.schemas.riego import ComputoOut, RedOut, SectorOut, SistemaRiegoOut
 # --------------------------------------------------------------------------- #
 
 
+class FichaFuente(BaseModel):
+    """Fuente de una ficha agronómica, tal como la modela el catálogo o el curado.
+
+    Es la misma forma que ``agente_fuentes``: el agente puede citarla sin que el
+    backend tenga que traducirla.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    tipo: str = Field(min_length=2, max_length=30)
+    titulo: str | None = Field(default=None, max_length=300)
+    url: str | None = Field(default=None, max_length=1000)
+    fragmento: str | None = Field(default=None, max_length=1000)
+
+
 class ProductoDeseado(BaseModel):
-    """Un producto que el cliente quiere sembrar."""
+    """Un producto que el cliente quiere sembrar, con su ficha completa.
+
+    Los datos agronómicos llegan del catálogo y, si el catálogo no los tiene, de la
+    ficha curada. ``None`` significa que el dato no está modelado: el agente no debe
+    inventarlo.
+    """
 
     model_config = ConfigDict(extra="forbid")
 
     nombre: str = Field(min_length=2, max_length=60)
+    # Código de catálogo cuando el producto ya lo tiene; el texto libre queda sin
+    # código hasta que la investigación lo da de alta.
+    cultivo_codigo: str | None = Field(default=None, min_length=2, max_length=30)
     prioridad: int = Field(default=1, ge=1, le=9)
     area_deseada_m2: float | None = Field(default=None, gt=0)
+    kc: float | None = Field(default=None, ge=0, le=2)
+    aptitud_suelo: dict[str, AptitudSuelo] | None = None
+    profundidad_raiz_cm: int | None = Field(default=None, ge=1, le=300)
+    densidad_plantas_m2: float | None = Field(default=None, gt=0, le=500)
+    meses_siembra: list[int] | None = None
+    fuentes: list[FichaFuente] | None = None
+
+
+class RestriccionesEntrada(BaseModel):
+    """Restricciones del paso 3 que el usuario elige antes de generar el informe.
+
+    Viajan en el body de la corrida y quedan congeladas en ``entrada``. Todas son
+    opcionales: si el usuario no eligió nada, el agente no debe asumirlo.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    energia: Literal["red-electrica", "solar"] | None = None
+    tanque_l: float | None = Field(default=None, gt=0, le=1_000_000)
+    presupuesto_bs: float | None = Field(default=None, ge=0, le=100_000_000)
 
 
 class EntradaAgente(BaseModel):
-    """Lo mínimo que necesita el agente para recomendar.
+    """Todo lo que el agente puede mirar para armar el informe del paso 4.
 
     Obligatorio: productos, área, suelo, fuente de agua, caudal efectivo y zona. El
     caudal llega siempre resuelto por el backend: si el cliente no lo informó, el
-    sistema ya le asignó uno y lo marca como ``asumido``.
+    sistema ya le asignó uno y lo marca como ``asumido``. El resto de la ficha del
+    suelo y del terreno es opcional: ``None`` significa que la base no lo tiene.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -59,6 +106,16 @@ class EntradaAgente(BaseModel):
     # Día en que el usuario siembra: el agente devuelve la cosecha a partir de este
     # dato y del ciclo que investiga. Opcional para no invalidar corridas viejas.
     siembra: date | None = None
+    # Ficha del suelo modelada en la base (S5).
+    infiltracion_mm_h: float | None = Field(default=None, gt=0, le=1000)
+    retencion_agua_mm_m: float | None = Field(default=None, gt=0, le=1000)
+    # Geometría y medidas del terreno (S5). ``lados_m`` y ``perimetro_m`` los deriva
+    # el backend de los vértices: nunca los manda el cliente.
+    lados_m: list[LadoMedido] | None = None
+    geometria: GeometriaTerreno | None = None
+    perimetro_m: float | None = Field(default=None, gt=0)
+    profundidad_nivel_dinamico_m: float | None = Field(default=None, gt=0, le=200)
+    restricciones: RestriccionesEntrada | None = None
 
     def huella(self) -> str:
         """SHA-256 canónico del intake, para ``agente_corridas.intake_hash``.
@@ -99,6 +156,10 @@ class CultivoRecomendado(BaseModel):
     # Índices 1-based sobre las fuentes recuperadas en la corrida, no ids inventados
     # por el modelo.
     fuente_ids: list[int] = Field(default_factory=list)
+    # Imagen híbrida (S4): primero la ficha curada, después lo que investigue el
+    # agente. Las URLs que no sean http(s) las descarta ``validacion``.
+    imagen_url: str | None = Field(default=None, max_length=1000)
+    imagen_fuente_url: str | None = Field(default=None, max_length=1000)
 
 
 class EmisorRecomendado(BaseModel):
@@ -122,19 +183,88 @@ class SistemaRecomendado(BaseModel):
     tanque_l: float | None = Field(default=None, gt=0)
     bomba_hp: float = Field(gt=0, le=10)
     num_sectores: int = Field(default=1, ge=1, le=8)
+    # Imagen del equipo de cabecera (S4), con la página de donde salió.
+    imagen_url: str | None = Field(default=None, max_length=1000)
+    imagen_fuente_url: str | None = Field(default=None, max_length=1000)
+
+
+class TurnoSectorAgente(BaseModel):
+    """Turno de riego de un sector, tal como lo informa el agente (S3).
+
+    Los rangos se sanean en ``app.agente.validacion``: acá solo se declara la forma
+    para que un valor absurdo del modelo se pueda corregir en vez de romper el
+    contrato. ``horas`` es la duración del turno, no la hora de inicio.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    sector: int
+    horas: float | None = None
+    caudal_lh: float | None = None
+
+
+class CifrasAgente(BaseModel):
+    """Balance hidráulico y operativo que el agente decide (S3).
+
+    ``None`` es "no informado": nunca se convierte en cero. La conversión a rangos
+    razonables vive en ``validacion.corregir``.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    presion_trabajo_bar: float | None = None
+    eficiencia_pct: float | None = None
+    demanda_pico_l_dia: float | None = None
+    autonomia_dias: float | None = None
+    tiempo_riego_h: float | None = None
+    turnos: list[TurnoSectorAgente] = Field(default_factory=list)
+
+
+class MaterialAgente(BaseModel):
+    """Un rubro del cómputo con su precio y su fuente (S6).
+
+    El motor sigue siendo quien calcula las cantidades; el agente aporta el precio y
+    la fuente. Un precio vencido o ausente se reporta, no se inventa.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    rubro: str = Field(min_length=1, max_length=60)
+    descripcion: str = Field(min_length=1, max_length=200)
+    cantidad: float
+    unidad: str = Field(min_length=1, max_length=20)
+    moneda: str = Field(default="BOB", min_length=3, max_length=3)
+    precio_unitario_bs: float | None = None
+    total_bs: float | None = None
+    fuente_url: str | None = Field(default=None, max_length=1000)
+
+
+class RecomendacionFinal(BaseModel):
+    """Recomendación final del informe, con su justificación (S7)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    titulo: str = Field(min_length=1, max_length=120)
+    detalle: str = Field(min_length=1, max_length=1000)
+    justificacion: str = Field(default="", max_length=600)
 
 
 class PropuestaAgente(BaseModel):
     """``response_model`` del agente: cultivos + parámetros, nunca geometría.
 
     El campo ``fuentes`` no lo llena el modelo: lo llena el backend a partir de las
-    herramientas de búsqueda que efectivamente se ejecutaron en la corrida.
+    herramientas de búsqueda que efectivamente se ejecutaron en la corrida. Las
+    cifras, los materiales y las recomendaciones son las que el informe del paso 4
+    muestra; el motor las usa como objetivo y se ajusta a ellas.
     """
 
     model_config = ConfigDict(extra="forbid")
 
     cultivos: list[CultivoRecomendado] = Field(min_length=1, max_length=8)
     sistema: SistemaRecomendado
+    cifras: CifrasAgente = Field(default_factory=CifrasAgente)
+    materiales: list[MaterialAgente] = Field(default_factory=list)
+    recomendaciones: list[RecomendacionFinal] = Field(default_factory=list)
     advertencias: list[Advertencia] = Field(default_factory=list)
 
 
@@ -249,12 +379,18 @@ class ProductoSolicitado(BaseModel):
 
 
 class CorridaIniciarIn(BaseModel):
-    """Cuerpo opcional del disparo del agente."""
+    """Cuerpo opcional del disparo del agente.
+
+    ``restricciones`` llega del paso 3 y se congela en ``entrada`` junto con el resto
+    del intake: así T2 puede consumirlas sin volver a pedirlas y la corrida queda
+    reproducible.
+    """
 
     model_config = ConfigDict(extra="forbid")
 
     productos: list[ProductoSolicitado] = Field(default_factory=list, max_length=8)
     siembra: date | None = None
+    restricciones: RestriccionesEntrada | None = None
 
 
 class CorridaIniciadaOut(BaseModel):

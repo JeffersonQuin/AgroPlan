@@ -12,16 +12,22 @@ en modo catálogo y en modo modelo, y el resultado siempre valida contra
 
 from __future__ import annotations
 
+import math
 import unicodedata
 from datetime import date, timedelta
 from decimal import ROUND_DOWN, Decimal
 from typing import Any
+from urllib.parse import urlparse
 
 from app.schemas.agente import (
+    CifrasAgente,
     CultivoRecomendado,
     EmisorRecomendado,
+    MaterialAgente,
     PropuestaAgente,
+    RecomendacionFinal,
     SistemaRecomendado,
+    TurnoSectorAgente,
 )
 from app.schemas.comun import Advertencia
 
@@ -33,6 +39,21 @@ SEPARACION_MIN, SEPARACION_MAX = 0.2, 1.0
 LATERALES_MIN, LATERALES_MAX = 0.5, 10.0
 SECTORES_MIN, SECTORES_MAX = 1, 8
 TANQUE_MAX_L = 1_000_000
+
+# Dominios del informe del paso 4. Un valor fuera de dominio se recorta si el
+# extremo superior es alcanzable y se anula si el valor no tiene sentido físico.
+PRESION_MAX_BAR = 16.0
+AUTONOMIA_MAX_DIAS = 365.0
+TIEMPO_RIEGO_MAX_H = 24.0
+DEMANDA_PICO_MAX_L_DIA = 10_000_000.0
+CAUDAL_TURNO_MAX_LH = 100_000.0
+PRECIO_UNITARIO_MAX_BS = 1_000_000_000.0
+TOTAL_MAX_BS = 1_000_000_000_000.0
+MATERIALES_MAX = 200
+RECOMENDACIONES_MAX = 30
+RECOMENDACION_TITULO_MAX = 120
+RECOMENDACION_DETALLE_MAX = 1000
+RECOMENDACION_JUSTIFICACION_MAX = 600
 
 # Si la demanda propuesta se aparta más de 25% de la del catálogo, manda el catálogo.
 DESVIACION_DEMANDA = 0.25
@@ -66,6 +87,43 @@ def _mas_cercano(valor: float, permitidos: tuple[float, ...]) -> float:
 
 def _limitar(valor: float, minimo: float, maximo: float) -> float:
     return round(min(max(valor, minimo), maximo), 2)
+
+
+def _finito(valor: float | None) -> float | None:
+    if valor is None or not math.isfinite(valor):
+        return None
+    return valor
+
+
+def _positivo(valor: float | None, maximo: float) -> float | None:
+    """Cantidad física: no positiva o no finita se anula, exceso se recorta."""
+
+    numero = _finito(valor)
+    if numero is None or numero <= 0:
+        return None
+    return round(min(numero, maximo), 2)
+
+
+def _porcentaje(valor: float | None) -> float | None:
+    numero = _finito(valor)
+    if numero is None or numero < 0:
+        return None
+    return round(min(numero, 100.0), 2)
+
+
+def _url_http(valor: str | None) -> str | None:
+    """Solo URLs absolutas http(s): una ruta relativa no sirve como atribución web."""
+
+    if not valor:
+        return None
+    limpia = valor.strip()
+    try:
+        partes = urlparse(limpia)
+    except ValueError:
+        return None
+    if partes.scheme not in ("http", "https") or not partes.netloc:
+        return None
+    return limpia
 
 
 def _dec(valor: float) -> Decimal:
@@ -282,7 +340,105 @@ def _corregir_sistema(
         tanque_l=tanque,
         bomba_hp=bomba,
         num_sectores=sectores,
+        imagen_url=_url_http(sistema.imagen_url),
+        imagen_fuente_url=_url_http(sistema.imagen_fuente_url),
     )
+
+
+def _corregir_cifras(cifras: CifrasAgente) -> CifrasAgente:
+    """Recorta o anula las cifras del informe que no tienen sentido físico."""
+
+    turnos: list[TurnoSectorAgente] = []
+    vistos: set[int] = set()
+    for turno in cifras.turnos:
+        if turno.sector not in range(SECTORES_MIN, SECTORES_MAX + 1):
+            continue
+        if turno.sector in vistos:
+            continue
+        vistos.add(turno.sector)
+        turnos.append(
+            TurnoSectorAgente(
+                sector=turno.sector,
+                horas=_positivo(turno.horas, TIEMPO_RIEGO_MAX_H),
+                caudal_lh=_positivo(turno.caudal_lh, CAUDAL_TURNO_MAX_LH),
+            )
+        )
+
+    return CifrasAgente(
+        presion_trabajo_bar=_positivo(cifras.presion_trabajo_bar, PRESION_MAX_BAR),
+        eficiencia_pct=_porcentaje(cifras.eficiencia_pct),
+        demanda_pico_l_dia=_positivo(
+            cifras.demanda_pico_l_dia, DEMANDA_PICO_MAX_L_DIA
+        ),
+        autonomia_dias=_positivo(cifras.autonomia_dias, AUTONOMIA_MAX_DIAS),
+        tiempo_riego_h=_positivo(cifras.tiempo_riego_h, TIEMPO_RIEGO_MAX_H),
+        turnos=turnos,
+    )
+
+
+def _corregir_materiales(materiales: list[MaterialAgente]) -> list[MaterialAgente]:
+    """Sanea precios y fuentes y descarta duplicados del cómputo."""
+
+    limpios: list[MaterialAgente] = []
+    vistos: set[tuple[str, str, str]] = set()
+    for material in materiales:
+        cantidad = _positivo(material.cantidad, float("inf"))
+        if cantidad is None:
+            continue
+        clave = (
+            normalizar(material.rubro),
+            normalizar(material.descripcion),
+            normalizar(material.unidad),
+        )
+        if clave in vistos:
+            continue
+        vistos.add(clave)
+        limpios.append(
+            MaterialAgente(
+                rubro=material.rubro.strip()[:60],
+                descripcion=material.descripcion.strip()[:200],
+                cantidad=cantidad,
+                unidad=material.unidad.strip()[:20],
+                precio_unitario_bs=_positivo(
+                    material.precio_unitario_bs, PRECIO_UNITARIO_MAX_BS
+                ),
+                total_bs=_positivo(material.total_bs, TOTAL_MAX_BS),
+                fuente_url=_url_http(material.fuente_url),
+            )
+        )
+        if len(limpios) >= MATERIALES_MAX:
+            break
+    return limpios
+
+
+def _corregir_recomendaciones(
+    recomendaciones: list[RecomendacionFinal],
+) -> list[RecomendacionFinal]:
+    """Descarta recomendaciones vacías o repetidas y recorta sus textos."""
+
+    limpias: list[RecomendacionFinal] = []
+    vistos: set[str] = set()
+    for recomendacion in recomendaciones:
+        titulo = recomendacion.titulo.strip()[:RECOMENDACION_TITULO_MAX]
+        detalle = recomendacion.detalle.strip()[:RECOMENDACION_DETALLE_MAX]
+        if not titulo or not detalle:
+            continue
+        clave = normalizar(titulo)
+        if clave in vistos:
+            continue
+        vistos.add(clave)
+        limpias.append(
+            RecomendacionFinal(
+                titulo=titulo,
+                detalle=detalle,
+                justificacion=recomendacion.justificacion.strip()[
+                    :RECOMENDACION_JUSTIFICACION_MAX
+                ],
+            )
+        )
+        if len(limpias) >= RECOMENDACIONES_MAX:
+            break
+    return limpias
 
 
 def corregir(
@@ -344,6 +500,8 @@ def corregir(
             fuente_ids=_corregir_fuentes(
                 cultivo, total_fuentes, advertencias, avisado_fuentes
             ),
+            imagen_url=_url_http(cultivo.imagen_url),
+            imagen_fuente_url=_url_http(cultivo.imagen_fuente_url),
         )
         sumadas[codigo] = float(cultivo.area_m2)
 
@@ -402,5 +560,8 @@ def corregir(
     return PropuestaAgente(
         cultivos=corregidos,
         sistema=_corregir_sistema(propuesta.sistema, advertencias),
+        cifras=_corregir_cifras(propuesta.cifras),
+        materiales=_corregir_materiales(propuesta.materiales),
+        recomendaciones=_corregir_recomendaciones(propuesta.recomendaciones),
         advertencias=advertencias,
     )

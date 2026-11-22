@@ -47,6 +47,7 @@ def _iniciar(
             proyecto,
             productos=cuerpo.productos if cuerpo is not None else None,
             siembra=cuerpo.siembra if cuerpo is not None else None,
+            restricciones=cuerpo.restricciones if cuerpo is not None else None,
         )
     except AgenteServiceError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc

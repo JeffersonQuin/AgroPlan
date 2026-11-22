@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 
 from app.agente import PROMPT_VERSION, ContextoAgente
 from app.agente import ejecutar as ejecutar_agente
+from app.agente import fichas as fichas_agente
 from app.agente.validacion import repartir_porcentajes
 from app.models.agente import AgenteCorrida, AgenteFuente, AgenteRecomendacion
 from app.models.enums import (
@@ -39,21 +40,25 @@ from app.schemas.agente import (
     CorridaOut,
     DisenoGenerado,
     EntradaAgente,
+    FichaFuente,
     FuenteOut,
     ProductoDeseado,
     ProductoSolicitado,
     PropuestaAgente,
     RecomendacionOut,
     RecomendacionUpdate,
+    RestriccionesEntrada,
     ResultadoProyectoOut,
 )
 from app.schemas.comun import Advertencia, Punto
 from app.schemas.cultivo import BloqueCultivoCreate, ModoReparto
+from app.schemas.proyecto import GeometriaTerreno
 from app.schemas.riego import EmisorIn, SistemaRiegoIn
 from app.services import cultivo as cultivo_service
 from app.services import geometria
 from app.services import proyecto as proyecto_service
 from app.services import riego as riego_service
+from app.services import terreno as terreno_service
 
 __all__ = [
     "PROMPT_VERSION",
@@ -88,6 +93,84 @@ def _terreno_requerido(db: Session, proyecto: Proyecto) -> Terreno:
     return terreno
 
 
+def _tomar(catalogo, ficha, campo):
+    """Dato del catálogo; si falta, el de la ficha curada. ``None`` si no está.
+
+    El catálogo manda porque es la ficha revisada que ve el paso 2. El curado cubre
+    los campos que una fila vieja del catálogo todavía no tiene.
+    """
+
+    valor = getattr(catalogo, campo, None)
+    if valor is not None and valor != []:
+        return valor
+    if ficha is not None:
+        valor = getattr(ficha, campo, None)
+        if valor is not None and valor != []:
+            return valor
+    return None
+
+
+def _fuentes_ficha(valor) -> list[FichaFuente] | None:
+    """Normaliza las fuentes del catálogo y del curado al contrato de la entrada."""
+
+    if not valor:
+        return None
+    fuentes: list[FichaFuente] = []
+    for item in valor:
+        if isinstance(item, dict):
+            tipo = item.get("tipo")
+            titulo = item.get("titulo")
+            url = item.get("url")
+            fragmento = item.get("fragmento")
+        else:
+            tipo = getattr(item, "tipo", None)
+            titulo = getattr(item, "titulo", None)
+            url = getattr(item, "url", None)
+            fragmento = getattr(item, "fragmento", None)
+        if not isinstance(tipo, str) or not tipo:
+            continue
+        fuentes.append(
+            FichaFuente(
+                tipo=tipo[:30],
+                titulo=(str(titulo)[:300] if titulo else None),
+                url=(str(url)[:1000] if url else None),
+                fragmento=(str(fragmento)[:1000] if fragmento else None),
+            )
+        )
+    return fuentes or None
+
+
+def _producto_deseado(
+    cultivo,
+    *,
+    prioridad: int,
+    area_deseada_m2: float | None = None,
+    nombre: str | None = None,
+) -> ProductoDeseado:
+    """Arma un producto con toda la ficha que la base ya tiene modelada (S5)."""
+
+    ficha = fichas_agente.buscar(cultivo.codigo)
+    kc = _tomar(cultivo, ficha, "kc")
+    raiz = _tomar(cultivo, ficha, "profundidad_raiz_cm")
+    densidad = _tomar(cultivo, ficha, "densidad_plantas_m2")
+    meses = _tomar(cultivo, ficha, "meses_siembra")
+    aptitud = _tomar(cultivo, ficha, "aptitud_suelo")
+    fuentes = _tomar(cultivo, ficha, "fuentes")
+
+    return ProductoDeseado(
+        nombre=nombre or cultivo.nombre,
+        cultivo_codigo=cultivo.codigo,
+        prioridad=prioridad,
+        area_deseada_m2=area_deseada_m2,
+        kc=float(kc) if kc is not None else None,
+        profundidad_raiz_cm=int(raiz) if raiz is not None else None,
+        densidad_plantas_m2=float(densidad) if densidad is not None else None,
+        meses_siembra=list(meses) if meses is not None else None,
+        aptitud_suelo=aptitud or None,
+        fuentes=_fuentes_ficha(fuentes),
+    )
+
+
 def _productos_desde_bloques(db: Session, proyecto: Proyecto) -> list[ProductoDeseado]:
     bloques = bloque_repo.list_by_proyecto(db, proyecto.id)
     if not bloques:
@@ -111,8 +194,15 @@ def _productos_desde_bloques(db: Session, proyecto: Proyecto) -> list[ProductoDe
     for codigo, datos in sorted(agrupados.items(), key=lambda item: item[1]["prioridad"]):
         cultivo = cultivo_repo.get_by_codigo(db, codigo)
         productos.append(
-            ProductoDeseado(
-                nombre=cultivo.nombre if cultivo is not None else codigo,
+            _producto_deseado(
+                cultivo,
+                prioridad=datos["prioridad"],
+                area_deseada_m2=round(datos["area"], 2) or None,
+                nombre=cultivo.nombre,
+            )
+            if cultivo is not None
+            else ProductoDeseado(
+                nombre=codigo,
                 prioridad=datos["prioridad"],
                 area_deseada_m2=round(datos["area"], 2) or None,
             )
@@ -139,7 +229,7 @@ def _productos_desde_lista(
                 raise AgenteServiceError(
                     422, f"El cultivo '{pedido.cultivo_codigo}' no existe o está inactivo"
                 )
-            resueltos.append(ProductoDeseado(nombre=cultivo.nombre, prioridad=prioridad))
+            resueltos.append(_producto_deseado(cultivo, prioridad=prioridad))
             continue
 
         if not pedido.producto_texto:
@@ -151,7 +241,7 @@ def _productos_desde_lista(
         if cultivo is None:
             mensaje = advertencias[0].mensaje if advertencias else "Producto no reconocido"
             raise AgenteServiceError(422, mensaje)
-        resueltos.append(ProductoDeseado(nombre=cultivo.nombre, prioridad=prioridad))
+        resueltos.append(_producto_deseado(cultivo, prioridad=prioridad))
 
     return resueltos
 
@@ -183,12 +273,14 @@ def iniciar_corrida(
     *,
     productos: list[ProductoSolicitado] | None = None,
     siembra=None,
+    restricciones: RestriccionesEntrada | None = None,
 ) -> InicioCorrida:
     """Crea la corrida del intake actual o devuelve la vigente, sin ejecutarla.
 
     ``productos`` es la lista que armó el usuario en el paso 2: el agente reparte el
     área entre esos productos. Si no llega, se usan los bloques ya asignados (camino
-    anterior). La siembra viaja al agente para que devuelva la cosecha.
+    anterior). La siembra y las ``restricciones`` del paso 3 viajan al agente y
+    quedan congeladas con la corrida.
 
     La ejecución la dispara el router como tarea de fondo: el request nunca espera al
     modelo. Repetir el pedido con el mismo intake no gasta otra llamada.
@@ -202,6 +294,9 @@ def iniciar_corrida(
         else _productos_desde_bloques(db, proyecto)
     )
 
+    suelo = suelo_repo.get_by_codigo(db, terreno.suelo_codigo)
+    medidas = terreno_service.terreno_out(terreno)
+
     entrada = EntradaAgente(
         proyecto_id=proyecto.id,
         productos=elegidos,
@@ -213,6 +308,23 @@ def iniciar_corrida(
         zona=proyecto.zona,
         pendiente_pct=float(terreno.pendiente_pct),
         siembra=siembra,
+        infiltracion_mm_h=(
+            float(suelo.infiltracion_mm_h) if suelo is not None else None
+        ),
+        retencion_agua_mm_m=(
+            float(suelo.retencion_agua_mm_m)
+            if suelo is not None and suelo.retencion_agua_mm_m is not None
+            else None
+        ),
+        lados_m=medidas.lados_m or None,
+        geometria=GeometriaTerreno.model_validate(terreno.geometria),
+        perimetro_m=float(terreno.perimetro_m),
+        profundidad_nivel_dinamico_m=(
+            float(terreno.profundidad_nivel_dinamico_m)
+            if terreno.profundidad_nivel_dinamico_m is not None
+            else None
+        ),
+        restricciones=restricciones,
     )
     huella = entrada.huella()
 
@@ -269,23 +381,57 @@ def _contexto_desde_corrida(
     suelo = suelo_repo.get_by_codigo(db, entrada.suelo_codigo)
     sistema = sistema_riego_repo.get_by_proyecto(db, proyecto.id)
 
-    return ContextoAgente(
-        entrada=entrada,
-        catalogo=[
+    catalogo = []
+    for cultivo in cultivos:
+        ficha = fichas_agente.buscar(cultivo.codigo)
+        kc = _tomar(cultivo, ficha, "kc")
+        raiz = _tomar(cultivo, ficha, "profundidad_raiz_cm")
+        densidad = _tomar(cultivo, ficha, "densidad_plantas_m2")
+        meses = _tomar(cultivo, ficha, "meses_siembra")
+        aptitud = _tomar(cultivo, ficha, "aptitud_suelo")
+        fuentes = _tomar(cultivo, ficha, "fuentes")
+        catalogo.append(
             {
                 "codigo": cultivo.codigo,
                 "nombre": cultivo.nombre,
                 "color": cultivo.color,
                 "demanda_agua_l_m2_dia": float(cultivo.demanda_agua_l_m2_dia),
                 "ciclo_dias": cultivo.ciclo_dias,
+                "kc": float(kc) if kc is not None else None,
+                "aptitud_suelo": aptitud or None,
+                "profundidad_raiz_cm": int(raiz) if raiz is not None else None,
+                "densidad_plantas_m2": (
+                    float(densidad) if densidad is not None else None
+                ),
+                "meses_siembra": list(meses) if meses is not None else None,
+                "fuentes": (
+                    [
+                        {
+                            "tipo": fuente.tipo,
+                            "titulo": fuente.titulo,
+                            "url": fuente.url,
+                            "fragmento": fuente.fragmento,
+                        }
+                        for fuente in _fuentes_ficha(fuentes) or []
+                    ]
+                    or None
+                ),
             }
-            for cultivo in cultivos
-        ],
+        )
+
+    return ContextoAgente(
+        entrada=entrada,
+        catalogo=catalogo,
         suelo=(
             {
                 "codigo": suelo.codigo,
                 "nombre": suelo.nombre,
                 "infiltracion_mm_h": float(suelo.infiltracion_mm_h),
+                "retencion_agua_mm_m": (
+                    float(suelo.retencion_agua_mm_m)
+                    if suelo.retencion_agua_mm_m is not None
+                    else None
+                ),
             }
             if suelo is not None
             else None
