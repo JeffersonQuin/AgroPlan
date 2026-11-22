@@ -1,131 +1,81 @@
 <aside class="flex flex-col gap-4 overflow-y-auto max-h-[calc(100vh-9rem)] pl-1">
-  <!-- Balance -->
-  <section class="bg-white rounded-xl border border-agro-border p-3.5 shadow-sm">
-    <div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
-      <h2 class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Balance de área</h2>
-      <span
-        class="text-[10px] font-bold px-2 py-0.5 rounded-full border"
-        [class]="
-          store.estadoBalance() === 'correcto'
-            ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
-            : store.estadoBalance() === 'excedido'
-              ? 'text-error bg-error-container/40 border-error/30'
-              : 'text-amber-700 bg-amber-50 border-amber-200'
-        "
-      >
-        {{ store.estadoBalance() }}
-      </span>
-    </div>
-    <div class="h-2 rounded-full bg-slate-100 overflow-hidden mb-2">
-      <div
-        class="h-full bg-agro-500 transition-all"
-        [class]="store.estadoBalance() === 'excedido' ? 'bg-error' : 'bg-agro-500'"
-        [style.width.%]="anchoBarra()"
-      ></div>
-    </div>
-    <dl class="grid grid-cols-2 gap-y-1 text-[11px]">
-      <dt class="text-slate-500">Terreno</dt>
-      <dd class="text-right font-bold text-slate-800">{{ store.areaM2() }} m²</dd>
-      <dt class="text-slate-500">Asignado</dt>
-      <dd class="text-right font-bold text-slate-800">
-        {{ store.balance()?.asignado_m2 ?? 0 }} m² ({{ store.asignadoPct() }}%)
-      </dd>
-      <dt class="text-slate-500">Disponible</dt>
-      <dd class="text-right font-bold text-slate-800">{{ store.balance()?.disponible_m2 ?? 0 }} m²</dd>
-      <dt class="text-slate-500">Demanda total</dt>
-      <dd class="text-right font-bold text-slate-800">
-        {{ store.balance()?.demanda_total_l_dia ?? 0 }} L/día
-      </dd>
-    </dl>
-    @for (alerta of store.alertas(); track alerta.codigo) {
-      <p class="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 mt-2">
-        <strong>{{ alerta.codigo }}:</strong> {{ alerta.mensaje }}
-      </p>
-    }
-  </section>
-
   <!-- Cultivos configurados -->
   <section class="bg-white rounded-xl border border-agro-border p-3.5 shadow-sm">
     <h2 class="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">
-      Cultivos configurados ({{ store.cultivosCount() }})
+      Cultivos configurados ({{ borrador.cantidad() }})
     </h2>
 
-    @if (store.bloques().length === 0) {
+    @if (borrador.vacio()) {
       <p class="text-[11px] text-slate-400 py-3 text-center">
-        Todavía no asignaste ningún cultivo.
+        Todavía no agregaste productos.
       </p>
     }
 
     <ul class="space-y-2">
-      @for (bloque of store.bloques(); track bloque.id) {
+      @for (producto of borrador.productos(); track producto.etiqueta; let i = $index) {
         <li class="border border-slate-200 rounded-lg p-2.5">
           <div class="flex items-start justify-between gap-2">
             <div class="flex items-center gap-1.5 min-w-0">
               <span
                 class="w-2.5 h-2.5 rounded-full shrink-0"
-                [style.background]="colorDe(bloque.cultivo_codigo)"
+                [style.background]="colorDe(producto.codigo, producto.color)"
               ></span>
               <div class="min-w-0">
-                <p class="text-xs font-bold text-slate-800 truncate">
-                  {{ nombreDe(bloque.cultivo_codigo) }}
-                </p>
+                <p class="text-xs font-bold text-slate-800 truncate">{{ producto.etiqueta }}</p>
                 <p class="text-[10px] text-slate-500">
-                  {{ bloque.etiqueta || 'Sin zona' }} · {{ bloque.porcentaje }}%
+                  {{ producto.codigo === null ? 'Producto nuevo · se investiga' : 'Del catálogo' }}
                 </p>
               </div>
             </div>
-            <div class="flex items-center gap-1 shrink-0">
-              <button
-                class="p-1 rounded text-slate-400 hover:text-agro-700 hover:bg-agro-50"
-                type="button"
-                title="Editar cultivo"
-                (click)="editar.emit(bloque)"
-              >
-                <span class="material-symbols-outlined text-[16px]" aria-hidden="true">edit</span>
-              </button>
-              <button
-                class="p-1 rounded text-slate-400 hover:text-error hover:bg-error-container/30"
-                type="button"
-                title="Eliminar cultivo"
-                (click)="eliminar(bloque)"
-              >
-                <span class="material-symbols-outlined text-[16px]" aria-hidden="true">delete</span>
-              </button>
-            </div>
+            <button
+              class="p-1 rounded text-slate-400 hover:text-error hover:bg-error-container/30 shrink-0"
+              type="button"
+              [attr.aria-label]="'Quitar ' + producto.etiqueta"
+              (click)="borrador.quitarProducto(i)"
+            >
+              <span class="material-symbols-outlined text-[16px]" aria-hidden="true">delete</span>
+            </button>
           </div>
-
-          <dl class="grid grid-cols-4 gap-1 mt-2 text-[10px]">
-            <div>
-              <dt class="text-slate-400">Sup.</dt>
-              <dd class="font-bold text-slate-700">{{ bloque.area_m2 }} m²</dd>
-            </div>
-            <div>
-              <dt class="text-slate-400">Demanda</dt>
-              <dd class="font-bold text-slate-700">{{ bloque.demanda_total_l_dia }} L/d</dd>
-            </div>
-            <div>
-              <dt class="text-slate-400">Ciclo</dt>
-              <dd class="font-bold text-slate-700">{{ bloque.ciclo_dias ?? '—' }} d</dd>
-            </div>
-            <div>
-              <dt class="text-slate-400">Kc</dt>
-              <dd class="font-bold text-slate-700">{{ bloque.kc ?? '—' }}</dd>
-            </div>
-          </dl>
-
-          @if (bloque.aptitud_suelo; as aptitud) {
-            <p class="text-[10px] border rounded px-1.5 py-1 mt-2" [class]="veredictoClase(bloque)">
-              <strong>Suelo: {{ aptitud.veredicto }}</strong>
-              @if (aptitud.motivo) {
-                · {{ aptitud.motivo }}
-              }
-            </p>
-          }
-          @for (alerta of bloque.advertencias; track alerta.codigo) {
-            <p class="text-[10px] text-amber-700 mt-1">{{ alerta.mensaje }}</p>
-          }
         </li>
       }
     </ul>
+  </section>
+
+  <!-- Qué falta: el detalle llega en el paso 4 -->
+  <section class="bg-slate-50 rounded-xl border border-slate-200 p-3.5 shadow-sm">
+    <div class="flex items-center gap-2 text-slate-700 font-bold text-[11px] uppercase tracking-wider mb-1.5">
+      <span class="material-symbols-outlined text-[16px]" aria-hidden="true">info</span>
+      Detalle del reparto
+    </div>
+    <p class="text-[11px] text-slate-600">
+      @if (borrador.vacio()) {
+        Agregá los productos que querés sembrar. El área, la demanda y las fechas se
+        calculan en el resumen final.
+      } @else {
+        Con {{ borrador.cantidad() }} producto(s) el agente va a repartir los
+        {{ store.areaM2() }} m² en el <strong>resumen final</strong>. Ahí vas a ver las
+        parcelas, la demanda de agua, la fecha de cosecha y el sistema de riego.
+      }
+    </p>
+    <p class="text-[10px] text-slate-400 mt-2">
+      Este paso no consulta al agente: se genera una sola vez, al final.
+    </p>
+  </section>
+
+  <!-- Datos del terreno: se leen, no se escriben -->
+  <section class="bg-white rounded-xl border border-agro-border p-3.5 shadow-sm">
+    <h2 class="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">
+      Terreno del paso 1
+    </h2>
+    <dl class="grid grid-cols-2 gap-y-1 text-[11px]">
+      <dt class="text-slate-500">Superficie</dt>
+      <dd class="text-right font-bold text-slate-800">{{ store.areaM2() }} m²</dd>
+      <dt class="text-slate-500">Caudal</dt>
+      <dd class="text-right font-bold text-slate-800">{{ store.caudalM3h() }} m³/h</dd>
+      <dt class="text-slate-500">Suelo</dt>
+      <dd class="text-right font-bold text-slate-800">{{ store.sueloCodigo() || '—' }}</dd>
+      <dt class="text-slate-500">Siembra</dt>
+      <dd class="text-right font-bold text-slate-800">{{ borrador.siembra() }}</dd>
+    </dl>
   </section>
 </aside>

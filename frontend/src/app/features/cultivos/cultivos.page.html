@@ -2,7 +2,7 @@
   <app-wizard-header
     [paso]="2"
     [nombreProyecto]="store.nombreProyecto()"
-    [estadoGuardado]="store.estadoGuardadoLabel()"
+    [estadoGuardado]="borrador.cantidad() > 0 ? 'Productos guardados' : 'Sin productos'"
   />
 
   <main
@@ -33,35 +33,42 @@
       </div>
 
       <!-- Productos elegidos -->
-      @if (store.productos().length > 0) {
-        <div class="bg-white rounded-xl border border-agro-border px-4 py-2.5 shadow-sm">
-          <p class="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">
-            Productos elegidos ({{ store.productos().length }})
+      <div class="bg-white rounded-xl border border-agro-border px-4 py-2.5 shadow-sm">
+        <p class="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">
+          Productos elegidos ({{ borrador.cantidad() }})
+        </p>
+        @if (borrador.vacio()) {
+          <p class="text-[11px] text-slate-400">
+            Todavía no agregaste ninguno. Usá el panel de la izquierda.
           </p>
+        } @else {
           <ul class="flex flex-wrap gap-1.5">
-            @for (producto of store.productos(); track producto.etiqueta; let i = $index) {
+            @for (producto of borrador.productos(); track producto.etiqueta; let i = $index) {
               <li
                 class="inline-flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-full pl-2 pr-1 py-0.5 text-[11px]"
               >
-                <span class="w-2 h-2 rounded-full" [style.background]="producto.color"></span>
+                <span
+                  class="w-2 h-2 rounded-full"
+                  [style.background]="producto.color"
+                ></span>
                 <span class="font-semibold text-slate-700">{{ producto.etiqueta }}</span>
                 <button
                   class="p-0.5 rounded-full text-slate-400 hover:text-error hover:bg-error-container/30"
                   type="button"
                   [attr.aria-label]="'Quitar ' + producto.etiqueta"
-                  (click)="store.quitarProducto(i)"
+                  (click)="borrador.quitarProducto(i)"
                 >
                   <span class="material-symbols-outlined text-[14px]" aria-hidden="true">close</span>
                 </button>
               </li>
             }
           </ul>
-        </div>
-      }
+        }
+      </div>
 
       <app-cultivos-croquis />
 
-      <!-- Generar / navegación -->
+      <!-- Navegación del wizard -->
       <div class="flex items-center justify-between gap-3">
         <a
           class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-slate-300 text-slate-700 text-xs font-semibold hover:bg-slate-50"
@@ -70,104 +77,18 @@
           <span class="material-symbols-outlined text-[16px]" aria-hidden="true">arrow_back</span>
           Volver a Terreno
         </a>
-
-        <div class="flex items-center gap-2">
-          @if (store.error(); as mensaje) {
-            <span class="text-[11px] text-error" role="alert">{{ mensaje }}</span>
-          }
-          <button
-            class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-agro-500 hover:bg-agro-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold shadow-sm"
-            type="button"
-            [disabled]="!store.puedeGenerar()"
-            (click)="pedirGeneracion()"
-          >
-            <span class="material-symbols-outlined text-[16px]" aria-hidden="true">
-              {{ store.generando() ? 'hourglass_top' : 'auto_awesome' }}
-            </span>
-            {{ store.generando() ? 'Generando…' : tituloGenerar() }}
-          </button>
-        </div>
+        <button
+          class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-slate-200 text-slate-500 text-xs font-semibold cursor-not-allowed"
+          type="button"
+          title="Paso 3 (Sistema): próximamente"
+          disabled
+        >
+          A Sistema
+          <span class="material-symbols-outlined text-[16px]" aria-hidden="true">arrow_forward</span>
+        </button>
       </div>
     </div>
 
-    <app-cultivos-panel (editar)="onEditar($event)" />
+    <app-cultivos-panel />
   </main>
 </div>
-
-<!-- Confirmación: generar consume una llamada al agente -->
-@if (confirmarGeneracion()) {
-  <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
-    <div class="absolute inset-0 bg-on-surface/40 backdrop-blur-xs" (click)="cerrarConfirmacion()"></div>
-    <div
-      class="relative w-full max-w-md bg-white rounded-xl shadow-xl p-5"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="confirmar-generar"
-    >
-      <h2 id="confirmar-generar" class="text-base font-bold text-slate-800 mb-1">
-        ¿Generar la distribución?
-      </h2>
-      <p class="text-xs text-slate-600 mb-3">
-        El agente va a analizar
-        <strong>{{ store.productos().length }} producto(s)</strong> y repartir los
-        {{ store.areaM2() }} m² entre ellos. La siembra queda para el
-        <strong>{{ store.siembra() }}</strong>.
-      </p>
-      <p class="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-2 mb-3">
-        Esta generación se hace <strong>una sola vez</strong>: consume una consulta al
-        agente y después la distribución queda fija. Revisá que los productos y la fecha
-        estén bien antes de continuar.
-      </p>
-      <div class="flex items-center justify-end gap-2">
-        <button
-          class="px-3 py-2 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100"
-          type="button"
-          (click)="cerrarConfirmacion()"
-        >
-          Revisar
-        </button>
-        <button
-          class="px-4 py-2 rounded-lg bg-agro-500 hover:bg-agro-600 text-white text-xs font-bold"
-          type="button"
-          (click)="confirmar()"
-        >
-          Sí, generar
-        </button>
-      </div>
-    </div>
-  </div>
-}
-
-<!-- Ajustar después de generar es parte del plan premium -->
-@if (modalPremium()) {
-  <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
-    <div class="absolute inset-0 bg-on-surface/40 backdrop-blur-xs" (click)="cerrarPremium()"></div>
-    <div
-      class="relative w-full max-w-md bg-white rounded-xl shadow-xl p-5"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="plan-premium"
-    >
-      <div class="flex items-center gap-2 mb-1">
-        <span class="material-symbols-outlined text-[20px] text-amber-500" aria-hidden="true"
-          >workspace_premium</span
-        >
-        <h2 id="plan-premium" class="text-base font-bold text-slate-800">Plan premium</h2>
-      </div>
-      <p class="text-xs text-slate-600 mb-3">
-        Volver a generar o ajustar la distribución a mano consume otra consulta al agente
-        y está disponible en el <strong>plan premium</strong>. Con eso AgroPlan se sostiene
-        solo: cada generación tiene un costo real de cómputo.
-      </p>
-      <div class="flex items-center justify-end">
-        <button
-          class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold"
-          type="button"
-          (click)="cerrarPremium()"
-        >
-          Entendido
-        </button>
-      </div>
-    </div>
-  </div>
-}

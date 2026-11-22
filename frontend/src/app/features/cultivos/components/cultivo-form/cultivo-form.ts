@@ -1,12 +1,13 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { WizardDraftStore } from '../../../wizard/state/wizard-draft.store';
 import { CultivosStore } from '../../state/cultivos.store';
 
 /**
- * Left rail of step 2: the product list.
+ * Left rail of step 2: the product list and the sowing date.
  *
- * The user only picks products — from the catalogue or typed by hand — and the sowing
- * date. The distribution is the agent's job: there are no percentages to fill here.
+ * Step 2 only collects: no write and no agent call. The distribution, the harvest
+ * dates and every figure arrive in the final summary (step 4), from one single run.
  */
 @Component({
   selector: 'app-cultivo-form',
@@ -15,28 +16,33 @@ import { CultivosStore } from '../../state/cultivos.store';
 })
 export class CultivoForm {
   protected readonly store = inject(CultivosStore);
+  protected readonly borrador = inject(WizardDraftStore);
 
   protected readonly codigo = signal<string | null>(null);
   protected readonly nuevo = signal('');
-  /** Motivo visible cuando el botón de agregar no hace nada. */
   protected readonly aviso = signal<string | null>(null);
 
+  /** Sólo los cultivos que todavía no están en la lista. */
   protected readonly opciones = computed(() =>
     this.store
       .opcionesCultivo()
       .filter(
-        (opcion) => !this.store.productos().some((producto) => producto.codigo === opcion.value),
+        (opcion) =>
+          !this.borrador.productos().some((producto) => producto.codigo === opcion.value),
       ),
   );
 
-  protected readonly puedeAgregarCatalogo = computed(
-    () => this.codigo() !== null || this.opciones().length > 0,
+  protected readonly puedeAgregarCatalogo = computed(() => this.opciones().length > 0);
+
+  protected readonly motivoSinCatalogo = computed(() =>
+    this.opciones().length === 0 ? 'Ya agregaste todos los cultivos del catálogo' : null,
   );
 
   protected agregarDelCatalogo(): void {
-    const codigo = this.codigo() ?? this.opciones()[0]?.value ?? null;
-    if (codigo === null) return;
-    this.store.agregarProducto(codigo, '');
+    const elegido = this.codigo() ?? this.opciones()[0]?.value ?? null;
+    const opcion = this.opciones().find((candidato) => candidato.value === elegido);
+    if (opcion === undefined) return;
+    this.borrador.agregarProducto(opcion.value, '', opcion.label, opcion.color);
     this.codigo.set(null);
   }
 
@@ -47,7 +53,7 @@ export class CultivoForm {
       return;
     }
     this.aviso.set(null);
-    this.store.agregarProducto(null, texto);
+    this.borrador.agregarProducto(null, texto, texto, '#4CAF50');
     this.nuevo.set('');
   }
 
@@ -55,11 +61,4 @@ export class CultivoForm {
     this.nuevo.set(valor);
     if (this.aviso() !== null) this.aviso.set(null);
   }
-
-  /** Por qué el botón del catálogo no puede agregar nada. */
-  protected readonly motivoSinCatalogo = computed(() => {
-    if (this.store.generado()) return 'La distribución ya está generada';
-    if (this.opciones().length === 0) return 'Ya agregaste todos los cultivos del catálogo';
-    return null;
-  });
 }

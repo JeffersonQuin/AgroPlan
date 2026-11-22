@@ -56,7 +56,12 @@ export class CultivosApi {
     return this.http.delete<void>(`${this.baseUrl}/${proyectoId}/cultivos/${bloqueId}`);
   }
 
-  /** Dispara el agente con la lista de productos del paso 2. */
+  /**
+   * Dispara el agente con la lista de productos del borrador.
+   *
+   * Lo usa **el paso 4**, una sola vez: los pasos 1 a 3 sólo leen datos y no gastan
+   * tokens. Se deja acá para que el resumen final lo consuma sin duplicar la API.
+   */
   iniciarCorrida(proyectoId: string, dto: IniciarCorridaApi): Observable<CorridaIniciadaApi> {
     return this.http.post<CorridaIniciadaApi>(`${this.baseUrl}/${proyectoId}/agente`, dto);
   }
