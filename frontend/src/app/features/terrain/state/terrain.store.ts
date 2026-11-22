@@ -12,6 +12,7 @@ import {
   PENDIENTE_ASUMIDA_PCT,
   SHAPE_OPTIONS,
   SOIL_OPTIONS,
+  SoilOption,
   SoilType,
   SueloApi,
   TerrainDimensions,
@@ -161,6 +162,17 @@ export class TerrainStore {
       ? 'Informado por vos'
       : `Asumido por el sistema (sugerido ${derivado.caudalSugeridoM3h ?? '—'} m³/h)`;
   });
+  /** Opciones del selector: el catálogo del backend, con la lista local de respaldo. */
+  readonly opcionesSuelo = computed<readonly SoilOption[]>(() => {
+    const suelos = this._suelos();
+    if (suelos.length === 0) return SOIL_OPTIONS;
+    return suelos.map((suelo) => ({
+      value: suelo.codigo,
+      label: `${suelo.nombre} · ${suelo.infiltracion_mm_h} mm/h`,
+      infiltration: `${suelo.infiltracion_mm_h} mm/h`,
+    }));
+  });
+
   readonly infiltrationLabel = computed(() => {
     const suelo = this._suelos().find((option) => option.codigo === this._state().soil);
     if (suelo !== undefined) return `Infiltración: ${suelo.infiltracion_mm_h} mm/h`;

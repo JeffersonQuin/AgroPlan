@@ -1,6 +1,7 @@
 export type ParcelShape = 'rectangulo' | 'trapecio' | 'libre';
 
-export type SoilType = 'franco' | 'arenoso' | 'arcilloso' | 'limoso';
+/** Código de suelo: los del catálogo del backend, que crece con migraciones. */
+export type SoilType = string;
 
 export type WaterSource = 'pozo' | 'tanque' | 'red' | 'cisterna' | 'pila';
 

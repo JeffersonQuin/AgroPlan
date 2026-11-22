@@ -1,12 +1,6 @@
 import { Component, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import {
-  ParcelShape,
-  SHAPE_OPTIONS,
-  SOIL_OPTIONS,
-  SoilType,
-  TerrainDimensions,
-} from '../../models/terrain.model';
+import { ParcelShape, SHAPE_OPTIONS, SoilType, TerrainDimensions } from '../../models/terrain.model';
 import { TerrainStore } from '../../state/terrain.store';
 
 /** Left rail of the terrain step: identity, cotas, soil and slope. */
@@ -19,7 +13,6 @@ export class TerrainForm {
   protected readonly store = inject(TerrainStore);
 
   protected readonly shapeOptions = SHAPE_OPTIONS;
-  protected readonly soilOptions = SOIL_OPTIONS;
 
   protected shapeClass(shape: ParcelShape): Record<string, boolean> {
     const active = this.store.shape() === shape;

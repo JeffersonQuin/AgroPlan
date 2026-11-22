@@ -194,6 +194,14 @@ describe('TerrainStore contra el backend', () => {
     expect(store.guardadoLabel()).toBe('Sin guardar');
   });
 
+  it('offers the soils the backend actually has', () => {
+    cargar(null);
+
+    expect(store.opcionesSuelo()).toEqual([
+      { value: 'franco', label: 'Franco · 12 mm/h', infiltration: '12 mm/h' },
+    ]);
+  });
+
   it('saves with PUT the first time and with PATCH afterwards', () => {
     cargar(null);
 

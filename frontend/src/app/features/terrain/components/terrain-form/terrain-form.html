@@ -100,10 +100,9 @@
             [value]="store.soil()"
             (change)="onSoil($event)"
           >
-<option selected="" value="franco">Franco (Ideal, retención equilibrada)</option>
-<option value="arenoso">Arenoso (Infiltración rápida &gt; 30 mm/h)</option>
-<option value="arcilloso">Arcilloso (Infiltración lenta &lt; 8 mm/h)</option>
-<option value="limoso">Limoso (Medio-fino, riesgo compactación)</option>
+@for (suelo of store.opcionesSuelo(); track suelo.value) {
+            <option [value]="suelo.value">{{ suelo.label }}</option>
+          }
 </select>
 </div>
 <!-- Pendiente: asumida por defecto, definible si el usuario la conoce -->

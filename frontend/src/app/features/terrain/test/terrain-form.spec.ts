@@ -75,6 +75,17 @@ describe('TerrainForm', () => {
     expect(fixture.nativeElement.textContent).toContain(store.diagonalLabel());
   });
 
+  it('builds the soil options from the loaded catalogue', async () => {
+    const fixture = await render();
+
+    // Sin catálogo (la API no respondió) cae en la lista local de respaldo.
+    const opciones = Array.from(
+      fixture.nativeElement.querySelectorAll('#tipo-suelo option') as NodeListOf<HTMLOptionElement>,
+    ).map((opcion) => opcion.value);
+
+    expect(opciones).toEqual(['franco', 'arenoso', 'arcilloso', 'limoso']);
+  });
+
   it('updates the infiltration badge with the soil', async () => {
     const fixture = await render();
     const select = fixture.nativeElement.querySelector('#tipo-suelo') as HTMLSelectElement;

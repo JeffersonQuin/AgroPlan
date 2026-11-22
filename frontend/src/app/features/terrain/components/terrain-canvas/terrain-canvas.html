@@ -1,215 +1,208 @@
-<section class="bg-white rounded-xl border border-agro-border shadow-sm flex flex-col h-[calc(100vh-5rem)] overflow-hidden">
-<!-- Title banner & view modes -->
-<div class="bg-agro-500 text-white px-4 py-2.5 flex items-center justify-between shadow-xs">
-<div class="flex items-center gap-2">
-<svg class="w-5 h-5 text-emerald-200" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-<rect height="18" rx="2" width="18" x="3" y="3"></rect>
-<path d="M3 15h18"></path>
-<path d="M15 3v18"></path>
-</svg>
-<span class="font-bold text-xs md:text-sm tracking-wide">Plano 2D — Delimitación y geometría del terreno</span>
-</div>
-<div class="flex bg-agro-700/60 p-0.5 rounded-lg border border-agro-600/60">
-<button class="px-3 py-1 rounded text-xs font-bold bg-white text-agro-800 shadow-xs">Plano 2D</button>
-<button class="px-3 py-1 rounded text-xs font-medium text-emerald-100 hover:text-white transition-colors">Medidas y cotas</button>
-</div>
-</div>
-<!-- Interactive Blueprint Visualizer -->
-<div class="flex-1 relative cad-grid overflow-hidden flex items-center justify-center p-6">
-<!-- Orientation Compass (North) -->
-<div class="absolute top-4 left-4 z-10 flex flex-col items-center bg-white/90 backdrop-blur-sm p-2 rounded-lg border border-slate-200 shadow-sm pointer-events-none">
-<span class="text-[11px] font-black text-slate-800">N</span>
-<svg class="w-6 h-8 text-rose-500" fill="none" viewBox="0 0 24 32">
-<path d="M12 0L20 20L12 16L4 20L12 0Z" fill="#ef4444"></path>
-<path d="M12 32L4 20L12 16L20 20L12 32Z" fill="#94a3b8"></path>
-</svg>
-</div>
-<!-- Floating CAD Toolbar -->
-<div class="absolute top-4 right-4 z-10 flex items-center bg-white rounded-lg border border-slate-200 shadow-md p-1 gap-1">
-<button class="p-1.5 rounded hover:bg-emerald-50 text-agro-600 bg-emerald-50/60 transition-colors" title="Dibujo manual de vértices: próximamente" disabled aria-disabled="true" style="opacity: .45; cursor: not-allowed">
-<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-<path d="m3 3 7.07 16.97 2.51-7.39 7.39-2.51L3 3z"></path>
-<path d="m13 13 6 6"></path>
-</svg>
-</button>
-<button class="p-1.5 rounded hover:bg-slate-100 text-slate-600 transition-colors" title="Ajuste automático: próximamente" disabled aria-disabled="true" style="opacity: .45; cursor: not-allowed">
-<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-<rect height="7" width="7" x="3" y="3"></rect>
-<rect height="7" width="7" x="14" y="3"></rect>
-<rect height="7" width="7" x="14" y="14"></rect>
-<rect height="7" width="7" x="3" y="14"></rect>
-</svg>
-</button>
-<div class="w-[1px] h-4 bg-slate-200 my-auto"></div>
-<button class="p-1.5 rounded hover:bg-slate-100 text-slate-600 transition-colors" title="Zoom y paneo: próximamente" disabled aria-disabled="true" style="opacity: .45; cursor: not-allowed">
-<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-<circle cx="12" cy="12" r="10"></circle>
-<line x1="22" x2="18" y1="12" y2="12"></line>
-<line x1="6" x2="2" y1="12" y2="12"></line>
-<line x1="12" x2="12" y1="6" y2="2"></line>
-<line x1="12" x2="12" y1="22" y2="18"></line>
-</svg>
-</button>
-<button class="p-1.5 rounded hover:bg-slate-100 text-slate-600 transition-colors" title="Zoom y paneo: próximamente" disabled aria-disabled="true" style="opacity: .45; cursor: not-allowed">
-<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg>
-</button>
-<button class="p-1.5 rounded hover:bg-slate-100 text-slate-600 transition-colors" title="Zoom y paneo: próximamente" disabled aria-disabled="true" style="opacity: .45; cursor: not-allowed">
-<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M5 12h14"></path></svg>
-</button>
-</div>
-<!-- 2D Geometry Vector Plot Area -->
-<div class="relative w-full max-w-[700px] h-[460px] flex items-center justify-center">
-<!-- SVG Polygon and Technical Dimension Lines -->
-<svg
-  #lienzo
-  class="w-full h-full drop-shadow-md overflow-visible touch-none"
-  viewBox="0 0 740 480"
-  (pointermove)="onPointerMove($event)"
-  (pointerup)="onPointerUp()"
-  (pointercancel)="onPointerUp()"
-  (pointerleave)="onPointerUp()"
->
-<defs>
-<!-- Service road gravel pattern -->
-<pattern height="10" id="serviceRoad" patternunits="userSpaceOnUse" width="10">
-<line stroke="#cbd5e1" stroke-dasharray="2,2" stroke-width="1.5" x1="0" x2="10" y1="0" y2="10"></line>
-</pattern>
-<!-- Cultivable field texture -->
-<lineargradient id="terrenoGradient" x1="0%" x2="100%" y1="0%" y2="100%">
-<stop offset="0%" stop-color="#E8F8E8"></stop>
-<stop offset="100%" stop-color="#D5F0D5"></stop>
-</lineargradient>
-</defs>
-<!-- Outer Service Perimeter Road -->
-<polygon fill="none" opacity="0.4" [attr.points]="dibujo().puntos" stroke="#94a3b8" stroke-linejoin="round" stroke-width="12"></polygon>
-<polygon fill="none" [attr.points]="dibujo().puntos" stroke="#64748b" stroke-dasharray="4,4" stroke-linejoin="round" stroke-width="1.5"></polygon>
-<!-- Terreno real: mismo polígono que se guarda en el backend -->
-<polygon
-  fill="url(#terrenoGradient)"
-  [attr.points]="dibujo().puntos"
-  stroke="#2E7D32"
-  stroke-linejoin="round"
-  stroke-width="3.5"
-></polygon>
+<div class="bg-white rounded-xl border border-agro-border shadow-sm flex flex-col overflow-hidden h-full">
+  <!-- Barra de herramientas del croquis -->
+  <div
+    class="flex items-center justify-between gap-2 px-3 py-2 border-b border-slate-100 bg-slate-50/60"
+  >
+    <div class="flex items-center gap-1">
+      <button
+        class="p-1.5 rounded text-agro-600 bg-emerald-50/60 transition-colors"
+        title="Dibujo manual de vértices: próximamente"
+        disabled
+        aria-disabled="true"
+        style="opacity: 0.45; cursor: not-allowed"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path d="m3 3 7.07 16.97 2.51-7.39 7.39-2.51L3 3z"></path>
+          <path d="m13 13 6 6"></path>
+        </svg>
+      </button>
+      <button
+        class="p-1.5 rounded text-slate-600 transition-colors"
+        title="Ajuste automático a la cuadrícula: próximamente"
+        disabled
+        aria-disabled="true"
+        style="opacity: 0.45; cursor: not-allowed"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path d="M3 3h18v18H3z"></path>
+          <path d="M3 9h18M3 15h18M9 3v18M15 3v18"></path>
+        </svg>
+      </button>
+      <button
+        class="p-1.5 rounded text-slate-600 transition-colors"
+        title="Zoom y paneo: próximamente"
+        disabled
+        aria-disabled="true"
+        style="opacity: 0.45; cursor: not-allowed"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <circle cx="11" cy="11" r="7"></circle>
+          <path d="m21 21-4.3-4.3"></path>
+        </svg>
+      </button>
+    </div>
+    <span class="text-[10px] font-semibold text-slate-400">
+      Arrastrá un vértice para ajustar las cotas
+    </span>
+  </div>
 
-<!-- Cotas: una etiqueta por lado, con su longitud en metros -->
-@for (lado of dibujo().lados; track $index) {
-  <g class="font-sans">
-    <rect
-      [attr.x]="lado.cajaX"
-      [attr.y]="lado.cajaY"
-      fill="#ffffff"
-      height="24"
-      rx="4"
-      stroke="#cbd5e1"
-      stroke-width="1"
-      width="84"
-    ></rect>
-    <text
-      [attr.x]="lado.textoX"
-      [attr.y]="lado.textoY"
-      fill="#0f172a"
-      font-size="12"
-      font-weight="700"
-      text-anchor="middle"
+  <!-- Croquis -->
+  <div class="relative flex-1 min-h-[420px]">
+    <svg
+      #lienzo
+      class="w-full h-full touch-none"
+      viewBox="0 0 740 480"
+      role="img"
+      aria-label="Croquis del terreno"
+      (pointermove)="onPointerMove($event)"
+      (pointerup)="onPointerUp()"
+      (pointercancel)="onPointerUp()"
+      (pointerleave)="onPointerUp()"
     >
-      {{ lado.etiqueta }}
-    </text>
-  </g>
-}
+      <defs>
+        <linearGradient id="terrenoGradient" x1="0%" x2="100%" y1="0%" y2="100%">
+          <stop offset="0%" stop-color="#E8F8E8"></stop>
+          <stop offset="100%" stop-color="#D5F0D5"></stop>
+        </linearGradient>
+      </defs>
 
-<!-- Top tree row -->
-<circle cx="160" cy="56" fill="#2E7D32" r="9" stroke="#1E5222" stroke-width="2"></circle>
-<circle cx="210" cy="56" fill="#388E3C" r="9.5" stroke="#1E5222" stroke-width="2"></circle>
-<circle cx="260" cy="56" fill="#2E7D32" r="9" stroke="#1E5222" stroke-width="2"></circle>
-<circle cx="310" cy="56" fill="#43A047" r="10" stroke="#1E5222" stroke-width="2"></circle>
-<circle cx="360" cy="56" fill="#2E7D32" r="9" stroke="#1E5222" stroke-width="2"></circle>
-<circle cx="410" cy="56" fill="#388E3C" r="10" stroke="#1E5222" stroke-width="2"></circle>
-<circle cx="460" cy="56" fill="#2E7D32" r="9.5" stroke="#1E5222" stroke-width="2"></circle>
-<circle cx="510" cy="56" fill="#43A047" r="10" stroke="#1E5222" stroke-width="2"></circle>
-<circle cx="560" cy="56" fill="#2E7D32" r="9" stroke="#1E5222" stroke-width="2"></circle>
-<circle cx="600" cy="56" fill="#388E3C" r="9.5" stroke="#1E5222" stroke-width="2"></circle>
-<!-- Bottom tree row -->
-<circle cx="140" cy="438" fill="#2E7D32" r="9" stroke="#1E5222" stroke-width="2"></circle>
-<circle cx="180" cy="438" fill="#388E3C" r="10" stroke="#1E5222" stroke-width="2"></circle>
-<circle cx="220" cy="438" fill="#43A047" r="9" stroke="#1E5222" stroke-width="2"></circle>
-<circle cx="260" cy="438" fill="#2E7D32" r="9.5" stroke="#1E5222" stroke-width="2"></circle>
-<circle cx="300" cy="438" fill="#388E3C" r="10" stroke="#1E5222" stroke-width="2"></circle>
-<circle cx="340" cy="438" fill="#2E7D32" r="9" stroke="#1E5222" stroke-width="2"></circle>
-<!-- Interactive Handle Vertices (Draggable anchors) -->
-<!-- V1: Top Left -->
-<g class="cursor-grab active:cursor-grabbing group">
-<circle class="group-hover:opacity-60 transition-opacity" cx="130" cy="70" fill="#22c55e" opacity="0.3" r="11"></circle>
-<circle cx="130" cy="70" fill="#ffffff" r="7" stroke="#16a34a" stroke-width="3"></circle>
-</g>
-<!-- V2: Top Right -->
-<g class="cursor-grab active:cursor-grabbing group">
-<circle class="group-hover:opacity-60 transition-opacity" cx="610" cy="70" fill="#22c55e" opacity="0.3" r="11"></circle>
-<circle cx="610" cy="70" fill="#ffffff" r="7" stroke="#16a34a" stroke-width="3"></circle>
-</g>
-<!-- V3: Right Intersect -->
-<g class="cursor-grab active:cursor-grabbing group">
-<circle class="group-hover:opacity-60 transition-opacity" cx="610" cy="220" fill="#22c55e" opacity="0.3" r="11"></circle>
-<circle cx="610" cy="220" fill="#ffffff" r="7" stroke="#16a34a" stroke-width="3"></circle>
-</g>
-<!-- V4: Bottom Right -->
-<g class="cursor-grab active:cursor-grabbing group">
-<circle class="group-hover:opacity-60 transition-opacity" cx="370" cy="420" fill="#22c55e" opacity="0.3" r="11"></circle>
-<circle cx="370" cy="420" fill="#ffffff" r="7" stroke="#16a34a" stroke-width="3"></circle>
-</g>
-<!-- V5: Bottom Left -->
-<g class="cursor-grab active:cursor-grabbing group">
-<circle class="group-hover:opacity-60 transition-opacity" cx="130" cy="420" fill="#22c55e" opacity="0.3" r="11"></circle>
-<circle cx="130" cy="420" fill="#ffffff" r="7" stroke="#16a34a" stroke-width="3"></circle>
-</g>
-</svg>
+      <!-- Camino de servicio: el mismo contorno, con trazo ancho -->
+      <polygon
+        fill="none"
+        opacity="0.35"
+        [attr.points]="dibujo().puntos"
+        stroke="#94a3b8"
+        stroke-linejoin="round"
+        stroke-width="12"
+      ></polygon>
+      <polygon
+        fill="none"
+        [attr.points]="dibujo().puntos"
+        stroke="#64748b"
+        stroke-dasharray="4,4"
+        stroke-linejoin="round"
+        stroke-width="1.5"
+      ></polygon>
+
+      <!-- Terreno real: el mismo polígono que se guarda en el backend -->
+      <polygon
+        fill="url(#terrenoGradient)"
+        [attr.points]="dibujo().puntos"
+        stroke="#2E7D32"
+        stroke-linejoin="round"
+        stroke-width="3.5"
+      ></polygon>
+
+      <!-- Cotas: una etiqueta por lado, con su longitud en metros -->
+      @for (lado of dibujo().lados; track $index) {
+        <g class="font-sans">
+          <rect
+            [attr.x]="lado.cajaX"
+            [attr.y]="lado.cajaY"
+            fill="#ffffff"
+            height="24"
+            rx="4"
+            stroke="#cbd5e1"
+            stroke-width="1"
+            width="84"
+          ></rect>
+          <text
+            [attr.x]="lado.textoX"
+            [attr.y]="lado.textoY"
+            fill="#0f172a"
+            font-size="12"
+            font-weight="700"
+            text-anchor="middle"
+          >
+            {{ lado.etiqueta }}
+          </text>
+        </g>
+      }
+
+      <!-- Barrera viva: sigue los bordes superior e inferior de la figura -->
+      @for (arbol of dibujo().arboles; track $index) {
+        <circle
+          [attr.cx]="arbol.x"
+          [attr.cy]="arbol.y"
+          [attr.r]="arbol.radio"
+          [attr.fill]="arbol.claro ? '#388E3C' : '#2E7D32'"
+          stroke="#1E5222"
+          stroke-width="2"
+        ></circle>
+      }
+
+      <!-- Vértices arrastrables: mover uno reescribe las cotas -->
+      @for (vertice of dibujo().vertices; track $index) {
+        <g
+          class="group cursor-grab active:cursor-grabbing"
+          (pointerdown)="onPointerDown($index, $event)"
+        >
+          <circle
+            [attr.cx]="vertice.x"
+            [attr.cy]="vertice.y"
+            r="16"
+            fill="transparent"
+            class="touch-none"
+          ></circle>
+          <circle
+            [attr.cx]="vertice.x"
+            [attr.cy]="vertice.y"
+            r="11"
+            fill="#22c55e"
+            opacity="0.3"
+            class="opacity-0 group-hover:opacity-100 transition-opacity"
+          ></circle>
+          <circle
+            [attr.cx]="vertice.x"
+            [attr.cy]="vertice.y"
+            r="7"
+            fill="#ffffff"
+            stroke="#16a34a"
+            stroke-width="3"
+          ></circle>
+        </g>
+      }
+    </svg>
+
+    <!-- Escala gráfica -->
+    <div
+      class="absolute bottom-3 left-4 bg-white/90 backdrop-blur-xs px-3 py-1.5 rounded-lg border border-slate-200"
+    >
+      <div class="flex items-center text-[10px] font-bold text-slate-600 gap-5">
+        <span>0</span><span>10</span><span>20</span><span>30</span><span>40</span><span>50</span>
+        <span>60 m</span>
+      </div>
+      <div class="w-44 h-1.5 bg-slate-300 rounded-full flex overflow-hidden mt-0.5 border border-slate-400">
+        <div class="w-1/6 bg-slate-800"></div>
+        <div class="w-1/6 bg-white"></div>
+        <div class="w-1/6 bg-slate-800"></div>
+        <div class="w-1/6 bg-white"></div>
+        <div class="w-1/6 bg-slate-800"></div>
+        <div class="w-1/6 bg-white"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Leyenda: solo lo que el croquis hace de verdad -->
+  <div
+    class="bg-white border-t border-agro-border px-4 py-2.5 flex flex-wrap items-center gap-4 text-[11px]"
+  >
+    <span class="font-bold text-slate-700">Leyenda:</span>
+    <div class="flex items-center gap-1.5">
+      <div class="w-4 h-3 bg-emerald-100 border-2 border-agro-500 rounded-xs"></div>
+      <span class="text-slate-600 font-medium">Límite del terreno</span>
+    </div>
+    <div class="flex items-center gap-1.5">
+      <div class="w-5 h-[2px] bg-slate-800"></div>
+      <span class="text-slate-600 font-medium">Línea de cota</span>
+    </div>
+    <div class="flex items-center gap-1.5">
+      <div class="w-3.5 h-3.5 rounded-full bg-white border-[3px] border-agro-600"></div>
+      <span class="text-slate-600 font-medium">Vértice arrastrable</span>
+    </div>
+    <div class="flex items-center gap-1.5">
+      <div class="w-3.5 h-3.5 rounded-full bg-agro-700 border-2 border-emerald-900"></div>
+      <span class="text-slate-600 font-medium">Barrera viva / árboles</span>
+    </div>
+  </div>
 </div>
-<!-- Metric Scale Bar (Bottom of canvas) -->
-<div class="absolute bottom-3 left-6 bg-white/90 backdrop-blur-xs px-3 py-1.5 rounded-lg border border-slate-200 flex flex-col items-center">
-<div class="flex items-center text-[10px] font-bold text-slate-600 gap-6">
-<span>0</span>
-<span>10</span>
-<span>20</span>
-<span>30</span>
-<span>40</span>
-<span>50</span>
-<span>60 m</span>
-</div>
-<div class="w-48 h-1.5 bg-slate-300 rounded-full flex overflow-hidden mt-0.5 border border-slate-400">
-<div class="w-1/6 bg-slate-800"></div>
-<div class="w-1/6 bg-white"></div>
-<div class="w-1/6 bg-slate-800"></div>
-<div class="w-1/6 bg-white"></div>
-<div class="w-1/6 bg-slate-800"></div>
-<div class="w-1/6 bg-white"></div>
-</div>
-</div>
-</div>
-<!-- Bottom Interactive Legend -->
-<div class="bg-white border-t border-agro-border p-3 px-6 flex flex-wrap items-center justify-between gap-4 text-xs">
-<span class="font-bold text-slate-700">Leyenda:</span>
-<div class="flex items-center gap-1.5">
-<div class="w-4 h-3 bg-emerald-100 border-2 border-agro-500 rounded-xs"></div>
-<span class="text-slate-600 font-medium">Límite del terreno</span>
-</div>
-<div class="flex items-center gap-1.5">
-<div class="w-5 h-[2px] bg-slate-800 relative">
-<span class="absolute -top-1 left-0 w-0.5 h-2 bg-slate-800"></span>
-<span class="absolute -top-1 right-0 w-0.5 h-2 bg-slate-800"></span>
-</div>
-<span class="text-slate-600 font-medium">Línea de cota</span>
-</div>
-<div class="flex items-center gap-1.5">
-<div class="w-3.5 h-3.5 rounded-full bg-white border-2 border-emerald-600 shadow-xs"></div>
-<span class="text-slate-600 font-medium">Vértice interactivo</span>
-</div>
-<div class="flex items-center gap-1.5">
-<div class="w-5 h-2.5 bg-slate-200 border border-dashed border-slate-400 rounded-xs"></div>
-<span class="text-slate-600 font-medium">Camino de servicio</span>
-</div>
-<div class="flex items-center gap-1.5">
-<div class="w-3.5 h-3.5 rounded-full bg-agro-500 border border-agro-700"></div>
-<span class="text-slate-600 font-medium">Barrera viva / Árboles</span>
-</div>
-</div>
-</section>
