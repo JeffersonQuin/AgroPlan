@@ -120,3 +120,8 @@ Reparto real: papa 1260 m² + lechuga 840 m² = 2100 exacto (el modelo eligió 6
 
 **L10** — La suite forzaba la clave real: 6 tests llamaban al modelo (8 minutos, resultados
 no deterministas). `conftest.py` fija `AGENTE_API_KEY=""`, así los tests van a modo catálogo.
+
+**L11** — `AGENTE_MODO` (`catalogo` | `llm`, por defecto `catalogo`): el reparto se resuelve
+por catálogo (determinístico, gratis) o con el modelo, sin tocar la clave. La investigación de
+un producto fuera del catálogo **no** depende del modo: ocurre igual en los dos, porque sin ella
+el producto no se puede usar. Catálogo no busca para repartir; si el producto falta, busca.
