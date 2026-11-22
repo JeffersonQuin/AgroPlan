@@ -4,32 +4,33 @@ import { Vertice, cotasDesdeArrastre } from '../../utils/terrain-geometry';
 
 /** Frame the mockup drew the parcel in, in SVG units. */
 const MARCO = { x0: 130, x1: 610, y0: 70, y1: 420 } as const;
+const CENTRO = { x: (MARCO.x0 + MARCO.x1) / 2, y: (MARCO.y0 + MARCO.y1) / 2 } as const;
 const ETIQUETA_ANCHO = 84;
 const ETIQUETA_ALTO = 24;
 const SEPARACION_ETIQUETA = 26;
-const SEPARACION_ARBOL = 16;
+const ZOOM_MIN = 0.5;
+const ZOOM_MAX = 4;
+const PASO_ZOOM = 1.25;
 
 interface PuntoSvg { x: number; y: number; }
 interface Lado { etiqueta: string; cajaX: number; cajaY: number; textoX: number; textoY: number; }
-interface Arbol extends PuntoSvg { radio: number; claro: boolean; }
 
 interface Dibujo {
   puntos: string;
   vertices: PuntoSvg[];
   lados: Lado[];
-  arboles: Arbol[];
   escala: number;
   origenX: number;
-  baseY: number;
+  origenY: number;
 }
 
 /**
  * Technical drawing of the parcel.
  *
  * It projects the same vertices that `TerrainStore.aPayload()` sends to the
- * backend, so what the user sees is exactly the terrain that gets saved. Vertices
- * are draggable: moving one rewrites the cota (or cotas) that define it, and the
- * form, the summary and the saved payload follow.
+ * backend, so what the user sees is exactly the terrain that gets saved. The
+ * figure is centered in the frame, can be zoomed and panned, and its vertices are
+ * draggable: moving one rewrites the cota (or cotas) that define it.
  */
 @Component({
   selector: 'app-terrain-canvas',
@@ -38,7 +39,26 @@ interface Dibujo {
 export class TerrainCanvas {
   protected readonly store = inject(TerrainStore);
   private readonly lienzo = viewChild<ElementRef<SVGSVGElement>>('lienzo');
+  private readonly figura = viewChild<ElementRef<SVGGElement>>('figura');
+
   private readonly arrastrando = signal<number | null>(null);
+  private readonly panInicial = signal<PuntoSvg>({ x: 0, y: 0 });
+  private readonly punteroInicial = signal<PuntoSvg>({ x: 0, y: 0 });
+
+  protected readonly zoom = signal(1);
+  protected readonly pan = signal<PuntoSvg>({ x: 0, y: 0 });
+  protected readonly cuadricula = signal(true);
+
+  /** Transformación que aplica zoom y paneo alrededor del centro del marco. */
+  protected readonly transformacion = computed(() => {
+    const zoom = this.zoom();
+    const pan = this.pan();
+    const x = pan.x + CENTRO.x * (1 - zoom);
+    const y = pan.y + CENTRO.y * (1 - zoom);
+    return `translate(${x.toFixed(2)}, ${y.toFixed(2)}) scale(${zoom.toFixed(3)})`;
+  });
+
+  protected readonly zoomLabel = computed(() => `${Math.round(this.zoom() * 100)}%`);
 
   protected readonly dibujo = computed<Dibujo>(() => {
     const vertices = this.store.vertices();
@@ -48,13 +68,15 @@ export class TerrainCanvas {
     const utilAlto = MARCO.y1 - MARCO.y0;
     const escala = Math.min(utilAncho / anchoM, utilAlto / altoM);
 
-    // Centrado en el marco: la figura se apoya en el borde inferior.
-    const origenX = MARCO.x0 + (utilAncho - anchoM * escala) / 2;
-    const baseY = MARCO.y1;
+    // Centrada en el marco, en los dos ejes.
+    const margenX = (utilAncho - anchoM * escala) / 2;
+    const margenY = (utilAlto - altoM * escala) / 2;
+    const origenX = MARCO.x0 + margenX;
+    const origenY = MARCO.y0 + margenY + altoM * escala;
 
     const puntos = vertices.map((vertice) => ({
       x: origenX + vertice.x * escala,
-      y: baseY - vertice.y * escala,
+      y: origenY - vertice.y * escala,
     }));
 
     const centro = {
@@ -88,38 +110,104 @@ export class TerrainCanvas {
       puntos: puntos.map((punto) => `${punto.x.toFixed(1)},${punto.y.toFixed(1)}`).join(' '),
       vertices: puntos,
       lados,
-      arboles: arboles(puntos),
       escala,
       origenX,
-      baseY,
+      origenY,
     };
   });
+
+  // ------------------------------------------------------------------- //
+  // Herramientas del croquis
+  // ------------------------------------------------------------------- //
+
+  protected alternarCuadricula(): void {
+    this.cuadricula.update((visible) => !visible);
+  }
+
+  protected acercar(): void {
+    this.zoom.update((zoom) => Math.min(ZOOM_MAX, Number((zoom * PASO_ZOOM).toFixed(3))));
+  }
+
+  protected alejar(): void {
+    this.zoom.update((zoom) => Math.max(ZOOM_MIN, Number((zoom / PASO_ZOOM).toFixed(3))));
+  }
+
+  protected centrar(): void {
+    this.zoom.set(1);
+    this.pan.set({ x: 0, y: 0 });
+  }
+
+  // ------------------------------------------------------------------- //
+  // Arrastre: vértices o paneo
+  // ------------------------------------------------------------------- //
 
   /** Un vértice se arrastra: sus coordenadas se traducen de vuelta a cotas. */
   protected onPointerDown(indice: number, event: PointerEvent): void {
     event.preventDefault();
+    event.stopPropagation();
     (event.target as Element).setPointerCapture?.(event.pointerId);
     this.arrastrando.set(indice);
   }
 
+  /** Arrastrar el fondo mueve la vista. */
+  protected onFondoPointerDown(event: PointerEvent): void {
+    if (this.arrastrando() !== null) return;
+    const punto = this.aSvg(event);
+    if (punto === null) return;
+    (event.target as Element).setPointerCapture?.(event.pointerId);
+    this.punteroInicial.set(punto);
+    this.panInicial.set(this.pan());
+    this.arrastrando.set(-1);
+  }
+
   protected onPointerMove(event: PointerEvent): void {
     const indice = this.arrastrando();
-    const svg = this.lienzo()?.nativeElement;
-    const dibujo = this.dibujo();
-    if (indice === null || svg === undefined) return;
+    if (indice === null) return;
 
-    const matriz = svg.getScreenCTM();
-    if (matriz === null) return;
+    if (indice === -1) {
+      const punto = this.aSvg(event);
+      if (punto === null) return;
+      const inicio = this.punteroInicial();
+      const pan = this.panInicial();
+      this.pan.set({
+        x: Number((pan.x + punto.x - inicio.x).toFixed(2)),
+        y: Number((pan.y + punto.y - inicio.y).toFixed(2)),
+      });
+      return;
+    }
 
-    const punto = new DOMPoint(event.clientX, event.clientY).matrixTransform(matriz.inverse());
-    const x = Math.max(0, Math.round(((punto.x - dibujo.origenX) / dibujo.escala) * 10) / 10);
-    const y = Math.max(0, Math.round(((dibujo.baseY - punto.y) / dibujo.escala) * 10) / 10);
-
-    this.mover(indice, x, y);
+    const punto = this.aVertice(event);
+    if (punto === null) return;
+    this.mover(indice, punto.x, punto.y);
   }
 
   protected onPointerUp(): void {
     this.arrastrando.set(null);
+  }
+
+  /** Punto del puntero en el espacio del SVG, sin zoom ni paneo. */
+  private aSvg(event: PointerEvent): PuntoSvg | null {
+    const svg = this.lienzo()?.nativeElement;
+    if (svg === undefined) return null;
+    const matriz = svg.getScreenCTM();
+    if (matriz === null) return null;
+    const punto = new DOMPoint(event.clientX, event.clientY).matrixTransform(matriz.inverse());
+    return { x: punto.x, y: punto.y };
+  }
+
+  /** Punto del puntero en metros, descontando el zoom y el paneo de la figura. */
+  private aVertice(event: PointerEvent): PuntoSvg | null {
+    const figura = this.figura()?.nativeElement;
+    const dibujo = this.dibujo();
+    if (figura === undefined) return null;
+    const matriz = figura.getScreenCTM();
+    if (matriz === null) return null;
+
+    const punto = new DOMPoint(event.clientX, event.clientY).matrixTransform(matriz.inverse());
+    return {
+      x: Math.max(0, Math.round(((punto.x - dibujo.origenX) / dibujo.escala) * 10) / 10),
+      y: Math.max(0, Math.round((((dibujo.origenY - punto.y) / dibujo.escala) || 0) * 10) / 10),
+    };
   }
 
   private mover(indice: number, x: number, y: number): void {
@@ -132,26 +220,4 @@ export class TerrainCanvas {
 
 function distancia(a: Vertice, b: Vertice): number {
   return Math.hypot(b.x - a.x, b.y - a.y);
-}
-
-/** Árboles de la barrera viva: siguen los bordes superior e inferior de la figura. */
-function arboles(puntos: PuntoSvg[]): Arbol[] {
-  const minX = Math.min(...puntos.map((punto) => punto.x));
-  const maxX = Math.max(...puntos.map((punto) => punto.x));
-  const minY = Math.min(...puntos.map((punto) => punto.y));
-  const maxY = Math.max(...puntos.map((punto) => punto.y));
-  const cantidad = Math.max(2, Math.min(8, Math.floor((maxX - minX) / 65)));
-
-  const fila = (y: number): Arbol[] =>
-    Array.from({ length: cantidad }, (_, indice) => {
-      const paso = (maxX - minX) / Math.max(cantidad - 1, 1);
-      return {
-        x: minX + paso * indice,
-        y,
-        radio: 9 + ((indice * 7) % 3) / 2,
-        claro: indice % 2 === 1,
-      };
-    });
-
-  return [...fila(minY - SEPARACION_ARBOL), ...fila(maxY + SEPARACION_ARBOL)];
 }

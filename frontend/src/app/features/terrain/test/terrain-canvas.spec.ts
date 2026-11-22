@@ -22,6 +22,12 @@ describe('TerrainCanvas', () => {
     return fixture;
   }
 
+  function boton(fixture: Awaited<ReturnType<typeof render>>, title: string): HTMLButtonElement {
+    return Array.from(
+      fixture.nativeElement.querySelectorAll('button') as NodeListOf<HTMLButtonElement>,
+    ).find((candidate) => candidate.title === title)!;
+  }
+
   function lados(fixture: Awaited<ReturnType<typeof render>>): string[] {
     return Array.from(
       fixture.nativeElement.querySelectorAll('text') as NodeListOf<SVGTextElement>,
@@ -72,12 +78,63 @@ describe('TerrainCanvas', () => {
     }
   });
 
-  it('draws the living barrier along the figure', async () => {
+  it('draws exactly one hit area, halo and marker per vertex', async () => {
     const fixture = await render();
 
-    const circulos = fixture.nativeElement.querySelectorAll('circle') as NodeListOf<SVGCircleElement>;
-    // Vértices + árboles: la barrera sigue a la figura.
-    expect(circulos.length).toBeGreaterThan(store.vertices().length);
+    const circulos = fixture.nativeElement.querySelectorAll(
+      'svg[aria-label="Croquis del terreno"] > g circle',
+    ) as NodeListOf<SVGCircleElement>;
+    expect(circulos.length).toBe(store.vertices().length * 3);
+  });
+
+  it('centers the figure in the frame', async () => {
+    const fixture = await render();
+
+    const poligono = fixture.nativeElement.querySelector(
+      'g#figura polygon:last-of-type, polygon',
+    ) as SVGPolygonElement;
+    const puntos = poligono
+      .getAttribute('points')!
+      .split(' ')
+      .map((par) => par.split(',').map(Number));
+    const xs = puntos.map(([x]) => x);
+    const ys = puntos.map(([, y]) => y);
+
+    expect((Math.min(...xs) + Math.max(...xs)) / 2).toBeCloseTo(370, 0);
+    expect((Math.min(...ys) + Math.max(...ys)) / 2).toBeCloseTo(245, 0);
+  });
+
+  it('shows the grid by default and toggles it', async () => {
+    const fixture = await render();
+
+    expect(fixture.nativeElement.querySelector('rect[fill="url(#cuadricula)"]')).not.toBeNull();
+
+    boton(fixture, 'Ocultar cuadrícula').click();
+    await fixture.whenStable();
+
+    expect(fixture.nativeElement.querySelector('rect[fill="url(#cuadricula)"]')).toBeNull();
+  });
+
+  it('zooms in and out and recenters', async () => {
+    const fixture = await render();
+    const figura = fixture.nativeElement.querySelector(
+      'svg[aria-label="Croquis del terreno"] > g',
+    ) as SVGGElement;
+
+    expect(figura.getAttribute('transform')).toContain('scale(1.000)');
+
+    boton(fixture, 'Zoom +').click();
+    await fixture.whenStable();
+    expect(figura.getAttribute('transform')).toContain('scale(1.250)');
+
+    boton(fixture, 'Zoom −').click();
+    boton(fixture, 'Zoom −').click();
+    await fixture.whenStable();
+    expect(figura.getAttribute('transform')).toContain('scale(0.800)');
+
+    boton(fixture, 'Centrar la figura').click();
+    await fixture.whenStable();
+    expect(figura.getAttribute('transform')).toContain('scale(1.000)');
   });
 
   it('moving a vertex rewrites the cotas that define it', () => {

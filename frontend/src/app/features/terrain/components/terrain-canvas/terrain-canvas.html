@@ -5,23 +5,12 @@
   >
     <div class="flex items-center gap-1">
       <button
-        class="p-1.5 rounded text-agro-600 bg-emerald-50/60 transition-colors"
-        title="Dibujo manual de vértices: próximamente"
-        disabled
-        aria-disabled="true"
-        style="opacity: 0.45; cursor: not-allowed"
-      >
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-          <path d="m3 3 7.07 16.97 2.51-7.39 7.39-2.51L3 3z"></path>
-          <path d="m13 13 6 6"></path>
-        </svg>
-      </button>
-      <button
-        class="p-1.5 rounded text-slate-600 transition-colors"
-        title="Ajuste automático a la cuadrícula: próximamente"
-        disabled
-        aria-disabled="true"
-        style="opacity: 0.45; cursor: not-allowed"
+        class="p-1.5 rounded transition-colors"
+        [class]="cuadricula() ? 'bg-emerald-50 text-agro-600' : 'text-slate-500 hover:bg-slate-100'"
+        type="button"
+        [attr.aria-pressed]="cuadricula()"
+        [title]="cuadricula() ? 'Ocultar cuadrícula' : 'Mostrar cuadrícula'"
+        (click)="alternarCuadricula()"
       >
         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
           <path d="M3 3h18v18H3z"></path>
@@ -29,31 +18,56 @@
         </svg>
       </button>
       <button
-        class="p-1.5 rounded text-slate-600 transition-colors"
-        title="Zoom y paneo: próximamente"
-        disabled
-        aria-disabled="true"
-        style="opacity: 0.45; cursor: not-allowed"
+        class="p-1.5 rounded text-slate-600 hover:bg-slate-100 transition-colors"
+        type="button"
+        title="Centrar la figura"
+        (click)="centrar()"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path d="M12 3v18M3 12h18"></path>
+          <circle cx="12" cy="12" r="4"></circle>
+        </svg>
+      </button>
+      <button
+        class="p-1.5 rounded text-slate-600 hover:bg-slate-100 transition-colors"
+        type="button"
+        title="Zoom +"
+        (click)="acercar()"
       >
         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
           <circle cx="11" cy="11" r="7"></circle>
-          <path d="m21 21-4.3-4.3"></path>
+          <path d="m21 21-4.3-4.3M11 8v6M8 11h6"></path>
         </svg>
       </button>
+      <button
+        class="p-1.5 rounded text-slate-600 hover:bg-slate-100 transition-colors"
+        type="button"
+        title="Zoom −"
+        (click)="alejar()"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <circle cx="11" cy="11" r="7"></circle>
+          <path d="m21 21-4.3-4.3M8 11h6"></path>
+        </svg>
+      </button>
+      <span class="text-[11px] font-bold text-slate-500 tabular-nums w-11 text-center">
+        {{ zoomLabel() }}
+      </span>
     </div>
     <span class="text-[10px] font-semibold text-slate-400">
-      Arrastrá un vértice para ajustar las cotas
+      Arrastrá un vértice para ajustar las cotas · el fondo mueve la vista
     </span>
   </div>
 
   <!-- Croquis -->
-  <div class="relative flex-1 min-h-[420px]">
+  <div class="relative flex-1 min-h-[420px] bg-white">
     <svg
       #lienzo
-      class="w-full h-full touch-none"
+      class="w-full h-full touch-none cursor-move"
       viewBox="0 0 740 480"
       role="img"
       aria-label="Croquis del terreno"
+      (pointerdown)="onFondoPointerDown($event)"
       (pointermove)="onPointerMove($event)"
       (pointerup)="onPointerUp()"
       (pointercancel)="onPointerUp()"
@@ -64,104 +78,105 @@
           <stop offset="0%" stop-color="#E8F8E8"></stop>
           <stop offset="100%" stop-color="#D5F0D5"></stop>
         </linearGradient>
+        <!-- Cuadrícula de referencia visual -->
+        <pattern id="cuadricula" width="20" height="20" patternUnits="userSpaceOnUse">
+          <path d="M20 0H0V20" fill="none" stroke="#e2e8f0" stroke-width="1"></path>
+        </pattern>
       </defs>
 
-      <!-- Camino de servicio: el mismo contorno, con trazo ancho -->
-      <polygon
-        fill="none"
-        opacity="0.35"
-        [attr.points]="dibujo().puntos"
-        stroke="#94a3b8"
-        stroke-linejoin="round"
-        stroke-width="12"
-      ></polygon>
-      <polygon
-        fill="none"
-        [attr.points]="dibujo().puntos"
-        stroke="#64748b"
-        stroke-dasharray="4,4"
-        stroke-linejoin="round"
-        stroke-width="1.5"
-      ></polygon>
+      <!-- Fondo -->
+      <rect x="0" y="0" width="740" height="480" fill="#ffffff"></rect>
+      @if (cuadricula()) {
+        <rect x="0" y="0" width="740" height="480" fill="url(#cuadricula)"></rect>
+      }
 
-      <!-- Terreno real: el mismo polígono que se guarda en el backend -->
-      <polygon
-        fill="url(#terrenoGradient)"
-        [attr.points]="dibujo().puntos"
-        stroke="#2E7D32"
-        stroke-linejoin="round"
-        stroke-width="3.5"
-      ></polygon>
+      <!-- La figura: zoom, paneo y vértices arrastrables van acá adentro -->
+      <g #figura [attr.transform]="transformacion()">
+        <!-- Camino de servicio: el mismo contorno, con trazo ancho -->
+        <polygon
+          fill="none"
+          opacity="0.35"
+          [attr.points]="dibujo().puntos"
+          stroke="#94a3b8"
+          stroke-linejoin="round"
+          stroke-width="12"
+        ></polygon>
+        <polygon
+          fill="none"
+          [attr.points]="dibujo().puntos"
+          stroke="#64748b"
+          stroke-dasharray="4,4"
+          stroke-linejoin="round"
+          stroke-width="1.5"
+        ></polygon>
 
-      <!-- Cotas: una etiqueta por lado, con su longitud en metros -->
-      @for (lado of dibujo().lados; track $index) {
-        <g class="font-sans">
-          <rect
-            [attr.x]="lado.cajaX"
-            [attr.y]="lado.cajaY"
-            fill="#ffffff"
-            height="24"
-            rx="4"
-            stroke="#cbd5e1"
-            stroke-width="1"
-            width="84"
-          ></rect>
-          <text
-            [attr.x]="lado.textoX"
-            [attr.y]="lado.textoY"
-            fill="#0f172a"
-            font-size="12"
-            font-weight="700"
-            text-anchor="middle"
+        <!-- Terreno real: el mismo polígono que se guarda en el backend -->
+        <polygon
+          fill="url(#terrenoGradient)"
+          [attr.points]="dibujo().puntos"
+          stroke="#2E7D32"
+          stroke-linejoin="round"
+          stroke-width="3.5"
+        ></polygon>
+
+        <!-- Cotas: una etiqueta por lado, con su longitud en metros -->
+        @for (lado of dibujo().lados; track $index) {
+          <g class="font-sans">
+            <rect
+              [attr.x]="lado.cajaX"
+              [attr.y]="lado.cajaY"
+              fill="#ffffff"
+              height="24"
+              rx="4"
+              stroke="#cbd5e1"
+              stroke-width="1"
+              width="84"
+            ></rect>
+            <text
+              [attr.x]="lado.textoX"
+              [attr.y]="lado.textoY"
+              fill="#0f172a"
+              font-size="12"
+              font-weight="700"
+              text-anchor="middle"
+            >
+              {{ lado.etiqueta }}
+            </text>
+          </g>
+        }
+
+        <!-- Vértices arrastrables: mover uno reescribe las cotas -->
+        @for (vertice of dibujo().vertices; track $index) {
+          <g
+            class="group cursor-grab active:cursor-grabbing"
+            (pointerdown)="onPointerDown($index, $event)"
           >
-            {{ lado.etiqueta }}
-          </text>
-        </g>
-      }
-
-      <!-- Barrera viva: sigue los bordes superior e inferior de la figura -->
-      @for (arbol of dibujo().arboles; track $index) {
-        <circle
-          [attr.cx]="arbol.x"
-          [attr.cy]="arbol.y"
-          [attr.r]="arbol.radio"
-          [attr.fill]="arbol.claro ? '#388E3C' : '#2E7D32'"
-          stroke="#1E5222"
-          stroke-width="2"
-        ></circle>
-      }
-
-      <!-- Vértices arrastrables: mover uno reescribe las cotas -->
-      @for (vertice of dibujo().vertices; track $index) {
-        <g
-          class="group cursor-grab active:cursor-grabbing"
-          (pointerdown)="onPointerDown($index, $event)"
-        >
-          <circle
-            [attr.cx]="vertice.x"
-            [attr.cy]="vertice.y"
-            r="16"
-            fill="transparent"
-            class="touch-none"
-          ></circle>
-          <circle
-            [attr.cx]="vertice.x"
-            [attr.cy]="vertice.y"
-            r="11"
-            fill="#22c55e"
-            opacity="0.3"
-            class="opacity-0 group-hover:opacity-100 transition-opacity"
-          ></circle>
-          <circle
-            [attr.cx]="vertice.x"
-            [attr.cy]="vertice.y"
-            r="7"
-            fill="#ffffff"
-            stroke="#16a34a"
-            stroke-width="3"
-          ></circle>
-        </g>
-      }
+            <circle
+              [attr.cx]="vertice.x"
+              [attr.cy]="vertice.y"
+              r="16"
+              fill="transparent"
+              class="touch-none"
+            ></circle>
+            <circle
+              [attr.cx]="vertice.x"
+              [attr.cy]="vertice.y"
+              r="11"
+              fill="#22c55e"
+              opacity="0.3"
+              class="opacity-0 group-hover:opacity-100 transition-opacity"
+            ></circle>
+            <circle
+              [attr.cx]="vertice.x"
+              [attr.cy]="vertice.y"
+              r="7"
+              fill="#ffffff"
+              stroke="#16a34a"
+              stroke-width="3"
+            ></circle>
+          </g>
+        }
+      </g>
     </svg>
 
     <!-- Escala gráfica -->
@@ -201,8 +216,8 @@
       <span class="text-slate-600 font-medium">Vértice arrastrable</span>
     </div>
     <div class="flex items-center gap-1.5">
-      <div class="w-3.5 h-3.5 rounded-full bg-agro-700 border-2 border-emerald-900"></div>
-      <span class="text-slate-600 font-medium">Barrera viva / árboles</span>
+      <div class="w-4 h-3 rounded-xs border border-slate-300 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:4px_4px]"></div>
+      <span class="text-slate-600 font-medium">Cuadrícula</span>
     </div>
   </div>
 </div>
