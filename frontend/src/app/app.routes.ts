@@ -36,5 +36,12 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./features/cultivos/cultivos.page').then((m) => m.CultivosPage),
   },
+  {
+    path: 'proyectos/:proyectoId/riego',
+    title: 'Sistema de riego · AgroPlan',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/riego/riego.page').then((m) => m.RiegoPage),
+  },
   { path: '**', redirectTo: 'login' },
 ];
