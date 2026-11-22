@@ -13,6 +13,8 @@
     9
   ],
   "notas": "Ciclo corto; conviene sombra parcial en verano y riego frecuente y liviano.",
+  "imagen": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/da/Iceberg_lettuce_in_SB.jpg/1280px-Iceberg_lettuce_in_SB.jpg",
+  "imagen_fuente": "https://commons.wikimedia.org/wiki/File:Iceberg_lettuce_in_SB.jpg",
   "fuentes": [
     {
       "tipo": "manual",
@@ -75,5 +77,6 @@
       "motivo": "Alta fertilidad, ideal para hoja.",
       "fuente": "Ficha curada AgroPlan"
     }
-  }
+  },
+  "imagen_credito": "Foto: Geographer / Wikimedia Commons, CC BY 1.0"
 }

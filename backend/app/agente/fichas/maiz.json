@@ -12,6 +12,8 @@
     10
   ],
   "notas": "Alta demanda en floración; requiere suelos profundos y buen drenaje.",
+  "imagen": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/ce/Starr-200723-7945-Zea_mays-Hawaiian_Supersweet_10_harvested_cobs-Hawea_Pl_Olinda-Maui_%2850336256246%29.jpg/1280px-Starr-200723-7945-Zea_mays-Hawaiian_Supersweet_10_harvested_cobs-Hawea_Pl_Olinda-Maui_(50336256246).jpg",
+  "imagen_fuente": "https://commons.wikimedia.org/wiki/File:Starr-200723-7945-Zea_mays-Hawaiian_Supersweet_10_harvested_cobs-Hawea_Pl_Olinda-Maui_(50336256246).jpg",
   "fuentes": [
     {
       "tipo": "manual",
@@ -74,5 +76,6 @@
       "motivo": "Buena fertilidad; cuidado con el exceso de nitrógeno.",
       "fuente": "Ficha curada AgroPlan"
     }
-  }
+  },
+  "imagen_credito": "Foto: Forest and Kim Starr / Wikimedia Commons, CC BY 2.0"
 }

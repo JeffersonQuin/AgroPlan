@@ -163,6 +163,12 @@ def _producto_deseado(
     meses = _tomar(cultivo, ficha, "meses_siembra")
     aptitud = _tomar(cultivo, ficha, "aptitud_suelo")
     fuentes = _tomar(cultivo, ficha, "fuentes")
+    # Imagen curada (S4): el catálogo ya la trae por el backfill; la ficha curada
+    # cubre las filas viejas y los productos que no están en el catálogo. La columna
+    # del catálogo se llama ``imagen_url`` y la de la ficha ``imagen``.
+    imagen = getattr(cultivo, "imagen_url", None) or (
+        ficha.imagen if ficha is not None else None
+    )
 
     return ProductoDeseado(
         nombre=nombre or cultivo.nombre,
@@ -175,6 +181,9 @@ def _producto_deseado(
         meses_siembra=list(meses) if meses is not None else None,
         aptitud_suelo=aptitud or None,
         fuentes=_fuentes_ficha(fuentes),
+        imagen_url=(
+            str(imagen)[:1000] if imagen is not None else None
+        ),
     )
 
 
@@ -397,6 +406,9 @@ def _contexto_desde_corrida(
         meses = _tomar(cultivo, ficha, "meses_siembra")
         aptitud = _tomar(cultivo, ficha, "aptitud_suelo")
         fuentes = _tomar(cultivo, ficha, "fuentes")
+        imagen = getattr(cultivo, "imagen_url", None) or (
+            ficha.imagen if ficha is not None else None
+        )
         catalogo.append(
             {
                 "codigo": cultivo.codigo,
@@ -423,6 +435,7 @@ def _contexto_desde_corrida(
                     ]
                     or None
                 ),
+                "imagen_url": str(imagen) if imagen is not None else None,
             }
         )
 
@@ -1272,6 +1285,25 @@ def _advertencia_presupuesto(
     )
 
 
+def _imagen_curada(cultivo) -> tuple[str | None, str | None]:
+    """Imagen de la ficha curada y su crédito: primero el catálogo, después la ficha.
+
+    El catálogo la trae por el backfill; la ficha curada cubre las filas viejas o una
+    base que todavía no corrió la migración de datos. Sin imagen no hay crédito: no se
+    atribuye una foto que el informe no va a mostrar.
+    """
+
+    if cultivo is None:
+        return None, None
+    if cultivo.imagen_url:
+        return cultivo.imagen_url, cultivo.imagen_credito
+
+    ficha = fichas_agente.buscar(cultivo.codigo)
+    if ficha is None or not ficha.imagen:
+        return None, None
+    return ficha.imagen, ficha.imagen_credito
+
+
 def resultado_proyecto(db: Session, proyecto: Proyecto) -> ResultadoProyectoOut:
     try:
         diseno = riego_service.obtener_diseno(db, proyecto)
@@ -1297,6 +1329,8 @@ def resultado_proyecto(db: Session, proyecto: Proyecto) -> ResultadoProyectoOut:
             continue
         area = float(bloque.area_m2)
         demanda = float(bloque.demanda_l_m2_dia)
+        imagen_agente = imagenes.get(bloque.cultivo_codigo)
+        imagen_ficha, credito_ficha = _imagen_curada(cultivo)
         bloques.append(
             BloqueGenerado(
                 id=bloque.id,
@@ -1320,8 +1354,12 @@ def resultado_proyecto(db: Session, proyecto: Proyecto) -> ResultadoProyectoOut:
                     if cultivo is not None and cultivo.kc is not None
                     else None
                 ),
-                imagen_url=imagenes.get(bloque.cultivo_codigo)
-                or getattr(cultivo, "imagen_url", None),
+                # S4: manda la imagen que investigó el agente; si no trajo, la de la
+                # ficha curada del catálogo. Sin ninguna de las dos queda en null y
+                # el front pinta el placeholder del cultivo. El crédito solo
+                # acompaña a la imagen de ficha: el del agente no se conoce.
+                imagen_url=imagen_agente or imagen_ficha,
+                imagen_credito=None if imagen_agente else credito_ficha,
             )
         )
 

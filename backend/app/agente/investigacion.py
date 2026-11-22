@@ -86,6 +86,9 @@ class Investigacion:
     densidad_plantas_m2: float | None = None
     profundidad_raiz_cm: int | None = None
     aptitud_suelo: dict[str, dict] | None = None
+    imagen: str | None = None
+    imagen_fuente: str | None = None
+    imagen_credito: str | None = None
 
 
 # --------------------------------------------------------------------------- #
@@ -358,6 +361,9 @@ def _desde_ficha(ficha: FichaCultivo) -> Investigacion:
         densidad_plantas_m2=ficha.densidad_plantas_m2,
         profundidad_raiz_cm=ficha.profundidad_raiz_cm,
         aptitud_suelo=dict(ficha.aptitud_suelo) if ficha.aptitud_suelo else None,
+        imagen=ficha.imagen,
+        imagen_fuente=ficha.imagen_fuente,
+        imagen_credito=ficha.imagen_credito,
     )
 
 

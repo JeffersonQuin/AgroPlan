@@ -30,6 +30,11 @@ class CultivoOut(BaseModel):
     origen: str = "humano"
     revisado_en: datetime | None = None
     fuentes: list[dict] | None = None
+    # Imagen de la ficha curada del cultivo; ``None`` deja que el informe use el
+    # placeholder con la inicial y el color del cultivo.
+    imagen_url: str | None = None
+    # Atribución de la licencia de esa foto, para mostrarla debajo.
+    imagen_credito: str | None = None
 
 
 class SueloOut(BaseModel):

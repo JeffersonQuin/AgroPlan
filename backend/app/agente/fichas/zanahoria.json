@@ -15,6 +15,8 @@
   "densidad_plantas_m2": 100,
   "profundidad_raiz_cm": 30,
   "notas": "Raíz pivotante: necesita suelo suelto y sin piedras para no deformarse.",
+  "imagen": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Vegetable-Carrot-Bundle-wStalks.jpg/1280px-Vegetable-Carrot-Bundle-wStalks.jpg",
+  "imagen_fuente": "https://commons.wikimedia.org/wiki/File:Vegetable-Carrot-Bundle-wStalks.jpg",
   "aptitud_suelo": {
     "franco": {
       "veredicto": "apto",
@@ -74,5 +76,6 @@
       "url": null,
       "fragmento": "Demanda, ciclo y aptitud de suelo de arranque"
     }
-  ]
+  ],
+  "imagen_credito": "Foto: Evan-Amos / Wikimedia Commons, dominio público"
 }

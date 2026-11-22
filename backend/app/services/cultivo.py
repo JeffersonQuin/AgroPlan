@@ -293,6 +293,11 @@ def _resolver_producto(
             }
             for fuente in investigacion.fuentes
         ],
+        # La imagen y su crédito viajan con la ficha: una foto CC sin atribución es
+        # una violación de licencia, así que se copian juntas o no se copian.
+        imagen_url=investigacion.imagen,
+        imagen_fuente_url=investigacion.imagen_fuente,
+        imagen_credito=investigacion.imagen_credito,
     )
     db.add(cultivo)
     db.commit()
