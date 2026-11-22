@@ -146,4 +146,15 @@ describe('CultivosPage (paso 2: sólo recoge datos)', () => {
 
   // La persistencia se prueba en wizard-draft.store.spec.ts: el harness del router
   // sólo permite un montaje por test y ahí no hace falta duplicarlo.
+
+  it('hands the step over to the irrigation route', async () => {
+    const harness = await montar();
+    const html = harness.routeNativeElement as HTMLElement;
+
+    const aSistema = Array.from(
+      html.querySelectorAll('a') as NodeListOf<HTMLAnchorElement>,
+    ).find((enlace) => enlace.textContent?.includes('A Sistema'))!;
+
+    expect(aSistema.getAttribute('href')).toBe('/proyectos/p-1/riego');
+  });
 });

@@ -1,0 +1,125 @@
+<aside class="flex flex-col gap-3 overflow-y-auto max-h-[calc(100vh-9rem)] pr-1">
+  <div class="bg-white rounded-xl border border-agro-border p-4 shadow-sm">
+    <div class="flex items-center gap-2 pb-3 mb-3 border-b border-slate-100">
+      <span class="material-symbols-outlined text-[20px] text-agro-600" aria-hidden="true"
+        >water_drop</span
+      >
+      <div>
+        <h2 class="text-sm font-bold text-slate-800">Restricciones del sistema</h2>
+        <p class="text-[11px] text-slate-400">Paso 3: qué tenés disponible</p>
+      </div>
+    </div>
+
+    <!-- Energía -->
+    <p class="text-xs font-semibold text-slate-700 mb-1.5" id="energia-label">Energía disponible</p>
+    <div class="flex flex-col gap-1.5" role="radiogroup" aria-labelledby="energia-label">
+      @for (opcion of energias; track opcion.value) {
+        <button
+          class="flex items-center gap-2 rounded-lg border px-2.5 py-2 text-left transition-colors"
+          [class]="
+            borrador.energia() === opcion.value
+              ? 'border-agro-500 bg-agro-50 ring-1 ring-agro-500'
+              : 'border-slate-200 hover:border-agro-300'
+          "
+          type="button"
+          role="radio"
+          [attr.aria-checked]="borrador.energia() === opcion.value"
+          [attr.data-energia]="opcion.value"
+          (click)="elegirEnergia(opcion.value)"
+        >
+          <span
+            class="material-symbols-outlined text-[18px] shrink-0"
+            [class]="borrador.energia() === opcion.value ? 'text-agro-600' : 'text-slate-400'"
+            aria-hidden="true"
+            >{{ opcion.icono }}</span
+          >
+          <span class="min-w-0">
+            <span class="block text-xs font-bold text-slate-800">{{ opcion.label }}</span>
+            <span class="block text-[10px] text-slate-500 leading-snug">{{ opcion.detalle }}</span>
+          </span>
+        </button>
+      }
+    </div>
+
+    <!-- Almacenamiento: la pregunta depende de la fuente que declaró el paso 1 -->
+    @if (store.fuenteEsDeposito()) {
+      <div class="mt-3.5">
+        <label class="block text-xs font-semibold text-slate-700 mb-1.5" for="tanque">
+          Capacidad de tu {{ store.fuenteDepositoLabel() }}
+        </label>
+        <select
+          class="w-full text-xs font-medium rounded-lg border-slate-300 focus:border-agro-500 focus:ring-1 focus:ring-agro-500 py-2 bg-white"
+          id="tanque"
+          [value]="borrador.tanqueL() === null ? '' : borrador.tanqueL()"
+          (change)="elegirTanque($any($event.target).value)"
+        >
+          @for (opcion of tanquesDeposito; track opcion.label) {
+            <option [value]="opcion.value === null ? '' : opcion.value">{{ opcion.label }}</option>
+          }
+        </select>
+        <p class="text-[10px] text-slate-400 mt-1">
+          El paso 1 ya declara {{ store.fuenteDepositoLabel() }} como fuente: acá sólo falta cuánto
+          guarda. Su capacidad define la autonomía de cada turno de riego.
+        </p>
+      </div>
+    } @else {
+      <div class="mt-3.5">
+        <label class="block text-xs font-semibold text-slate-700 mb-1.5" for="tanque">
+          ¿Ya tenés tanque?
+        </label>
+        <select
+          class="w-full text-xs font-medium rounded-lg border-slate-300 focus:border-agro-500 focus:ring-1 focus:ring-agro-500 py-2 bg-white"
+          id="tanque"
+          [value]="borrador.tanqueL() === null ? '' : borrador.tanqueL()"
+          (change)="elegirTanque($any($event.target).value)"
+        >
+          @for (opcion of tanques; track opcion.label) {
+            <option [value]="opcion.value === null ? '' : opcion.value">{{ opcion.label }}</option>
+          }
+        </select>
+        <p class="text-[10px] text-slate-400 mt-1">
+          El tanque es el depósito de cabecera, no la fuente: el pozo lo llena. Desacopla la bomba
+          de los turnos, estabiliza la presión y te da autonomía si la bomba es solar. Si no tenés,
+          el agente propone uno que entre en el presupuesto.
+        </p>
+      </div>
+    }
+
+    <!-- Presupuesto -->
+    <div class="mt-3.5 pt-3 border-t border-slate-100">
+      <label class="flex items-center gap-1.5 text-xs font-semibold text-slate-700 mb-1.5" for="presupuesto">
+        Presupuesto
+        <span class="text-[9px] font-bold uppercase tracking-wide text-slate-400">opcional</span>
+      </label>
+      <div class="flex items-center gap-1.5">
+        <input
+          class="flex-1 text-xs rounded-lg border-slate-300 py-2 focus:border-agro-500 focus:ring-1 focus:ring-agro-500"
+          id="presupuesto"
+          type="number"
+          min="0"
+          step="50"
+          inputmode="numeric"
+          placeholder="Ej: 1500"
+          [value]="borrador.presupuestoBs() ?? ''"
+          (input)="onPresupuesto($any($event.target).value)"
+        />
+        <span class="text-xs font-bold text-slate-500 shrink-0">Bs</span>
+      </div>
+
+      @if (borrador.presupuestoBajoElPiso()) {
+        <p class="text-[10px] text-amber-700 font-semibold mt-1.5" role="alert">
+          El mínimo para un sistema de riego es {{ presupuestoMinimo }} Bs; ese monto no se manda
+          al agente.
+        </p>
+      } @else {
+        <p class="text-[10px] text-slate-400 mt-1.5">
+          Si ponés un presupuesto, el agente elige los materiales dentro de ese presupuesto.
+        </p>
+      }
+    </div>
+  </div>
+
+  <p class="text-[10px] text-slate-400 px-1 leading-snug">
+    Este paso no consulta al agente: sólo guarda lo que tenés disponible.
+  </p>
+</aside>
