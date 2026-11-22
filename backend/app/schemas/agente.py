@@ -8,10 +8,16 @@ sectores, red y cómputo. Un LLM que devuelve coordenadas devuelve ficción.
 import hashlib
 import json
 import uuid
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_validator,
+)
 
 from app.models.enums import (
     EstadoProyecto,
@@ -468,13 +474,21 @@ class RecomendacionUpdate(BaseModel):
 
 
 class CorridaOut(BaseModel):
-    """Estado de una corrida para el polling del frontend."""
+    """Estado de una corrida para el polling del frontend.
+
+    ``fase`` y ``fase_desde`` dicen en qué paso está el backend y desde cuándo: el
+    frontend cronometra desde ``fase_desde``, así recargar la página no reinicia ni
+    infla el conteo. Las corridas viejas, anteriores a estas columnas, llegan con
+    ``None`` en las dos.
+    """
 
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
     proyecto_id: uuid.UUID
     estado: str
+    fase: str | None = None
+    fase_desde: datetime | None = None
     modelo: str | None = None
     motor_version: str
     prompt_version: str
@@ -485,6 +499,20 @@ class CorridaOut(BaseModel):
     error_detalle: str | None = None
     iniciado_en: datetime
     terminado_en: datetime | None = None
+
+    @field_validator("fase_desde", mode="after")
+    @classmethod
+    def _con_zona(cls, valor: datetime | None) -> datetime | None:
+        """La hora siempre sale con zona, aunque el motor de base no la conserve.
+
+        SQLite guarda ``DateTime(timezone=True)`` sin zona y la devuelve naive; la
+        API promete una marca ISO con offset para que el cronómetro del frontend
+        tenga una referencia única.
+        """
+
+        if valor is None or valor.tzinfo is not None:
+            return valor
+        return valor.replace(tzinfo=timezone.utc)
 
 
 class CorridaDetalleOut(CorridaOut):

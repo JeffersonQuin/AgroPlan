@@ -70,6 +70,13 @@ class AgenteCorrida(Base):
     tokens_salida: Mapped[int | None] = mapped_column(Integer, nullable=True)
     duracion_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     error_detalle: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Fase del proceso y desde cuándo está en ella: con el modelo tardando casi todo
+    # el minuto y medio, el polling necesita algo más que ``estado`` para mostrar
+    # avance. ``NULL`` en las corridas viejas, anteriores a estas columnas.
+    fase: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    fase_desde: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     iniciado_en: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
