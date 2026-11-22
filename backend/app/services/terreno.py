@@ -10,6 +10,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from decimal import Decimal
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models.enums import FuenteAgua, OrigenCaudal
@@ -134,7 +135,21 @@ def crear_terreno(db: Session, proyecto: Proyecto, data: TerrenoIn) -> TerrenoOu
             else None
         ),
     )
-    terreno = terreno_repo.create(db, terreno)
+    try:
+        terreno = terreno_repo.create(db, terreno)
+    except IntegrityError as exc:
+        # Dos guardados simultáneos miraron antes de que el otro insertara y el UNIQUE
+        # de proyecto_id resolvió la carrera. El cliente reintenta como PATCH cuando ve
+        # 409, así que se responde el contrato y no un 500 con la traza del INSERT.
+        db.rollback()
+        # Sólo es una carrera si el terreno existe de verdad: otro IntegrityError (una
+        # FK, un NOT NULL) es un bug y no se disfraza de "ya tiene terreno".
+        if terreno_repo.get_by_proyecto(db, proyecto.id) is None:
+            raise
+        raise TerrenoServiceError(
+            409, "El proyecto ya tiene terreno; usa PATCH"
+        ) from exc
+
     riego_service.invalidar_diseno(db, proyecto.id)
     return terreno_out(terreno)
 

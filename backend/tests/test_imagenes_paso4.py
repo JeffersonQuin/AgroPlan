@@ -155,7 +155,7 @@ def test_el_cargador_lee_la_imagen_y_su_fuente(fichas_temporales: Path) -> None:
     assert ficha.imagen_credito == CREDITO_FICHA
 
 
-def test_las_14_fichas_reales_traen_imagen_y_credito() -> None:
+def test_las_fichas_reales_traen_imagen_y_credito() -> None:
     """Protege contra un JSON roto o una foto sin su atribución obligatoria."""
 
     fichas_agente._cargar.cache_clear()
@@ -164,7 +164,7 @@ def test_las_14_fichas_reales_traen_imagen_y_credito() -> None:
     finally:
         fichas_agente._cargar.cache_clear()
 
-    assert len(lista) == 14
+    assert len(lista) == 15
     for ficha in lista:
         assert ficha.imagen is not None, ficha.codigo
         partes = urlparse(ficha.imagen)

@@ -49,6 +49,11 @@
       <span class="font-semibold text-slate-800">{{ etiquetaActual() }}</span>
       <span class="text-slate-400">·</span>
       <span class="font-bold tabular-nums" data-cronometro>{{ cronometro() }}</span>
+      <!-- Techo de espera publicado por el backend (`timeout_s`): no es una estimación (S2) y
+           sólo aplica a la consulta al modelo, que es la que puede agotarlo. -->
+      @if (timeoutS() !== null && enEsperaDelModelo()) {
+        <span class="tabular-nums" data-presupuesto-espera>/ {{ timeoutS() }} s</span>
+      }
       en esta fase
     </p>
   }

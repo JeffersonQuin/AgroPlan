@@ -189,7 +189,7 @@ Preferimos decirlo nosotros:
 
 - La **presión de la red** se estima con una fórmula simple a partir de la bomba; todavía no calcula pérdidas por tramo.
 - El **plano gráfico** se ve en la aplicación; en el PDF figura como pendiente.
-- El **catálogo de cultivos** está curado a 14 fichas; fuera de ahí, la recomendación baja de nivel y lo advierte.
+- El **catálogo de cultivos** está curado a 15 fichas; fuera de ahí, la recomendación baja de nivel y lo advierte.
 - Los **precios de materiales** vienen de una base con origen y fecha, no de un cotizador en vivo.
 
 Lo que sí hace, lo hace completo y decirlo: eso también es parte del producto.
