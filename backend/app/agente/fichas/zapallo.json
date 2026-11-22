@@ -12,6 +12,8 @@
     10
   ],
   "notas": "Rastrero de cobertura rápida; demanda alta en fructificación. Ficha curada de un cultivo que no está en el catálogo sembrado.",
+  "imagen": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/44/Cucurbita_2018_G1.jpg/1280px-Cucurbita_2018_G1.jpg",
+  "imagen_fuente": "https://commons.wikimedia.org/wiki/File:Cucurbita_2018_G1.jpg",
   "fuentes": [
     {
       "tipo": "manual",
@@ -74,5 +76,6 @@
       "motivo": "Muy buen desarrollo con alta fertilidad.",
       "fuente": "Ficha curada AgroPlan"
     }
-  }
+  },
+  "imagen_credito": "Foto: George Chernilevsky / Wikimedia Commons, dominio público"
 }

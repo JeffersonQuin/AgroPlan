@@ -14,6 +14,8 @@
   "densidad_plantas_m2": 0.4,
   "profundidad_raiz_cm": 100,
   "notas": "Vid de mesa o vinificación; tolera sequía moderada y suelos pedregosos.",
+  "imagen": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/Cabernet_Sauvignon_Gaillac.jpg/1280px-Cabernet_Sauvignon_Gaillac.jpg",
+  "imagen_fuente": "https://commons.wikimedia.org/wiki/File:Cabernet_Sauvignon_Gaillac.jpg",
   "aptitud_suelo": {
     "franco": {
       "veredicto": "apto",
@@ -73,5 +75,6 @@
       "url": null,
       "fragmento": "Demanda, ciclo y aptitud de suelo de arranque"
     }
-  ]
+  ],
+  "imagen_credito": "Foto: BerndtF / Wikimedia Commons, CC BY-SA 3.0"
 }

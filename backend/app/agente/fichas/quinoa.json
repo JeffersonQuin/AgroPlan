@@ -12,6 +12,8 @@
     10
   ],
   "notas": "Cultivo andino tolerante a la salinidad y a la sequía; no soporta anegamiento. Ficha curada de un cultivo que no está en el catálogo sembrado.",
+  "imagen": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/96/Reismelde.jpg/1280px-Reismelde.jpg",
+  "imagen_fuente": "https://commons.wikimedia.org/wiki/File:Reismelde.jpg",
   "fuentes": [
     {
       "tipo": "manual",
@@ -74,5 +76,6 @@
       "motivo": "Exceso de vigor puede provocar vuelco.",
       "fuente": "Ficha curada AgroPlan"
     }
-  }
+  },
+  "imagen_credito": "Foto: MarkusHagenlocher / Wikimedia Commons, CC BY-SA 3.0"
 }

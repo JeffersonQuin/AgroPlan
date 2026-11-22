@@ -12,6 +12,8 @@
     10
   ],
   "notas": "Tolera suelos francos; sensible a exceso de humedad.",
+  "imagen": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Patates.jpg/1280px-Patates.jpg",
+  "imagen_fuente": "https://commons.wikimedia.org/wiki/File:Patates.jpg",
   "fuentes": [
     {
       "tipo": "manual",
@@ -74,5 +76,6 @@
       "motivo": "Buena fertilidad y estructura para el cultivo.",
       "fuente": "Ficha curada AgroPlan"
     }
-  }
+  },
+  "imagen_credito": "Foto: Scott Bauer, USDA ARS / Wikimedia Commons, dominio público"
 }

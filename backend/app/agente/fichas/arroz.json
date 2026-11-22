@@ -13,6 +13,8 @@
   "densidad_plantas_m2": 250,
   "profundidad_raiz_cm": 30,
   "notas": "En Bolivia se cultiva en Santa Cruz y Beni; tolera anegamiento temporal.",
+  "imagen": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0a/20201102.Hengnan.Hybrid_rice_Sanyou-1.6.jpg/1280px-20201102.Hengnan.Hybrid_rice_Sanyou-1.6.jpg",
+  "imagen_fuente": "https://commons.wikimedia.org/wiki/File:20201102.Hengnan.Hybrid_rice_Sanyou-1.6.jpg",
   "aptitud_suelo": {
     "franco": {
       "veredicto": "apto",
@@ -72,5 +74,6 @@
       "url": null,
       "fragmento": "Demanda, ciclo y aptitud de suelo de arranque"
     }
-  ]
+  ],
+  "imagen_credito": "Foto: China News Service / Wikimedia Commons, CC BY 3.0"
 }
