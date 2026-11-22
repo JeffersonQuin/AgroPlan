@@ -691,4 +691,56 @@ describe('ResumenPage (paso 4: secciones del informe)', () => {
     );
     expect(avisos.length).toBe(1);
   });
+
+  it('las nueve secciones cuelgan del contenedor, una sola vez y sin utilidades que las oculten', async () => {
+    const pagina = await montar(resultadoCompleto());
+    const secciones = html('[data-secciones-informe]', pagina);
+    const hooks = [
+      'data-seccion-terreno',
+      'data-seccion-zonificacion',
+      'data-seccion-tecnologia',
+      'data-plano-red',
+      'data-seccion-balance',
+      'data-seccion-computo',
+      'data-seccion-calendario',
+      'data-seccion-recomendaciones',
+      'data-seccion-fuentes',
+    ];
+
+    for (const hook of hooks) {
+      expect(secciones.querySelectorAll(`[${hook}]`).length).toBe(1);
+      // Ninguna sección puede quedar fuera del contenedor del informe.
+      expect(pagina.querySelectorAll(`[${hook}]`).length).toBe(1);
+      const seccion = html(`[${hook}]`, secciones);
+      // Se compara por token: `overflow-hidden` no cuenta como una utilidad que oculta.
+      for (const utilidad of ['hidden', 'sr-only', 'invisible', 'opacity-0']) {
+        expect(seccion.classList.contains(utilidad)).toBe(false);
+      }
+    }
+
+    // Zonificación y cómputo ocupan una fila propia a todo el ancho: en la columna de
+    // 320 px la tabla del cómputo se recortaba y la tira de bloques se apilaba entera.
+    expect(secciones.querySelector(':scope > app-zonificacion-informe')).not.toBeNull();
+    expect(secciones.querySelector(':scope > app-computo-informe')).not.toBeNull();
+
+    // Recomendaciones, calendario y fuentes comparten la última fila.
+    const ultimaFila = secciones.lastElementChild as HTMLElement;
+    expect(ultimaFila.className).toContain('xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]');
+    expect(ultimaFila.querySelector(':scope > app-recomendaciones-informe')).not.toBeNull();
+    expect(ultimaFila.querySelector(':scope > div > app-calendario-informe')).not.toBeNull();
+    expect(ultimaFila.querySelector(':scope > div > app-fuentes-informe')).not.toBeNull();
+  });
+
+  it('las recomendaciones conservan cada ítem completo en dos columnas', async () => {
+    const pagina = await montar(resultadoCompleto());
+    const lista = html('[data-seccion-recomendaciones]', pagina).querySelector('ul') as HTMLElement;
+
+    expect(lista.className).toContain('xl:columns-2');
+    const items = Array.from(lista.querySelectorAll('[data-recomendacion]'));
+    expect(items.length).toBeGreaterThan(0);
+    for (const item of items) {
+      // Un ítem no puede partirse entre las dos columnas.
+      expect(item.className).toContain('xl:break-inside-avoid');
+    }
+  });
 });
